@@ -1,0 +1,74 @@
+@model LoginViewModel
+
+@{
+    ViewData["Title"] = "Login";
+    ViewData["HideChrome"] = true;
+}
+
+<section class="auth-section">
+    <div class="container auth-container">
+        <div class="auth-shell auth-shell-login">
+            <div class="auth-panel auth-panel-form">
+                <div class="auth-form-wrap">
+                    <h1>Welcome Back &#128075;</h1>
+                    <p class="auth-copy">
+                        Today is a new day. It's your day. You shape it.<br />
+                        Sign in to start managing your projects.
+                    </p>
+
+                    <form asp-action="Login" method="post" class="auth-form">
+                        @Html.AntiForgeryToken()
+                        <div asp-validation-summary="ModelOnly" class="text-danger small auth-form-span"></div>
+
+                        <div class="auth-field-wrap">
+                            <label asp-for="Email" class="form-label">Email</label>
+                            <input asp-for="Email" class="form-control bakery-field auth-field" placeholder="Example@email.com" />
+                            <span asp-validation-for="Email" class="text-danger small"></span>
+                        </div>
+
+                        <div class="auth-field-wrap">
+                            <label asp-for="Password" class="form-label">Password</label>
+                            <input asp-for="Password" class="form-control bakery-field auth-field" placeholder="At least 8 characters" />
+                            <span asp-validation-for="Password" class="text-danger small"></span>
+                            <div class="auth-helper-row">
+                                <a href="#">Forgot Password?</a>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn auth-submit w-100">Sign in</button>
+                    </form>
+
+                    <div class="auth-divider">
+                        <span>Or</span>
+                    </div>
+
+                    <div class="auth-socials">
+                        <button type="button" class="btn auth-social-btn">
+                            <span class="auth-social-icon auth-social-icon-google">G</span>
+                            Sign in with Google
+                        </button>
+                        <button type="button" class="btn auth-social-btn">
+                            <span class="auth-social-icon auth-social-icon-facebook">f</span>
+                            Sign in with Facebook
+                        </button>
+                    </div>
+
+                    <p class="auth-switch auth-switch-center">
+                        Don't you have an account?
+                        <a asp-action="Register">Sign up</a>
+                    </p>
+
+                    <p class="auth-copyright">&copy; 2023 ALL RIGHTS RESERVED</p>
+                </div>
+            </div>
+
+            <div class="auth-panel auth-panel-image">
+                <div class="auth-reference-image" aria-hidden="true"></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

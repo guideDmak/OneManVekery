@@ -1,0 +1,106 @@
+@model ContactPageViewModel
+
+@{
+    ViewData["Title"] = "Contact";
+}
+
+<section class="page-banner">
+    <div class="container bakery-container">
+        <div class="page-banner-card">
+            <p class="page-banner-brand">One Man Vekery</p>
+            <h1>Contact</h1>
+            <p class="page-banner-crumb">
+                <a asp-action="Index">Home</a>
+                <span>&gt;</span>
+                <strong>Contact</strong>
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="contact-page-section">
+    <div class="container bakery-container">
+        <div class="section-heading section-heading-center contact-heading">
+            <h2>Get In Touch With Us</h2>
+            <p>
+                For more information about our bakery items and custom cake service,
+                feel free to send us a message. We keep the layout close to the PDF but adapt it for the shop.
+            </p>
+        </div>
+
+        <div class="contact-page-grid">
+            <div class="contact-info-stack">
+                @foreach (var card in Model.ContactCards)
+                {
+                    <article class="contact-info-card">
+                        <span class="contact-info-icon">@card.IconText</span>
+                        <div>
+                            <h3>@card.Title</h3>
+                            <p>@card.LineOne</p>
+                            <p>@card.LineTwo</p>
+                        </div>
+                    </article>
+                }
+            </div>
+
+            <div class="contact-form-card">
+                <form asp-action="Contact" method="post" class="contact-form-grid">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="text-danger small form-span-full"></div>
+
+                    <div>
+                        <label asp-for="Form.Name" class="form-label">Your name</label>
+                        <input asp-for="Form.Name" class="form-control bakery-field" placeholder="Abc" />
+                        <span asp-validation-for="Form.Name" class="text-danger small"></span>
+                    </div>
+
+                    <div>
+                        <label asp-for="Form.PhoneNumber" class="form-label">Phone</label>
+                        <input asp-for="Form.PhoneNumber" class="form-control bakery-field" placeholder="089-000-1122" />
+                        <span asp-validation-for="Form.PhoneNumber" class="text-danger small"></span>
+                    </div>
+
+                    <div class="form-span-full">
+                        <label asp-for="Form.Email" class="form-label">Email address</label>
+                        <input asp-for="Form.Email" class="form-control bakery-field" placeholder="abc@def.com" />
+                        <span asp-validation-for="Form.Email" class="text-danger small"></span>
+                    </div>
+
+                    <div class="form-span-full">
+                        <label asp-for="Form.Subject" class="form-label">Subject</label>
+                        <input asp-for="Form.Subject" class="form-control bakery-field" placeholder="This is optional" />
+                    </div>
+
+                    <div class="form-span-full">
+                        <label asp-for="Form.Message" class="form-label">Message</label>
+                        <textarea asp-for="Form.Message" class="form-control bakery-field bakery-field-area" placeholder="Hi! I'd like to ask about"></textarea>
+                        <span asp-validation-for="Form.Message" class="text-danger small"></span>
+                    </div>
+
+                    <button type="submit" class="btn store-primary-btn form-span-full contact-submit-btn">Submit</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="feature-strip feature-strip-soft">
+    <div class="container bakery-container">
+        <div class="feature-strip-grid">
+            @foreach (var feature in Model.Features)
+            {
+                <article class="feature-strip-item">
+                    <span>@feature.IconText</span>
+                    <div>
+                        <h3>@feature.Title</h3>
+                        <p>@feature.Description</p>
+                    </div>
+                </article>
+            }
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

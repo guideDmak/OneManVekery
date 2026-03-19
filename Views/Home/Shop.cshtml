@@ -1,0 +1,128 @@
+@model ShopPageViewModel
+
+@{
+    ViewData["Title"] = "Shop";
+}
+
+<section class="page-banner">
+    <div class="container bakery-container">
+        <div class="page-banner-card">
+            <p class="page-banner-brand">One Man Vekery</p>
+            <h1>Shop</h1>
+            <p class="page-banner-crumb">
+                <a asp-action="Index">Home</a>
+                <span>&gt;</span>
+                <strong>Shop</strong>
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="shop-toolbar">
+    <div class="container bakery-container">
+        <div class="shop-toolbar-shell">
+            <div class="shop-toolbar-left">
+                <span class="shop-toolbar-tag">Filter</span>
+                <p>Showing 1-@Model.Products.Count of @Model.Products.Count results</p>
+            </div>
+
+            <div class="shop-toolbar-right">
+                <div class="shop-toolbar-box">
+                    <span>Show</span>
+                    <strong>@Model.Products.Count</strong>
+                </div>
+                <div class="shop-toolbar-box">
+                    <span>Sort by</span>
+                    <strong>Popular</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="shop-catalog-section">
+    <div class="container bakery-container">
+        <div class="search-panel" data-product-search>
+            <div class="search-inputs">
+                <div>
+                    <label for="shopSearch" class="form-label">Search bakery item</label>
+                    <input id="shopSearch" class="form-control bakery-field" type="search" placeholder="cake, macaron, choux" data-search-input />
+                </div>
+                <div>
+                    <label for="shopCategory" class="form-label">Category</label>
+                    <select id="shopCategory" class="form-select bakery-field" data-category-input>
+                        <option value="all">All category</option>
+                        <option value="Cake">Cake</option>
+                        <option value="Macaron">Macaron</option>
+                        <option value="Choux Cream">Choux Cream</option>
+                        <option value="Bakery">Bakery</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="catalog-grid" data-product-list>
+                @foreach (var product in Model.Products)
+                {
+                    <article class="catalog-card theme-@product.ThemeKey @(product.IsSoldOut ? "is-sold-out" : string.Empty)"
+                             data-product-card
+                             data-name="@($"{product.Name} {product.Description}".ToLowerInvariant())"
+                             data-category="@product.Category">
+                        <div class="catalog-thumb">
+                            <img src="@Url.Content(product.ImagePath)" alt="@product.Name" class="catalog-image" />
+                            @if (!string.IsNullOrWhiteSpace(product.Badge))
+                            {
+                                <span class="catalog-badge @(product.IsSoldOut ? "catalog-badge-dark" : string.Empty)">@product.Badge</span>
+                            }
+                        </div>
+
+                        <div class="catalog-body">
+                            <h3>@product.Name</h3>
+                            <p class="catalog-category">@product.Category</p>
+                            <p class="catalog-description">@product.Description</p>
+
+                            <div class="catalog-price">
+                                <strong>@product.Price.ToString("0") ฿</strong>
+                                @if (product.OriginalPrice.HasValue)
+                                {
+                                    <span>@product.OriginalPrice.Value.ToString("0") ฿</span>
+                                }
+                            </div>
+
+                            <button type="button" class="btn store-card-btn" @(product.IsSoldOut ? "disabled" : null)>
+                                @(product.IsSoldOut ? "Sold Out" : "Add to cart")
+                            </button>
+                        </div>
+                    </article>
+                }
+            </div>
+
+            <div class="empty-products d-none" data-empty-state>
+                สินค้าไม่มี
+            </div>
+        </div>
+
+        <div class="shop-pagination">
+            <span class="active">1</span>
+            <span>2</span>
+            <span>3</span>
+            <span class="next">Next</span>
+        </div>
+    </div>
+</section>
+
+<section class="feature-strip feature-strip-soft">
+    <div class="container bakery-container">
+        <div class="feature-strip-grid">
+            @foreach (var feature in Model.Features)
+            {
+                <article class="feature-strip-item">
+                    <span>@feature.IconText</span>
+                    <div>
+                        <h3>@feature.Title</h3>
+                        <p>@feature.Description</p>
+                    </div>
+                </article>
+            }
+        </div>
+    </div>
+</section>

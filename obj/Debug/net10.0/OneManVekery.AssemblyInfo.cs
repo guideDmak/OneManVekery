@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("OneManVekery")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7d249c25db447db0625c89b6b207a7b4d047c039")]
 [assembly: System.Reflection.AssemblyProductAttribute("OneManVekery")]
 [assembly: System.Reflection.AssemblyTitleAttribute("OneManVekery")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

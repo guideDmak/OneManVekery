@@ -1,0 +1,71 @@
+@model RegisterViewModel
+
+@{
+    ViewData["Title"] = "Register";
+    ViewData["HideChrome"] = true;
+}
+
+<section class="auth-section">
+    <div class="container auth-container">
+        <div class="auth-shell auth-shell-register">
+            <div class="auth-panel auth-panel-form">
+                <div class="auth-form-wrap">
+                    <h1>Create Account</h1>
+                    <p class="auth-copy">
+                        Sign up to save your favorite bakery items and continue your order easily.
+                    </p>
+
+                    <form asp-action="Register" method="post" class="auth-form auth-form-register">
+                        @Html.AntiForgeryToken()
+                        <div asp-validation-summary="ModelOnly" class="text-danger small auth-form-span"></div>
+
+                        <div class="auth-field-wrap">
+                            <label asp-for="FullName" class="form-label">Full name</label>
+                            <input asp-for="FullName" class="form-control bakery-field auth-field" placeholder="Your full name" />
+                            <span asp-validation-for="FullName" class="text-danger small"></span>
+                        </div>
+
+                        <div class="auth-field-wrap">
+                            <label asp-for="Email" class="form-label">Email</label>
+                            <input asp-for="Email" class="form-control bakery-field auth-field" placeholder="Example@email.com" />
+                            <span asp-validation-for="Email" class="text-danger small"></span>
+                        </div>
+
+                        <div class="auth-field-wrap">
+                            <label asp-for="PhoneNumber" class="form-label">Phone number</label>
+                            <input asp-for="PhoneNumber" class="form-control bakery-field auth-field" placeholder="08x-xxx-xxxx" />
+                            <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
+                        </div>
+
+                        <div class="auth-field-wrap">
+                            <label asp-for="Password" class="form-label">Password</label>
+                            <input asp-for="Password" class="form-control bakery-field auth-field" placeholder="At least 8 characters" />
+                            <span asp-validation-for="Password" class="text-danger small"></span>
+                        </div>
+
+                        <div class="auth-field-wrap">
+                            <label asp-for="ConfirmPassword" class="form-label">Confirm password</label>
+                            <input asp-for="ConfirmPassword" class="form-control bakery-field auth-field" placeholder="Type your password again" />
+                            <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+                        </div>
+
+                        <button type="submit" class="btn auth-submit w-100 auth-form-span">Create account</button>
+                    </form>
+
+                    <p class="auth-switch auth-switch-center auth-switch-register">
+                        Already have an account?
+                        <a asp-action="Login">Sign in</a>
+                    </p>
+                </div>
+            </div>
+
+            <div class="auth-panel auth-panel-image">
+                <div class="auth-reference-image" aria-hidden="true"></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

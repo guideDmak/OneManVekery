@@ -1,0 +1,133 @@
+@model AdminProductsViewModel
+
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Products";
+    ViewData["AdminDateRange"] = Model.DateRangeLabel;
+    ViewData["AdminSection"] = "Products";
+}
+
+<section class="admin-metrics-grid">
+    @foreach (var metric in Model.Metrics)
+    {
+        <article class="admin-card admin-metric-card">
+            <p class="admin-card-label">@metric.Label</p>
+            <div class="admin-metric-row">
+                <strong>@metric.Value</strong>
+                <span class="admin-metric-delta @(metric.PositiveTrend ? "is-positive" : "is-negative")">@metric.Delta</span>
+            </div>
+            <div class="admin-sparkline @($"is-{metric.AccentKey}")">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </article>
+    }
+</section>
+
+<section class="admin-page-banner">
+    <div>
+        <p class="admin-page-kicker">Products</p>
+        <h2>@Model.ProductName</h2>
+        <span>@Model.Category</span>
+    </div>
+    <span class="admin-pill-tag">@Model.ProductCaption</span>
+</section>
+
+<section class="admin-detail-grid">
+    <article class="admin-card admin-product-card">
+        <div class="admin-product-preview">
+            <span>BK</span>
+        </div>
+
+        <h3>@Model.ProductName</h3>
+        <p>@Model.Category</p>
+
+        <div class="admin-summary-list">
+            @foreach (var item in Model.SummaryItems)
+            {
+                <div class="admin-summary-row">
+                    <div>
+                        <small>@item.Label</small>
+                        <strong>@item.Value</strong>
+                    </div>
+                    <span>@item.Detail</span>
+                </div>
+            }
+        </div>
+    </article>
+
+    <article class="admin-card admin-revenue-card">
+        <div class="admin-card-head">
+            <div>
+                <h2>@Model.RevenueLabel</h2>
+                <div class="admin-chart-value">
+                    <strong>@Model.RevenueValue</strong>
+                    <span class="is-positive">@Model.RevenueDelta</span>
+                </div>
+            </div>
+            <a href="#">View Details</a>
+        </div>
+
+        <div class="admin-orders-chart admin-orders-chart-detail">
+            @foreach (var point in Model.RevenueChart)
+            {
+                <div class="admin-orders-chart-column">
+                    <div class="admin-orders-chart-track">
+                        <span class="admin-orders-chart-bar @(point.IsHighlighted ? "is-highlighted" : string.Empty)" style="height:@($"{point.Value}%")"></span>
+                    </div>
+                    <small>@point.Label</small>
+                </div>
+            }
+        </div>
+    </article>
+</section>
+
+<section class="admin-orders-section">
+    <article class="admin-card">
+        <div class="admin-card-head">
+            <h2>Orders</h2>
+            <a href="#">More</a>
+        </div>
+
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Orders</th>
+                        <th>Customers</th>
+                        <th>Qty</th>
+                        <th>Date</th>
+                        <th>Revenue</th>
+                        <th>Net Profit</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var order in Model.Orders)
+                    {
+                        <tr>
+                            <td>@order.OrderId</td>
+                            <td>@order.Customer</td>
+                            <td>@order.Quantity</td>
+                            <td>@order.Date</td>
+                            <td>@order.Revenue</td>
+                            <td>@order.NetProfit</td>
+                            <td>
+                                <span class="admin-status-badge @($"is-{order.Status.ToLowerInvariant()}")">@order.Status</span>
+                            </td>
+                            <td>
+                                <div class="admin-actions">
+                                    <button type="button">View</button>
+                                    <button type="button">Edit</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>

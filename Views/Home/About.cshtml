@@ -1,0 +1,98 @@
+@model AboutPageViewModel
+
+@{
+    ViewData["Title"] = "About";
+}
+
+<section class="page-banner">
+    <div class="container bakery-container">
+        <div class="page-banner-card">
+            <p class="page-banner-brand">One Man Vekery</p>
+            <h1>About</h1>
+            <p class="page-banner-crumb">
+                <a asp-action="Index">Home</a>
+                <span>&gt;</span>
+                <strong>About</strong>
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="about-story-section">
+    <div class="container bakery-container">
+        <div class="about-story-grid">
+            <div class="about-story-copy">
+                <p class="section-overline">Our Story</p>
+                <h2>Baked in a soft pink mood</h2>
+                <p>
+                    One Man Vekery เป็นร้านขนมที่อยากให้ทุกหน้าของเว็บรู้สึกละมุนแบบเดียวกับกล่องขนมของร้าน
+                    เราเลยใช้เส้นสายเรียบ ๆ แบบดีไซน์ใน PDF แล้วแปลงให้กลายเป็นแบรนด์เบเกอรี่โทนชมพู-ขาว
+                </p>
+                <p>
+                    ตั้งใจให้ลูกค้าเข้ามาเลือกขนมง่าย เห็นเมนูชัด ราคาอ่านง่าย และรู้สึกถึงความอบอุ่นของร้านตั้งแต่หน้าแรกจนถึงการติดต่อกลับ
+                </p>
+            </div>
+
+            <div class="about-story-card">
+                <p>“We bake simple sweets that still feel special.”</p>
+                <span>Signature concept for cakes, macarons and daily pastry boxes</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="about-stats-section">
+    <div class="container bakery-container">
+        <div class="about-stats-grid">
+            @foreach (var stat in Model.Stats)
+            {
+                <article class="about-stat-card">
+                    <strong>@stat.Value</strong>
+                    <span>@stat.Label</span>
+                </article>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="about-values-section">
+    <div class="container bakery-container">
+        <div class="section-heading section-heading-center">
+            <h2>What makes our bakery feel like us</h2>
+        </div>
+
+        <div class="about-values-grid">
+            @foreach (var value in Model.Values)
+            {
+                <article class="about-value-card">
+                    <span>@value.IconText</span>
+                    <h3>@value.Title</h3>
+                    <p>@value.Description</p>
+                </article>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="about-process-section">
+    <div class="container bakery-container">
+        <div class="section-heading section-heading-center">
+            <h2>How we prepare each batch</h2>
+        </div>
+
+        <div class="about-process-grid">
+            @foreach (var step in Model.Steps)
+            {
+                <article class="about-process-card">
+                    <span>@step.Number</span>
+                    <h3>@step.Title</h3>
+                    <p>@step.Description</p>
+                </article>
+            }
+        </div>
+
+        <div class="section-action">
+            <a class="btn store-primary-btn" asp-action="Contact">Contact Us</a>
+        </div>
+    </div>
+</section>

@@ -1,8 +1,155 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@model HomeIndexViewModel
+
+@{
+    ViewData["Title"] = "Home";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<section class="store-hero">
+    <div class="container bakery-container">
+        <div class="store-hero-panel">
+            <div class="store-hero-art">
+                <span class="hero-floating hero-floating-top">Freshly baked</span>
+                <div class="store-hero-visual-shell">
+                    <img src="@Url.Content("~/images/hero-bakery.svg")" alt="Bakery collection" class="hero-main-image" />
+
+                    <div class="hero-sweet-board">
+                        <article class="hero-sweet-card theme-cake">
+                            <strong>Strawberry Cake</strong>
+                            <span>Soft cream layers</span>
+                        </article>
+                        <article class="hero-sweet-card theme-macaron">
+                            <strong>Rose Macaron</strong>
+                            <span>Gift box favorite</span>
+                        </article>
+                        <article class="hero-sweet-card theme-gold">
+                            <strong>Butter Croissant</strong>
+                            <span>Morning batch</span>
+                        </article>
+                    </div>
+                </div>
+            </div>
+
+            <div class="store-hero-card">
+                <span class="store-kicker">New Arrival</span>
+                <p class="store-brand-label">One Man Vekery</p>
+                <h1>Discover Our Sweet Collection</h1>
+                <p>
+                    เค้ก มาการอง ชูครีม และขนมอบสดในโทนชมพู-ขาว
+                    ปรับ layout ให้ใกล้กับดีไซน์ใน PDF แต่เปลี่ยนเนื้อหาให้เป็นร้านเบเกอรี่ของเรา
+                </p>
+                <a class="btn store-primary-btn" asp-action="Shop">BUY NOW</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="range-section">
+    <div class="container bakery-container">
+        <div class="section-heading section-heading-center">
+            <p class="section-overline">Sweet selections</p>
+            <h2>Browse The Range</h2>
+            <p>เลือกหมวดขนมตามฟีลที่อยากได้ในวันนั้น ไม่ว่าจะเป็นของฝาก เค้กวันเกิด หรือขนมทานคู่กาแฟ</p>
+        </div>
+
+        <div class="range-grid">
+            @foreach (var category in Model.Categories)
+            {
+                <article class="range-card theme-@category.ThemeKey">
+                    <div class="range-visual">
+                        <img src="@Url.Content(category.ImagePath)" alt="@category.Title" class="range-image" />
+                    </div>
+                    <h3>@category.Title</h3>
+                    <p>@category.Subtitle</p>
+                </article>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="catalog-section">
+    <div class="container bakery-container">
+        <div class="section-heading section-heading-center">
+            <h2>Our Products</h2>
+        </div>
+
+        <div class="catalog-grid">
+            @foreach (var product in Model.Products)
+            {
+                <article class="catalog-card theme-@product.ThemeKey @(product.IsSoldOut ? "is-sold-out" : string.Empty)">
+                    <div class="catalog-thumb">
+                        <img src="@Url.Content(product.ImagePath)" alt="@product.Name" class="catalog-image" />
+                        @if (!string.IsNullOrWhiteSpace(product.Badge))
+                        {
+                            <span class="catalog-badge @(product.IsSoldOut ? "catalog-badge-dark" : string.Empty)">@product.Badge</span>
+                        }
+                    </div>
+
+                    <div class="catalog-body">
+                        <h3>@product.Name</h3>
+                        <p class="catalog-category">@product.Category</p>
+                        <p class="catalog-description">@product.Description</p>
+
+                        <div class="catalog-price">
+                            <strong>@product.Price.ToString("0") ฿</strong>
+                            @if (product.OriginalPrice.HasValue)
+                            {
+                                <span>@product.OriginalPrice.Value.ToString("0") ฿</span>
+                            }
+                        </div>
+
+                        <button type="button" class="btn store-card-btn" @(product.IsSoldOut ? "disabled" : null)>
+                            @(product.IsSoldOut ? "Sold Out" : "Add to cart")
+                        </button>
+                    </div>
+                </article>
+            }
+        </div>
+
+        <div class="section-action">
+            <a class="btn store-outline-btn" asp-action="Shop">Show More</a>
+        </div>
+    </div>
+</section>
+
+<section class="inspiration-section">
+    <div class="container bakery-container">
+        <div class="inspiration-layout">
+            <div class="inspiration-copy">
+                <h2>50+ Sweet table inspirations</h2>
+                <p>จัดโต๊ะขนมให้ดูละมุนขึ้นด้วยชุดมาการอง เค้กผลไม้ และขนมอบสดในโทนชมพู-ครีมแบบร้านของเรา</p>
+                <a class="btn store-primary-btn" asp-action="About">Explore More</a>
+            </div>
+
+            <div class="inspiration-gallery">
+                @foreach (var inspiration in Model.Inspirations)
+                {
+                    <article class="inspiration-card theme-@inspiration.ThemeKey">
+                        <img src="@Url.Content(inspiration.ImagePath)" alt="@inspiration.Title" class="inspiration-image" />
+                        <div class="inspiration-card-copy">
+                            <span>@inspiration.Number</span>
+                            <p>@inspiration.Subtitle</p>
+                            <h3>@inspiration.Title</h3>
+                        </div>
+                    </article>
+                }
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="feature-strip">
+    <div class="container bakery-container">
+        <div class="feature-strip-grid">
+            @foreach (var feature in Model.Features)
+            {
+                <article class="feature-strip-item">
+                    <span>@feature.IconText</span>
+                    <div>
+                        <h3>@feature.Title</h3>
+                        <p>@feature.Description</p>
+                    </div>
+                </article>
+            }
+        </div>
+    </div>
+</section>
