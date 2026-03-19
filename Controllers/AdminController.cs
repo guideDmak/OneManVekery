@@ -30,9 +30,21 @@ public class AdminController : Controller
     }
 
     [HttpGet]
+    public IActionResult Accounts()
+    {
+        return View(BuildAccountsModel());
+    }
+
+    [HttpGet]
     public IActionResult Reports()
     {
-        return View(BuildReportsModel());
+        return RedirectToAction(nameof(Accounts));
+    }
+
+    [HttpGet]
+    public IActionResult Profile()
+    {
+        return View(BuildProfileModel());
     }
 
     private static AdminDashboardViewModel BuildDashboardModel()
@@ -213,70 +225,60 @@ public class AdminController : Controller
         };
     }
 
-    private static AdminReportsViewModel BuildReportsModel()
+    private static AdminAccountsViewModel BuildAccountsModel()
     {
-        return new AdminReportsViewModel
+        return new AdminAccountsViewModel
         {
-            Sections =
+            DateRangeLabel = "Jan 01 - Jan 28",
+            SummaryItems =
             [
-                new AdminCampaignSectionViewModel
-                {
-                    StepNumber = "1",
-                    Title = "Campaign info",
-                    Items =
-                    [
-                        new AdminInfoItemViewModel { Label = "Campaign name", Value = "ex. Birthday Offer" },
-                        new AdminInfoItemViewModel { Label = "Brands/Outlets", Value = "Hard Rock cafe, Koregaon park", Detail = "+3 more" },
-                        new AdminInfoItemViewModel { Label = "Channels", Value = "Email, SMS" }
-                    ]
-                },
-                new AdminCampaignSectionViewModel
-                {
-                    StepNumber = "2",
-                    Title = "Audience",
-                    Items =
-                    [
-                        new AdminInfoItemViewModel { Label = "Target Customers", Value = "5,000" },
-                        new AdminInfoItemViewModel { Label = "Email Only", Value = "2,750" },
-                        new AdminInfoItemViewModel { Label = "Sms Only", Value = "2,250" },
-                        new AdminInfoItemViewModel { Label = "Customers", Value = "All Customers" }
-                    ]
-                },
-                new AdminCampaignSectionViewModel
-                {
-                    StepNumber = "3",
-                    Title = "Time manage",
-                    Items =
-                    [
-                        new AdminInfoItemViewModel { Label = "Check", Value = "Every hour" },
-                        new AdminInfoItemViewModel { Label = "Time range", Value = "Today" },
-                        new AdminInfoItemViewModel { Label = "Run length", Value = "Active days" },
-                        new AdminInfoItemViewModel { Label = "Schedule", Value = "12 Feb 2020 - 20 Jun 2020" }
-                    ]
-                }
+                new AdminInfoItemViewModel { Label = "All Accounts", Value = "18", Detail = "System members" },
+                new AdminInfoItemViewModel { Label = "Active", Value = "14", Detail = "Can sign in", AccentKey = "green" },
+                new AdminInfoItemViewModel { Label = "Suspended", Value = "2", Detail = "Waiting review", AccentKey = "gold" },
+                new AdminInfoItemViewModel { Label = "Closed", Value = "2", Detail = "Kept for history", AccentKey = "red" }
             ],
-            Rules =
+            Accounts =
             [
-                new AdminCampaignRuleViewModel
-                {
-                    Metric = "Spend",
-                    IntroLabel = "If",
-                    Comparison = "=",
-                    Threshold = "$100",
-                    MidLabel = "And",
-                    ActionLabel = "Increase budget",
-                    ActionValue = "$60"
-                },
-                new AdminCampaignRuleViewModel
-                {
-                    Metric = "Spend",
-                    IntroLabel = "Nested condition",
-                    Comparison = "=",
-                    Threshold = "$100",
-                    MidLabel = "Than",
-                    ActionLabel = "New Rule",
-                    ActionValue = "Ready"
-                }
+                new AdminAccountRecordViewModel { FullName = "Mad Bakery", Email = "owner@madbakery.com", Role = "Owner", Status = "Active", LastActive = "Today, 09:15 AM", Notes = "Full access" },
+                new AdminAccountRecordViewModel { FullName = "Nicha Saelim", Email = "nicha@madbakery.com", Role = "Admin", Status = "Active", LastActive = "Today, 08:42 AM", Notes = "Order approvals" },
+                new AdminAccountRecordViewModel { FullName = "Pimchanok Dee", Email = "pim@madbakery.com", Role = "Manager", Status = "Active", LastActive = "Today, 08:10 AM", Notes = "Stock and reports" },
+                new AdminAccountRecordViewModel { FullName = "Krittin Boon", Email = "krittin@madbakery.com", Role = "Staff", Status = "Suspended", LastActive = "Mar 17, 2026", Notes = "Waiting password reset" },
+                new AdminAccountRecordViewModel { FullName = "Arisa Moon", Email = "arisa@madbakery.com", Role = "Support", Status = "Closed", LastActive = "Mar 09, 2026", Notes = "Closed account, keep history" },
+                new AdminAccountRecordViewModel { FullName = "Thanawat Korn", Email = "thanawat@madbakery.com", Role = "Staff", Status = "Active", LastActive = "Mar 18, 2026", Notes = "Packaging team" }
+            ],
+            Roles =
+            [
+                "Owner",
+                "Admin",
+                "Manager",
+                "Staff",
+                "Support"
+            ]
+        };
+    }
+
+    private static AdminProfileViewModel BuildProfileModel()
+    {
+        return new AdminProfileViewModel
+        {
+            FullName = "Mad Bakery",
+            Role = "Store Administrator",
+            Email = "hello@madbakery.com",
+            Phone = "+66 98 765 4321",
+            Bio = "Oversees bakery storefront, order flow, customer care, and seasonal campaigns in one place.",
+            SummaryItems =
+            [
+                new AdminInfoItemViewModel { Label = "Managed Orders", Value = "920", Detail = "This month" },
+                new AdminInfoItemViewModel { Label = "Products Live", Value = "48", Detail = "Across all categories" },
+                new AdminInfoItemViewModel { Label = "Campaigns", Value = "12", Detail = "Currently active" },
+                new AdminInfoItemViewModel { Label = "Response Rate", Value = "98%", Detail = "Customer messages handled" }
+            ],
+            PreferenceItems =
+            [
+                new AdminInfoItemViewModel { Label = "Theme", Value = "Pink & Cream", Detail = "Bakery brand palette" },
+                new AdminInfoItemViewModel { Label = "Primary Role", Value = "Owner access", Detail = "Full dashboard visibility" },
+                new AdminInfoItemViewModel { Label = "Notifications", Value = "Orders, stock, campaigns", Detail = "Realtime summary" },
+                new AdminInfoItemViewModel { Label = "Last Session", Value = "Today, 09:15 AM", Detail = "Bangkok timezone" }
             ]
         };
     }

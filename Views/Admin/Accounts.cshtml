@@ -1,0 +1,126 @@
+@model AdminAccountsViewModel
+
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Account Management";
+    ViewData["AdminDateRange"] = Model.DateRangeLabel;
+    ViewData["AdminSection"] = "Accounts";
+}
+
+<section class="admin-page-banner admin-page-banner-compact">
+    <div>
+        <p class="admin-page-kicker">Accounts</p>
+        <h2>Manage all accounts</h2>
+        <span>Add accounts, edit details, change roles, and close accounts without deleting history.</span>
+    </div>
+    <button type="button" class="admin-primary-button">Add Account</button>
+</section>
+
+<section class="admin-account-summary-grid">
+    @foreach (var item in Model.SummaryItems)
+    {
+        <article class="admin-card admin-account-summary-card @($"is-{item.AccentKey}")">
+            <small>@item.Label</small>
+            <strong>@item.Value</strong>
+            <span>@item.Detail</span>
+        </article>
+    }
+</section>
+
+<section class="admin-account-grid">
+    <article class="admin-card">
+        <div class="admin-card-head">
+            <h2>Account List</h2>
+            <a href="#">Latest update</a>
+        </div>
+
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Last Active</th>
+                        <th>Notes</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var account in Model.Accounts)
+                    {
+                        <tr>
+                            <td>
+                                <div class="admin-order-stack">
+                                    <strong>@account.FullName</strong>
+                                    <span>@account.Role access</span>
+                                </div>
+                            </td>
+                            <td>@account.Email</td>
+                            <td>@account.Role</td>
+                            <td>
+                                <span class="admin-status-badge @($"is-{account.Status.ToLowerInvariant()}")">@account.Status</span>
+                            </td>
+                            <td>@account.LastActive</td>
+                            <td>@account.Notes</td>
+                            <td>
+                                <div class="admin-actions admin-actions-wrap">
+                                    <button type="button">Edit Info</button>
+                                    <button type="button">Change Role</button>
+                                    <button type="button" class="is-warning">Close Account</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </article>
+
+    <article class="admin-card admin-account-tools-card">
+        <div class="admin-card-head">
+            <h2>Quick Actions</h2>
+        </div>
+
+        <div class="admin-summary-list">
+            <div class="admin-summary-row">
+                <div>
+                    <small>Add Account</small>
+                    <strong>Create a new login</strong>
+                </div>
+                <span>Owner, admin, manager, staff, support</span>
+            </div>
+
+            <div class="admin-summary-row">
+                <div>
+                    <small>Edit Details</small>
+                    <strong>Update name, email, and contact</strong>
+                </div>
+                <span>Keep the same account record</span>
+            </div>
+
+            <div class="admin-summary-row">
+                <div>
+                    <small>Change Role</small>
+                    <strong>Assign new access level</strong>
+                </div>
+                <span>@string.Join(", ", Model.Roles)</span>
+            </div>
+
+            <div class="admin-summary-row">
+                <div>
+                    <small>Close Account</small>
+                    <strong>Disable sign in but keep history</strong>
+                </div>
+                <span>No hard delete</span>
+            </div>
+        </div>
+
+        <div class="admin-account-tool-actions">
+            <button type="button" class="admin-primary-button">Add Account</button>
+            <button type="button" class="admin-secondary-button">Change Role</button>
+            <button type="button" class="admin-secondary-button">Close Account</button>
+        </div>
+    </article>
+</section>

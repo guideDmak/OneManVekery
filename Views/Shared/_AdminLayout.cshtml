@@ -16,25 +16,51 @@
 <body class="admin-body">
     <div class="admin-shell">
         <aside class="admin-sidebar">
-            <a class="admin-brand" asp-controller="Admin" asp-action="Index">mart</a>
+            <div class="admin-sidebar-panel">
+                <div class="admin-sidebar-head">
+                    <div>
+                        <a class="admin-brand" asp-controller="Admin" asp-action="Index">Bakery Admin</a>
+                        <p>Control Center</p>
+                    </div>
 
-            <nav class="admin-nav">
-                <a class="admin-nav-item @(adminSection == "Dashboard" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Index" aria-label="Dashboard" title="Dashboard">
-                    <span>D</span>
-                </a>
-                <a class="admin-nav-item @(adminSection == "Orders" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Orders" aria-label="Orders" title="Orders">
-                    <span>O</span>
-                </a>
-                <a class="admin-nav-item @(adminSection == "Customers" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Customers" aria-label="Customers" title="Customers">
-                    <span>C</span>
-                </a>
-                <a class="admin-nav-item @(adminSection == "Products" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Products" aria-label="Products" title="Products">
-                    <span>P</span>
-                </a>
-                <a class="admin-nav-item @(adminSection == "Reports" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Reports" aria-label="Reports" title="Reports">
-                    <span>R</span>
-                </a>
-            </nav>
+                    <span class="admin-sidebar-badge">05</span>
+                </div>
+
+                <nav class="admin-nav">
+                    <a class="admin-nav-item @(adminSection == "Dashboard" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Index" aria-label="Dashboard" title="Dashboard">
+                        <span class="admin-nav-glyph is-dashboard" aria-hidden="true"></span>
+                        <span>Dashboard</span>
+                    </a>
+                    <a class="admin-nav-item @(adminSection == "Orders" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Orders" aria-label="Orders" title="Orders">
+                        <span class="admin-nav-glyph is-orders" aria-hidden="true"></span>
+                        <span>Orders</span>
+                    </a>
+                    <a class="admin-nav-item @(adminSection == "Customers" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Customers" aria-label="Customers" title="Customers">
+                        <span class="admin-nav-glyph is-customers" aria-hidden="true"></span>
+                        <span>Customers</span>
+                    </a>
+                    <a class="admin-nav-item @(adminSection == "Products" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Products" aria-label="Products" title="Products">
+                        <span class="admin-nav-glyph is-products" aria-hidden="true"></span>
+                        <span>Products</span>
+                    </a>
+                    <a class="admin-nav-item @(adminSection == "Accounts" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Accounts" aria-label="Accounts" title="Accounts">
+                        <span class="admin-nav-glyph is-reports" aria-hidden="true"></span>
+                        <span>Accounts</span>
+                    </a>
+                </nav>
+
+                <div class="admin-sidebar-footer">
+                    <a class="admin-sidebar-account @(adminSection == "Profile" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Profile">
+                        <span class="admin-sidebar-avatar">MB</span>
+                        <div>
+                            <strong>Mad Bakery</strong>
+                            <p>Administrator</p>
+                        </div>
+                    </a>
+
+                    <a class="admin-logout-link" asp-controller="Account" asp-action="Logout">Logout</a>
+                </div>
+            </div>
         </aside>
 
         <div class="admin-main-wrap">

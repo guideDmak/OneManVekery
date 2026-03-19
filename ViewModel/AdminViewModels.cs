@@ -98,37 +98,47 @@ public class AdminProductsViewModel
     public IReadOnlyList<AdminLatestOrderViewModel> Orders { get; init; } = [];
 }
 
-public class AdminReportsViewModel
+public class AdminProfileViewModel
 {
-    public IReadOnlyList<AdminCampaignSectionViewModel> Sections { get; init; } = [];
+    public string FullName { get; init; } = string.Empty;
 
-    public IReadOnlyList<AdminCampaignRuleViewModel> Rules { get; init; } = [];
+    public string Role { get; init; } = string.Empty;
+
+    public string Email { get; init; } = string.Empty;
+
+    public string Phone { get; init; } = string.Empty;
+
+    public string Bio { get; init; } = string.Empty;
+
+    public IReadOnlyList<AdminInfoItemViewModel> SummaryItems { get; init; } = [];
+
+    public IReadOnlyList<AdminInfoItemViewModel> PreferenceItems { get; init; } = [];
 }
 
-public class AdminCampaignSectionViewModel
+public class AdminAccountsViewModel
 {
-    public string StepNumber { get; init; } = string.Empty;
+    public string DateRangeLabel { get; init; } = string.Empty;
 
-    public string Title { get; init; } = string.Empty;
+    public IReadOnlyList<AdminInfoItemViewModel> SummaryItems { get; init; } = [];
 
-    public IReadOnlyList<AdminInfoItemViewModel> Items { get; init; } = [];
+    public IReadOnlyList<AdminAccountRecordViewModel> Accounts { get; init; } = [];
+
+    public IReadOnlyList<string> Roles { get; init; } = [];
 }
 
-public class AdminCampaignRuleViewModel
+public class AdminAccountRecordViewModel
 {
-    public string Metric { get; init; } = string.Empty;
+    public string FullName { get; init; } = string.Empty;
 
-    public string IntroLabel { get; init; } = string.Empty;
+    public string Email { get; init; } = string.Empty;
 
-    public string Comparison { get; init; } = string.Empty;
+    public string Role { get; init; } = string.Empty;
 
-    public string Threshold { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
 
-    public string MidLabel { get; init; } = string.Empty;
+    public string LastActive { get; init; } = string.Empty;
 
-    public string ActionLabel { get; init; } = string.Empty;
-
-    public string ActionValue { get; init; } = string.Empty;
+    public string Notes { get; init; } = string.Empty;
 }
 
 public class AdminInfoItemViewModel

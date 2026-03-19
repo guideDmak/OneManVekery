@@ -30,6 +30,13 @@ public class AccountController : Controller
         return View(new RegisterViewModel());
     }
 
+    [HttpGet]
+    public IActionResult Logout()
+    {
+        TempData["SiteNotice"] = "ออกจากระบบตัวอย่างเรียบร้อยแล้ว";
+        return RedirectToAction(nameof(Login));
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public IActionResult Register(RegisterViewModel model)

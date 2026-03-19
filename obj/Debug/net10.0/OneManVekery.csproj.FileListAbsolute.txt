@@ -104,4 +104,4 @@
 /Users/madba/Desktop/OneManProject/OneManVekery/obj/Debug/net10.0/compressed/i8cs0y5h5r-{0}-c2z8mukbjq-c2z8mukbjq.gz
 /Users/madba/Desktop/OneManProject/OneManVekery/obj/Debug/net10.0/compressed/srkjd7j3mj-{0}-1p8qpp6mrs-1p8qpp6mrs.gz
 /Users/madba/Desktop/OneManProject/OneManVekery/obj/Debug/net10.0/compressed/g31j9rjqcr-{0}-xm9op81hqw-xm9op81hqw.gz
-/Users/madba/Desktop/OneManProject/OneManVekery/obj/Debug/net10.0/compressed/2voicdvkdj-{0}-e36crk7511-e36crk7511.gz
+/Users/madba/Desktop/OneManProject/OneManVekery/obj/Debug/net10.0/compressed/2voicdvkdj-{0}-w3uyyprjf4-w3uyyprjf4.gz
