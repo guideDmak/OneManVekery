@@ -1,11 +1,15 @@
+using Microsoft.EntityFrameworkCore;
+using OneManVekery.Models.Db;
 using OneManVekery.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddDbContext<OneManVekeryDBContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("OneManVekeryDb")));
 builder.Services.AddSingleton<IInventoryCatalogService, InMemoryInventoryCatalogService>();
-builder.Services.AddSingleton<IAccountDirectoryService, InMemoryAccountDirectoryService>();
+builder.Services.AddScoped<IAccountDirectoryService, DbAccountDirectoryService>();
 builder.Services.AddSingleton<IStoreCatalogService, InMemoryStoreCatalogService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();

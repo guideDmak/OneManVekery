@@ -1,6 +1,8 @@
 ﻿@{
     var adminSection = ViewData["AdminSection"]?.ToString() ?? ViewContext.RouteData.Values["action"]?.ToString() ?? "Dashboard";
     var adminDateRange = ViewData["AdminDateRange"]?.ToString();
+    var adminSignedInName = ViewData["AdminSignedInName"]?.ToString() ?? "Bakery Team";
+    var adminSignedInRole = ViewData["AdminSignedInRole"]?.ToString() ?? "Staff";
 }
 
 <!DOCTYPE html>
@@ -57,8 +59,8 @@
                     <a class="admin-sidebar-account @(adminSection == "Profile" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Profile">
                         <span class="admin-sidebar-avatar">MB</span>
                         <div>
-                            <strong>Mad Bakery</strong>
-                            <p>Administrator</p>
+                            <strong>@adminSignedInName</strong>
+                            <p>@adminSignedInRole</p>
                         </div>
                     </a>
 

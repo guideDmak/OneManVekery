@@ -33,30 +33,6 @@ BEGIN
 END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM dbo.roles WHERE role_key = N'owner')
-    INSERT INTO dbo.roles (role_key, role_name) VALUES (N'owner', N'Owner');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM dbo.roles WHERE role_key = N'admin')
-    INSERT INTO dbo.roles (role_key, role_name) VALUES (N'admin', N'Admin');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM dbo.roles WHERE role_key = N'manager')
-    INSERT INTO dbo.roles (role_key, role_name) VALUES (N'manager', N'Manager');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM dbo.roles WHERE role_key = N'staff')
-    INSERT INTO dbo.roles (role_key, role_name) VALUES (N'staff', N'Staff');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM dbo.roles WHERE role_key = N'support')
-    INSERT INTO dbo.roles (role_key, role_name) VALUES (N'support', N'Support');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM dbo.roles WHERE role_key = N'user')
-    INSERT INTO dbo.roles (role_key, role_name) VALUES (N'user', N'User');
-GO
-
 IF OBJECT_ID(N'dbo.users', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.users (
@@ -68,6 +44,8 @@ BEGIN
         role_id INT NOT NULL,
         status NVARCHAR(20) NOT NULL CONSTRAINT DF_users_status DEFAULT N'active',
         created_at DATETIME2 NOT NULL CONSTRAINT DF_users_created_at DEFAULT SYSUTCDATETIME(),
+        last_active_at DATETIME2 NULL,
+        notes NVARCHAR(255) NULL,
         CONSTRAINT FK_users_roles
             FOREIGN KEY (role_id) REFERENCES dbo.roles(id)
     );

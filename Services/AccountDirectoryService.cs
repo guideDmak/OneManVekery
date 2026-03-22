@@ -1,22 +1,27 @@
+using Microsoft.EntityFrameworkCore;
+using OneManVekery.Models.Db;
+
 namespace OneManVekery.Services;
 
 public interface IAccountDirectoryService
 {
     IReadOnlyList<AccountRecord> GetAllAccounts();
 
-    AccountRecord? GetAccount(Guid accountId);
+    AccountRecord? GetAccount(int accountId);
 
     IReadOnlyList<string> GetRoles();
 
     IReadOnlyList<string> GetStatuses();
 
-    bool EmailExists(string email, Guid? excludingAccountId = null);
+    bool EmailExists(string email, int? excludingAccountId = null);
+
+    AccountRecord? Authenticate(string email, string password);
 
     AccountRecord AddAccount(AccountInput input);
 
-    bool UpdateAccount(Guid accountId, AccountInput input);
+    bool UpdateAccount(int accountId, AccountInput input);
 
-    bool CloseAccount(Guid accountId);
+    bool CloseAccount(int accountId);
 }
 
 public sealed class AccountInput
@@ -32,11 +37,13 @@ public sealed class AccountInput
     public string Status { get; init; } = string.Empty;
 
     public string Notes { get; init; } = string.Empty;
+
+    public string Password { get; init; } = string.Empty;
 }
 
 public sealed record AccountRecord
 {
-    public Guid AccountId { get; init; }
+    public int AccountId { get; init; }
 
     public string AccountCode { get; init; } = string.Empty;
 
@@ -48,6 +55,8 @@ public sealed record AccountRecord
 
     public string Role { get; init; } = string.Empty;
 
+    public string RoleKey { get; init; } = string.Empty;
+
     public string Status { get; init; } = string.Empty;
 
     public DateTime LastActiveAt { get; init; }
@@ -55,43 +64,44 @@ public sealed record AccountRecord
     public string Notes { get; init; } = string.Empty;
 }
 
-public sealed class InMemoryAccountDirectoryService : IAccountDirectoryService
+public sealed class DbAccountDirectoryService : IAccountDirectoryService
 {
-    private static readonly string[] SupportedRoles = ["Owner", "Admin", "Manager", "Staff", "Support", "User"];
     private static readonly string[] SupportedStatuses = ["Active", "Suspended", "Closed"];
+    private readonly OneManVekeryDBContext _dbContext;
 
-    private readonly object _sync = new();
-    private readonly List<AccountRecord> _accounts;
-
-    public InMemoryAccountDirectoryService()
+    public DbAccountDirectoryService(OneManVekeryDBContext dbContext)
     {
-        _accounts = SeedAccounts();
+        _dbContext = dbContext;
     }
 
     public IReadOnlyList<AccountRecord> GetAllAccounts()
     {
-        lock (_sync)
-        {
-            return _accounts
-                .OrderBy(account => account.Status, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(account => account.FullName, StringComparer.OrdinalIgnoreCase)
-                .Select(Clone)
-                .ToList();
-        }
+        return _dbContext.Users
+            .AsNoTracking()
+            .Include(user => user.Role)
+            .OrderBy(user => user.Status)
+            .ThenBy(user => user.FullName)
+            .Select(MapAccount)
+            .ToList();
     }
 
-    public AccountRecord? GetAccount(Guid accountId)
+    public AccountRecord? GetAccount(int accountId)
     {
-        lock (_sync)
-        {
-            var account = _accounts.FirstOrDefault(entry => entry.AccountId == accountId);
-            return account is null ? null : Clone(account);
-        }
+        var user = _dbContext.Users
+            .AsNoTracking()
+            .Include(entry => entry.Role)
+            .FirstOrDefault(entry => entry.Id == accountId);
+
+        return user is null ? null : MapAccount(user);
     }
 
     public IReadOnlyList<string> GetRoles()
     {
-        return SupportedRoles;
+        return _dbContext.Roles
+            .AsNoTracking()
+            .OrderBy(role => role.Id)
+            .Select(role => NormalizeRoleLabel(role.RoleName, role.RoleKey))
+            .ToList();
     }
 
     public IReadOnlyList<string> GetStatuses()
@@ -99,94 +109,140 @@ public sealed class InMemoryAccountDirectoryService : IAccountDirectoryService
         return SupportedStatuses;
     }
 
-    public bool EmailExists(string email, Guid? excludingAccountId = null)
+    public bool EmailExists(string email, int? excludingAccountId = null)
     {
         var normalizedEmail = NormalizeEmail(email);
 
-        lock (_sync)
+        return _dbContext.Users.Any(user =>
+            user.Email == normalizedEmail &&
+            user.Id != excludingAccountId);
+    }
+
+    public AccountRecord? Authenticate(string email, string password)
+    {
+        var normalizedEmail = NormalizeEmail(email);
+        var normalizedPassword = NormalizePassword(password);
+        var legacyPasswordHash = ComputeLegacyPasswordHash(normalizedPassword);
+
+        var user = _dbContext.Users
+            .Include(entry => entry.Role)
+            .FirstOrDefault(entry =>
+                entry.Email == normalizedEmail);
+
+        if (user is null || !PasswordMatches(user.PasswordHash, normalizedPassword, legacyPasswordHash))
         {
-            return _accounts.Any(account =>
-                string.Equals(account.Email, normalizedEmail, StringComparison.OrdinalIgnoreCase) &&
-                account.AccountId != excludingAccountId);
+            return null;
         }
+
+        if (!string.Equals(user.PasswordHash, normalizedPassword, StringComparison.Ordinal))
+        {
+            user.PasswordHash = normalizedPassword;
+        }
+
+        user.LastActiveAt = DateTime.UtcNow;
+        _dbContext.SaveChanges();
+
+        return MapAccount(user);
     }
 
     public AccountRecord AddAccount(AccountInput input)
     {
-        lock (_sync)
+        var role = ResolveRole(input.Role);
+        var user = new User
         {
-            var account = new AccountRecord
-            {
-                AccountId = Guid.NewGuid(),
-                AccountCode = GenerateAccountCode(),
-                FullName = NormalizeText(input.FullName),
-                Email = NormalizeEmail(input.Email),
-                PhoneNumber = NormalizeText(input.PhoneNumber),
-                Role = NormalizeRole(input.Role),
-                Status = NormalizeStatus(input.Status),
-                LastActiveAt = DateTime.Now,
-                Notes = NormalizeText(input.Notes)
-            };
+            FullName = NormalizeText(input.FullName),
+            Email = NormalizeEmail(input.Email),
+            PasswordHash = NormalizePassword(input.Password),
+            Phone = NormalizeOptionalText(input.PhoneNumber),
+            RoleId = role.Id,
+            Status = NormalizeStatusValue(input.Status),
+            Notes = NormalizeOptionalText(input.Notes),
+            CreatedAt = DateTime.UtcNow,
+            LastActiveAt = DateTime.UtcNow
+        };
 
-            _accounts.Add(account);
-            return Clone(account);
-        }
+        _dbContext.Users.Add(user);
+        _dbContext.SaveChanges();
+        _dbContext.Entry(user).Reference(entry => entry.Role).Load();
+
+        return MapAccount(user);
     }
 
-    public bool UpdateAccount(Guid accountId, AccountInput input)
+    public bool UpdateAccount(int accountId, AccountInput input)
     {
-        lock (_sync)
+        var user = _dbContext.Users.FirstOrDefault(entry => entry.Id == accountId);
+        if (user is null)
         {
-            var index = _accounts.FindIndex(account => account.AccountId == accountId);
-            if (index < 0)
-            {
-                return false;
-            }
-
-            _accounts[index] = _accounts[index] with
-            {
-                FullName = NormalizeText(input.FullName),
-                Email = NormalizeEmail(input.Email),
-                PhoneNumber = NormalizeText(input.PhoneNumber),
-                Role = NormalizeRole(input.Role),
-                Status = NormalizeStatus(input.Status),
-                Notes = NormalizeText(input.Notes)
-            };
-
-            return true;
+            return false;
         }
-    }
 
-    public bool CloseAccount(Guid accountId)
-    {
-        lock (_sync)
+        var role = ResolveRole(input.Role);
+
+        user.FullName = NormalizeText(input.FullName);
+        user.Email = NormalizeEmail(input.Email);
+        user.Phone = NormalizeOptionalText(input.PhoneNumber);
+        user.RoleId = role.Id;
+        user.Status = NormalizeStatusValue(input.Status);
+        user.Notes = NormalizeOptionalText(input.Notes);
+
+        if (!string.IsNullOrWhiteSpace(input.Password))
         {
-            var index = _accounts.FindIndex(account => account.AccountId == accountId);
-            if (index < 0)
-            {
-                return false;
-            }
-
-            _accounts[index] = _accounts[index] with
-            {
-                Status = "Closed",
-                Notes = _accounts[index].Status == "Closed"
-                    ? _accounts[index].Notes
-                    : $"{_accounts[index].Notes.TrimEnd('.')} Closed by admin.".Trim()
-            };
-
-            return true;
+            user.PasswordHash = NormalizePassword(input.Password);
         }
+
+        _dbContext.SaveChanges();
+        return true;
     }
 
-    private static AccountRecord Clone(AccountRecord account)
+    public bool CloseAccount(int accountId)
     {
-        return account with { };
+        var user = _dbContext.Users.FirstOrDefault(entry => entry.Id == accountId);
+        if (user is null)
+        {
+            return false;
+        }
+
+        user.Status = "closed";
+        _dbContext.SaveChanges();
+        return true;
     }
 
-    private static string NormalizeText(string value)
+    private Role ResolveRole(string roleValue)
     {
-        return value.Trim();
+        var normalized = roleValue.Trim();
+        var role = _dbContext.Roles
+            .AsNoTracking()
+            .ToList()
+            .FirstOrDefault(entry =>
+            string.Equals(entry.RoleName, normalized, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(entry.RoleKey, normalized, StringComparison.OrdinalIgnoreCase));
+
+        if (role is null)
+        {
+            throw new InvalidOperationException($"Role '{roleValue}' was not found in the database.");
+        }
+
+        return role;
+    }
+
+    private static AccountRecord MapAccount(User user)
+    {
+        var roleKey = user.Role?.RoleKey?.Trim().ToLowerInvariant() ?? "user";
+        var roleLabel = NormalizeRoleLabel(user.Role?.RoleName, roleKey);
+
+        return new AccountRecord
+        {
+            AccountId = user.Id,
+            AccountCode = $"ACC-{user.Id:0000}",
+            FullName = user.FullName,
+            Email = user.Email,
+            PhoneNumber = user.Phone ?? string.Empty,
+            Role = roleLabel,
+            RoleKey = roleKey,
+            Status = NormalizeStatusLabel(user.Status),
+            LastActiveAt = user.LastActiveAt ?? user.CreatedAt,
+            Notes = user.Notes ?? string.Empty
+        };
     }
 
     private static string NormalizeEmail(string value)
@@ -194,106 +250,73 @@ public sealed class InMemoryAccountDirectoryService : IAccountDirectoryService
         return value.Trim().ToLowerInvariant();
     }
 
-    private static string NormalizeRole(string value)
+    private static string NormalizeText(string value)
     {
-        return SupportedRoles.FirstOrDefault(role => string.Equals(role, value.Trim(), StringComparison.OrdinalIgnoreCase))
-            ?? "User";
+        return value.Trim();
     }
 
-    private static string NormalizeStatus(string value)
+    private static string NormalizePassword(string value)
     {
-        return SupportedStatuses.FirstOrDefault(status => string.Equals(status, value.Trim(), StringComparison.OrdinalIgnoreCase))
-            ?? "Active";
+        return value.Trim();
     }
 
-    private string GenerateAccountCode()
+    private static string? NormalizeOptionalText(string value)
     {
-        var nextNumber = _accounts
-            .Select(account => account.AccountCode)
-            .Select(code => code.Split('-', StringSplitOptions.RemoveEmptyEntries).LastOrDefault())
-            .Select(value => int.TryParse(value, out var number) ? number : 1999)
-            .DefaultIfEmpty(2000)
-            .Max() + 1;
-
-        return $"ACC-{nextNumber:0000}";
+        var trimmed = value.Trim();
+        return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
     }
 
-    private static List<AccountRecord> SeedAccounts()
+    private static string NormalizeStatusValue(string value)
     {
-        return
-        [
-            new AccountRecord
-            {
-                AccountId = Guid.Parse("B8ED33D3-4D6B-40F0-A841-81C70DA50001"),
-                AccountCode = "ACC-2001",
-                FullName = "Mad Bakery",
-                Email = "owner@madbakery.com",
-                PhoneNumber = "+66 98 765 4321",
-                Role = "Owner",
-                Status = "Active",
-                LastActiveAt = DateTime.Today.AddHours(9).AddMinutes(15),
-                Notes = "Full access"
-            },
-            new AccountRecord
-            {
-                AccountId = Guid.Parse("B8ED33D3-4D6B-40F0-A841-81C70DA50002"),
-                AccountCode = "ACC-2002",
-                FullName = "Nicha Saelim",
-                Email = "nicha@madbakery.com",
-                PhoneNumber = "+66 81 443 2288",
-                Role = "Admin",
-                Status = "Active",
-                LastActiveAt = DateTime.Today.AddHours(8).AddMinutes(42),
-                Notes = "Order approvals"
-            },
-            new AccountRecord
-            {
-                AccountId = Guid.Parse("B8ED33D3-4D6B-40F0-A841-81C70DA50003"),
-                AccountCode = "ACC-2003",
-                FullName = "Pimchanok Dee",
-                Email = "pim@madbakery.com",
-                PhoneNumber = "+66 89 111 4402",
-                Role = "Manager",
-                Status = "Active",
-                LastActiveAt = DateTime.Today.AddHours(8).AddMinutes(10),
-                Notes = "Stock and reports"
-            },
-            new AccountRecord
-            {
-                AccountId = Guid.Parse("B8ED33D3-4D6B-40F0-A841-81C70DA50004"),
-                AccountCode = "ACC-2004",
-                FullName = "Krittin Boon",
-                Email = "krittin@madbakery.com",
-                PhoneNumber = "+66 95 274 8821",
-                Role = "Staff",
-                Status = "Suspended",
-                LastActiveAt = new DateTime(2026, 3, 17, 16, 05, 0),
-                Notes = "Waiting schedule review"
-            },
-            new AccountRecord
-            {
-                AccountId = Guid.Parse("B8ED33D3-4D6B-40F0-A841-81C70DA50005"),
-                AccountCode = "ACC-2005",
-                FullName = "Arisa Moon",
-                Email = "arisa@madbakery.com",
-                PhoneNumber = "+66 84 220 1155",
-                Role = "Support",
-                Status = "Closed",
-                LastActiveAt = new DateTime(2026, 3, 9, 11, 40, 0),
-                Notes = "Closed account, keep history"
-            },
-            new AccountRecord
-            {
-                AccountId = Guid.Parse("B8ED33D3-4D6B-40F0-A841-81C70DA50006"),
-                AccountCode = "ACC-2006",
-                FullName = "Thanawat Korn",
-                Email = "thanawat@example.com",
-                PhoneNumber = "+66 93 606 9014",
-                Role = "User",
-                Status = "Active",
-                LastActiveAt = new DateTime(2026, 3, 18, 14, 20, 0),
-                Notes = "Registered from storefront"
-            }
-        ];
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "active" => "active",
+            "suspended" => "suspended",
+            "closed" => "closed",
+            _ => "active"
+        };
+    }
+
+    private static string NormalizeStatusLabel(string value)
+    {
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "active" => "Active",
+            "suspended" => "Suspended",
+            "closed" => "Closed",
+            _ => "Active"
+        };
+    }
+
+    private static string NormalizeRoleLabel(string? roleName, string? roleKey)
+    {
+        var source = string.IsNullOrWhiteSpace(roleName) ? roleKey : roleName;
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return "User";
+        }
+
+        return source.Trim().ToLowerInvariant() switch
+        {
+            "owner" => "Owner",
+            "admin" => "Admin",
+            "manager" => "Manager",
+            "staff" => "Staff",
+            "support" => "Support",
+            _ => "User"
+        };
+    }
+
+    private static bool PasswordMatches(string storedPassword, string normalizedPassword, string legacyPasswordHash)
+    {
+        return string.Equals(storedPassword, normalizedPassword, StringComparison.Ordinal) ||
+               string.Equals(storedPassword, legacyPasswordHash, StringComparison.Ordinal);
+    }
+
+    private static string ComputeLegacyPasswordHash(string password)
+    {
+        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        var hashBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 }

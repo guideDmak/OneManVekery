@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 using OneManVekery.Services;
 using OneManVekery.ViewModel;
 
@@ -16,6 +17,11 @@ public class AccountController : Controller
     [HttpGet]
     public IActionResult Login()
     {
+        if (AdminPortalAuth.CanAccessAdmin(HttpContext.Session.GetString(AdminPortalAuth.SessionAccountRoleKey)))
+        {
+            return RedirectToAction("Index", "Admin");
+        }
+
         return View(new LoginViewModel());
     }
 
@@ -28,7 +34,31 @@ public class AccountController : Controller
             return View(model);
         }
 
-        TempData["SiteNotice"] = "เข้าสู่ระบบตัวอย่างเรียบร้อยแล้ว";
+        var account = _accountDirectoryService.Authenticate(model.Email, model.Password);
+        if (account is null)
+        {
+            ModelState.AddModelError(string.Empty, "อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+            return View(model);
+        }
+
+        if (!string.Equals(account.Status, "Active", StringComparison.OrdinalIgnoreCase))
+        {
+            ModelState.AddModelError(string.Empty, "บัญชีนี้ยังไม่พร้อมใช้งาน");
+            return View(model);
+        }
+
+        HttpContext.Session.SetString(AdminPortalAuth.SessionAccountIdKey, account.AccountId.ToString());
+        HttpContext.Session.SetString(AdminPortalAuth.SessionAccountNameKey, account.FullName);
+        HttpContext.Session.SetString(AdminPortalAuth.SessionAccountRoleKey, account.RoleKey);
+        HttpContext.Session.SetString(AdminPortalAuth.SessionAccountRoleLabelKey, account.Role);
+
+        if (AdminPortalAuth.CanAccessAdmin(account.RoleKey))
+        {
+            TempData["SiteNotice"] = $"เข้าสู่ระบบหลังบ้านในสิทธิ์ {account.Role} เรียบร้อยแล้ว";
+            return RedirectToAction("Index", "Admin");
+        }
+
+        TempData["SiteNotice"] = $"ยินดีต้อนรับกลับ {account.FullName}";
         return RedirectToAction("Index", "Home");
     }
 
@@ -41,7 +71,12 @@ public class AccountController : Controller
     [HttpGet]
     public IActionResult Logout()
     {
-        TempData["SiteNotice"] = "ออกจากระบบตัวอย่างเรียบร้อยแล้ว";
+        HttpContext.Session.Remove(AdminPortalAuth.SessionAccountIdKey);
+        HttpContext.Session.Remove(AdminPortalAuth.SessionAccountNameKey);
+        HttpContext.Session.Remove(AdminPortalAuth.SessionAccountRoleKey);
+        HttpContext.Session.Remove(AdminPortalAuth.SessionAccountRoleLabelKey);
+
+        TempData["SiteNotice"] = "ออกจากระบบเรียบร้อยแล้ว";
         return RedirectToAction(nameof(Login));
     }
 
@@ -66,7 +101,8 @@ public class AccountController : Controller
             PhoneNumber = model.PhoneNumber,
             Role = "User",
             Status = "Active",
-            Notes = "Registered from storefront"
+            Notes = "Registered from storefront",
+            Password = model.Password
         });
 
         TempData["SiteNotice"] = "สมัครสมาชิกผู้ใช้งานเรียบร้อยแล้ว บัญชีประเภทพนักงานและแอดมินต้องเพิ่มจากหน้าแอดมินเท่านั้น";

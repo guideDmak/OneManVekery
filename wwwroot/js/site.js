@@ -92,10 +92,38 @@ const adminAccountsRoot = document.querySelector("[data-admin-accounts]");
 if (adminAccountsRoot && window.bootstrap) {
   const addAccountModalElement = document.getElementById("addAccountModal");
   const editAccountModalElement = document.getElementById("editAccountModal");
+  const canChangeRoles = adminAccountsRoot.dataset.canChangeRoles === "true";
 
   const setAccountFieldValue = (id, value) => {
     const field = document.getElementById(id);
     if (!field) {
+      return;
+    }
+
+    field.value = value ?? "";
+  };
+
+  const setAccountRoleValue = (value) => {
+    const field = document.getElementById("EditForm_Role");
+    if (!field) {
+      return;
+    }
+
+    if (canChangeRoles && field instanceof HTMLSelectElement) {
+      [...field.options]
+        .filter((option) => option.dataset.dynamicRole === "true")
+        .forEach((option) => option.remove());
+
+      if (value) {
+        const hasOption = [...field.options].some((option) => option.value === value);
+        if (!hasOption) {
+          const dynamicOption = new Option(value, value, true, true);
+          dynamicOption.dataset.dynamicRole = "true";
+          field.add(dynamicOption, 0);
+        }
+      }
+
+      field.value = value ?? "";
       return;
     }
 
@@ -113,10 +141,11 @@ if (adminAccountsRoot && window.bootstrap) {
     setAccountFieldValue("EditForm_FullName", trigger.dataset.fullName);
     setAccountFieldValue("EditForm_Email", trigger.dataset.email);
     setAccountFieldValue("EditForm_PhoneNumber", trigger.dataset.phoneNumber);
-    setAccountFieldValue("EditForm_Role", trigger.dataset.role);
+    setAccountRoleValue(trigger.dataset.role);
     setAccountFieldValue("EditForm_Status", trigger.dataset.status);
     setAccountFieldValue("EditForm_LastActiveDisplay", trigger.dataset.lastActive);
     setAccountFieldValue("EditForm_Notes", trigger.dataset.notes);
+    setAccountFieldValue("EditForm_Password", "");
   });
 
   const activeModal = adminAccountsRoot.dataset.activeModal;

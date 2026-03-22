@@ -125,9 +125,15 @@ public class AdminAccountsViewModel
 
     public IReadOnlyList<AdminAccountRecordViewModel> Accounts { get; init; } = [];
 
-    public IReadOnlyList<string> Roles { get; init; } = [];
+    public IReadOnlyList<string> AddRoleOptions { get; init; } = [];
+
+    public IReadOnlyList<string> EditRoleOptions { get; init; } = [];
 
     public IReadOnlyList<string> StatusOptions { get; init; } = [];
+
+    public bool CanCreateStaffAccounts { get; init; }
+
+    public bool CanChangeRoles { get; init; }
 
     public AdminAccountEditorViewModel AddForm { get; init; } = new();
 
@@ -230,7 +236,7 @@ public class AdminItemEditorViewModel
 
 public class AdminAccountRecordViewModel
 {
-    public Guid AccountId { get; init; }
+    public int AccountId { get; init; }
 
     public string AccountCode { get; init; } = string.Empty;
 
@@ -253,7 +259,7 @@ public class AdminAccountRecordViewModel
 
 public class AdminAccountEditorViewModel
 {
-    public Guid AccountId { get; set; }
+    public int AccountId { get; set; }
 
     public string AccountCode { get; set; } = string.Empty;
 
@@ -277,6 +283,9 @@ public class AdminAccountEditorViewModel
 
     [StringLength(160, ErrorMessage = "หมายเหตุต้องไม่เกิน 160 ตัวอักษร")]
     public string Notes { get; set; } = string.Empty;
+
+    [RegularExpression(@"^$|^.{8,100}$", ErrorMessage = "รหัสผ่านต้องมี 8-100 ตัวอักษร")]
+    public string? Password { get; set; }
 
     public string LastActiveDisplay { get; set; } = string.Empty;
 }

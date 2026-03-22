@@ -52,89 +52,189 @@ IF NOT EXISTS (SELECT 1 FROM dbo.categories WHERE name = N'Bakery')
 GO
 
 -- Users
-DECLARE @RoleAdminId INT = (SELECT TOP 1 id FROM dbo.roles WHERE role_key = N'admin');
-DECLARE @RoleUserId INT = (SELECT TOP 1 id FROM dbo.roles WHERE role_key = N'user');
-
 IF NOT EXISTS (SELECT 1 FROM dbo.users WHERE email = N'admin@onemanvekery.com')
 BEGIN
-    INSERT INTO dbo.users (full_name, email, password_hash, phone, role_id, status)
-    VALUES (N'One Man Admin', N'admin@onemanvekery.com', N'admin123-hash', N'0890000001', @RoleAdminId, N'active');
+    INSERT INTO dbo.users (full_name, email, password_hash, phone, role_id, status, notes, last_active_at)
+    VALUES (
+        N'One Man Admin',
+        N'admin@onemanvekery.com',
+        N'admin12345',
+        N'0890000001',
+        (SELECT TOP 1 id FROM dbo.roles WHERE role_key = N'admin'),
+        N'active',
+        N'Initial admin account',
+        SYSUTCDATETIME()
+    );
 END
 GO
 
 IF NOT EXISTS (SELECT 1 FROM dbo.users WHERE email = N'mild@example.com')
 BEGIN
-    INSERT INTO dbo.users (full_name, email, password_hash, phone, role_id, status)
-    VALUES (N'Mild Patisserie', N'mild@example.com', N'customer123-hash', N'0890000002', @RoleUserId, N'active');
+    INSERT INTO dbo.users (full_name, email, password_hash, phone, role_id, status, notes, last_active_at)
+    VALUES (
+        N'Mild Patisserie',
+        N'mild@example.com',
+        N'user12345',
+        N'0890000002',
+        (SELECT TOP 1 id FROM dbo.roles WHERE role_key = N'user'),
+        N'active',
+        N'Registered storefront user',
+        DATEADD(DAY, -1, SYSUTCDATETIME())
+    );
 END
 GO
 
 IF NOT EXISTS (SELECT 1 FROM dbo.users WHERE email = N'beam@example.com')
 BEGIN
-    INSERT INTO dbo.users (full_name, email, password_hash, phone, role_id, status)
-    VALUES (N'Beam Bakery Lover', N'beam@example.com', N'customer123-hash', N'0890000003', @RoleUserId, N'active');
+    INSERT INTO dbo.users (full_name, email, password_hash, phone, role_id, status, notes, last_active_at)
+    VALUES (
+        N'Beam Bakery Lover',
+        N'beam@example.com',
+        N'user12345',
+        N'0890000003',
+        (SELECT TOP 1 id FROM dbo.roles WHERE role_key = N'user'),
+        N'active',
+        N'Registered storefront user',
+        DATEADD(DAY, -2, SYSUTCDATETIME())
+    );
 END
 GO
 
 IF NOT EXISTS (SELECT 1 FROM dbo.users WHERE email = N'prai@example.com')
 BEGIN
-    INSERT INTO dbo.users (full_name, email, password_hash, phone, role_id, status)
-    VALUES (N'ปราย ลูกค้าหน้าร้าน', N'prai@example.com', N'customer123-hash', N'0890000004', @RoleUserId, N'active');
+    INSERT INTO dbo.users (full_name, email, password_hash, phone, role_id, status, notes, last_active_at)
+    VALUES (
+        N'ปราย ลูกค้าหน้าร้าน',
+        N'prai@example.com',
+        N'user12345',
+        N'0890000004',
+        (SELECT TOP 1 id FROM dbo.roles WHERE role_key = N'user'),
+        N'active',
+        N'Registered storefront user',
+        DATEADD(DAY, -3, SYSUTCDATETIME())
+    );
 END
 GO
 
 -- Products
-DECLARE @MacaronCategoryId INT = (SELECT TOP 1 id FROM dbo.categories WHERE name = N'Macaron');
-DECLARE @CakeCategoryId INT = (SELECT TOP 1 id FROM dbo.categories WHERE name = N'Cake');
-DECLARE @ChouxCategoryId INT = (SELECT TOP 1 id FROM dbo.categories WHERE name = N'Choux Cream');
-DECLARE @BakeryCategoryId INT = (SELECT TOP 1 id FROM dbo.categories WHERE name = N'Bakery');
-
 IF NOT EXISTS (SELECT 1 FROM dbo.products WHERE sku = N'MC-ROSE-01')
 BEGIN
     INSERT INTO dbo.products (category_id, sku, name, description, price, stock_qty, image_url, is_active)
-    VALUES (@MacaronCategoryId, N'MC-ROSE-01', N'Rose Macaron Box', N'Rose and vanilla macarons for soft pink gift sets', 120.00, 32, N'/images/theme-macaron.svg', 1);
+    VALUES (
+        (SELECT TOP 1 id FROM dbo.categories WHERE name = N'Macaron'),
+        N'MC-ROSE-01',
+        N'Rose Macaron Box',
+        N'Rose and vanilla macarons for soft pink gift sets',
+        120.00,
+        32,
+        N'/images/theme-macaron.svg',
+        1
+    );
 END
 
 IF NOT EXISTS (SELECT 1 FROM dbo.products WHERE sku = N'CK-STRAW-02')
 BEGIN
     INSERT INTO dbo.products (category_id, sku, name, description, price, stock_qty, image_url, is_active)
-    VALUES (@CakeCategoryId, N'CK-STRAW-02', N'Strawberry Shortcake', N'Fresh cream cake with soft sponge and strawberry topping', 145.00, 9, N'/images/theme-cake.svg', 1);
+    VALUES (
+        (SELECT TOP 1 id FROM dbo.categories WHERE name = N'Cake'),
+        N'CK-STRAW-02',
+        N'Strawberry Shortcake',
+        N'Fresh cream cake with soft sponge and strawberry topping',
+        145.00,
+        9,
+        N'/images/theme-cake.svg',
+        1
+    );
 END
 
 IF NOT EXISTS (SELECT 1 FROM dbo.products WHERE sku = N'CH-VANI-03')
 BEGIN
     INSERT INTO dbo.products (category_id, sku, name, description, price, stock_qty, image_url, is_active)
-    VALUES (@ChouxCategoryId, N'CH-VANI-03', N'Vanilla Choux Cream', N'Light pastry shell with smooth vanilla custard filling', 55.00, 24, N'/images/theme-cream.svg', 1);
+    VALUES (
+        (SELECT TOP 1 id FROM dbo.categories WHERE name = N'Choux Cream'),
+        N'CH-VANI-03',
+        N'Vanilla Choux Cream',
+        N'Light pastry shell with smooth vanilla custard filling',
+        55.00,
+        24,
+        N'/images/theme-cream.svg',
+        1
+    );
 END
 
 IF NOT EXISTS (SELECT 1 FROM dbo.products WHERE sku = N'BK-CROI-04')
 BEGIN
     INSERT INTO dbo.products (category_id, sku, name, description, price, stock_qty, image_url, is_active)
-    VALUES (@BakeryCategoryId, N'BK-CROI-04', N'Butter Croissant', N'Flaky layers with rich butter aroma from the morning batch', 69.00, 0, N'/images/theme-gold.svg', 0);
+    VALUES (
+        (SELECT TOP 1 id FROM dbo.categories WHERE name = N'Bakery'),
+        N'BK-CROI-04',
+        N'Butter Croissant',
+        N'Flaky layers with rich butter aroma from the morning batch',
+        69.00,
+        0,
+        N'/images/theme-gold.svg',
+        0
+    );
 END
 
 IF NOT EXISTS (SELECT 1 FROM dbo.products WHERE sku = N'CK-BLUE-05')
 BEGIN
     INSERT INTO dbo.products (category_id, sku, name, description, price, stock_qty, image_url, is_active)
-    VALUES (@CakeCategoryId, N'CK-BLUE-05', N'Blueberry Cheesecake', N'Creamy cheesecake finished with blueberry glaze', 159.00, 18, N'/images/theme-berry.svg', 1);
+    VALUES (
+        (SELECT TOP 1 id FROM dbo.categories WHERE name = N'Cake'),
+        N'CK-BLUE-05',
+        N'Blueberry Cheesecake',
+        N'Creamy cheesecake finished with blueberry glaze',
+        159.00,
+        18,
+        N'/images/theme-berry.svg',
+        1
+    );
 END
 
 IF NOT EXISTS (SELECT 1 FROM dbo.products WHERE sku = N'BK-ECLA-06')
 BEGIN
     INSERT INTO dbo.products (category_id, sku, name, description, price, stock_qty, image_url, is_active)
-    VALUES (@BakeryCategoryId, N'BK-ECLA-06', N'Mini Eclair Set', N'Small eclair box for afternoon sharing and coffee time', 89.00, 21, N'/images/theme-cream.svg', 1);
+    VALUES (
+        (SELECT TOP 1 id FROM dbo.categories WHERE name = N'Bakery'),
+        N'BK-ECLA-06',
+        N'Mini Eclair Set',
+        N'Small eclair box for afternoon sharing and coffee time',
+        89.00,
+        21,
+        N'/images/theme-cream.svg',
+        1
+    );
 END
 
 IF NOT EXISTS (SELECT 1 FROM dbo.products WHERE sku = N'CK-MILK-07')
 BEGIN
     INSERT INTO dbo.products (category_id, sku, name, description, price, stock_qty, image_url, is_active)
-    VALUES (@CakeCategoryId, N'CK-MILK-07', N'Milk Cloud Roll', N'Japanese style roll cake with soft milk whipped cream', 135.00, 14, N'/images/theme-milk.svg', 1);
+    VALUES (
+        (SELECT TOP 1 id FROM dbo.categories WHERE name = N'Cake'),
+        N'CK-MILK-07',
+        N'Milk Cloud Roll',
+        N'Japanese style roll cake with soft milk whipped cream',
+        135.00,
+        14,
+        N'/images/theme-milk.svg',
+        1
+    );
 END
 
 IF NOT EXISTS (SELECT 1 FROM dbo.products WHERE sku = N'BK-CHER-08')
 BEGIN
     INSERT INTO dbo.products (category_id, sku, name, description, price, stock_qty, image_url, is_active)
-    VALUES (@BakeryCategoryId, N'BK-CHER-08', N'Cherry Tart Slice', N'Buttery tart shell with cherry compote and almond cream', 95.00, 16, N'/images/theme-berry.svg', 1);
+    VALUES (
+        (SELECT TOP 1 id FROM dbo.categories WHERE name = N'Bakery'),
+        N'BK-CHER-08',
+        N'Cherry Tart Slice',
+        N'Buttery tart shell with cherry compote and almond cream',
+        95.00,
+        16,
+        N'/images/theme-berry.svg',
+        1
+    );
 END
 GO
 

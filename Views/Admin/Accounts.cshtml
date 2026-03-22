@@ -11,7 +11,7 @@
     <div>
         <p class="admin-page-kicker">Accounts</p>
         <h2>Manage system accounts</h2>
-        <span>ดูรายการสมาชิกทั้งหมด เพิ่มบัญชีใหม่ หรือแก้ไข role และสถานะได้จากหน้านี้</span>
+        <span>สมัครจากหน้าเว็บจะได้แค่ User ส่วน role อื่นให้สร้างจากหน้านี้ผ่านแอดมินเท่านั้น</span>
     </div>
     <button type="button" class="admin-primary-button" data-bs-toggle="modal" data-bs-target="#addAccountModal">
         Add Account
@@ -29,7 +29,10 @@
     }
 </section>
 
-<section class="admin-account-page" data-admin-accounts data-active-modal="@Model.ActiveModal">
+<section class="admin-account-page"
+         data-admin-accounts
+         data-active-modal="@Model.ActiveModal"
+         data-can-change-roles="@(Model.CanChangeRoles ? "true" : "false")">
     <article class="admin-card">
         <div class="admin-card-head admin-card-head-stack">
             <div>
@@ -155,12 +158,18 @@
                         <div>
                             <label asp-for="AddForm.Role" class="form-label">Role</label>
                             <select asp-for="AddForm.Role" class="form-select bakery-field">
-                                @foreach (var role in Model.Roles)
+                                @foreach (var role in Model.AddRoleOptions)
                                 {
                                     <option value="@role">@role</option>
                                 }
                             </select>
                             <span asp-validation-for="AddForm.Role" class="text-danger small"></span>
+                        </div>
+
+                        <div>
+                            <label asp-for="AddForm.Password" class="form-label">Password</label>
+                            <input asp-for="AddForm.Password" class="form-control bakery-field" type="text" placeholder="อย่างน้อย 8 ตัวอักษร" />
+                            <span asp-validation-for="AddForm.Password" class="text-danger small"></span>
                         </div>
 
                         <div>
@@ -236,16 +245,27 @@
                             <span asp-validation-for="EditForm.PhoneNumber" class="text-danger small"></span>
                         </div>
 
-                        <div>
-                            <label asp-for="EditForm.Role" class="form-label">Role</label>
-                            <select asp-for="EditForm.Role" class="form-select bakery-field">
-                                @foreach (var role in Model.Roles)
-                                {
-                                    <option value="@role">@role</option>
-                                }
-                            </select>
-                            <span asp-validation-for="EditForm.Role" class="text-danger small"></span>
-                        </div>
+                        @if (Model.CanChangeRoles)
+                        {
+                            <div>
+                                <label asp-for="EditForm.Role" class="form-label">Role</label>
+                                <select asp-for="EditForm.Role" class="form-select bakery-field">
+                                    @foreach (var role in Model.EditRoleOptions)
+                                    {
+                                        <option value="@role">@role</option>
+                                    }
+                                </select>
+                                <span asp-validation-for="EditForm.Role" class="text-danger small"></span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div>
+                                <label asp-for="EditForm.Role" class="form-label">Role</label>
+                                <input asp-for="EditForm.Role" class="form-control bakery-field admin-readonly-field" readonly />
+                                <span asp-validation-for="EditForm.Role" class="text-danger small"></span>
+                            </div>
+                        }
 
                         <div>
                             <label asp-for="EditForm.Status" class="form-label">Status</label>
@@ -256,6 +276,12 @@
                                 }
                             </select>
                             <span asp-validation-for="EditForm.Status" class="text-danger small"></span>
+                        </div>
+
+                        <div class="admin-form-span-full">
+                            <label asp-for="EditForm.Password" class="form-label">New password</label>
+                            <input asp-for="EditForm.Password" class="form-control bakery-field" type="text" placeholder="เว้นว่างถ้าไม่เปลี่ยนรหัสผ่าน" />
+                            <span asp-validation-for="EditForm.Password" class="text-danger small"></span>
                         </div>
 
                         <div class="admin-form-span-full">

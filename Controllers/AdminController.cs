@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Http;
 using OneManVekery.Services;
 using OneManVekery.ViewModel;
 
@@ -15,6 +17,22 @@ public class AdminController : Controller
     {
         _accountDirectoryService = accountDirectoryService;
         _inventoryCatalogService = inventoryCatalogService;
+    }
+
+    public override void OnActionExecuting(ActionExecutingContext context)
+    {
+        var roleKey = HttpContext.Session.GetString(AdminPortalAuth.SessionAccountRoleKey);
+        if (!AdminPortalAuth.CanAccessAdmin(roleKey))
+        {
+            TempData["SiteNotice"] = "กรุณาเข้าสู่ระบบด้วยบัญชี Staff, Admin หรือ Owner ก่อนเข้าหน้าหลังบ้าน";
+            context.Result = RedirectToAction("Login", "Account");
+            return;
+        }
+
+        ViewData["AdminSignedInName"] = HttpContext.Session.GetString(AdminPortalAuth.SessionAccountNameKey) ?? "Bakery Team";
+        ViewData["AdminSignedInRole"] = HttpContext.Session.GetString(AdminPortalAuth.SessionAccountRoleLabelKey) ?? "Staff";
+
+        base.OnActionExecuting(context);
     }
 
     [HttpGet]
@@ -135,6 +153,20 @@ public class AdminController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult AddAccount([Bind(Prefix = "AddForm")] AdminAccountEditorViewModel form)
     {
+        var currentRoleKey = GetCurrentAdminRoleKey();
+
+        if (string.IsNullOrWhiteSpace(form.Password))
+        {
+            ModelState.AddModelError("AddForm.Password", "กรุณากำหนดรหัสผ่านสำหรับบัญชีนี้");
+        }
+
+        if (!CanAssignRole(currentRoleKey, form.Role))
+        {
+            ModelState.AddModelError("AddForm.Role", AdminPortalAuth.CanCreateStaffAccounts(currentRoleKey)
+                ? "บัญชีที่สร้างจากหน้านี้เลือกได้เฉพาะ User หรือ Staff"
+                : "บัญชี Staff สร้างบัญชีใหม่ได้เฉพาะ User เท่านั้น");
+        }
+
         if (_accountDirectoryService.EmailExists(form.Email))
         {
             ModelState.AddModelError("AddForm.Email", "อีเมลนี้ถูกใช้งานแล้ว");
@@ -155,10 +187,22 @@ public class AdminController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult UpdateAccount([Bind(Prefix = "EditForm")] AdminAccountEditorViewModel form)
     {
-        if (form.AccountId == Guid.Empty || _accountDirectoryService.GetAccount(form.AccountId) is null)
+        var currentRoleKey = GetCurrentAdminRoleKey();
+        var existingAccount = form.AccountId <= 0 ? null : _accountDirectoryService.GetAccount(form.AccountId);
+
+        if (existingAccount is null)
         {
             TempData["SiteNotice"] = "ไม่พบบัญชีที่ต้องการแก้ไข";
             return RedirectToAction(nameof(Accounts));
+        }
+
+        if (!AdminPortalAuth.CanChangeAccountRoles(currentRoleKey))
+        {
+            form.Role = existingAccount.Role;
+        }
+        else if (!CanKeepOrAssignRole(currentRoleKey, form.Role, existingAccount.Role))
+        {
+            ModelState.AddModelError("EditForm.Role", "บัญชีนี้เปลี่ยน role ได้เฉพาะ User หรือ Staff");
         }
 
         if (_accountDirectoryService.EmailExists(form.Email, form.AccountId))
@@ -179,10 +223,10 @@ public class AdminController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult CloseAccount(Guid accountId)
+    public IActionResult CloseAccount(int accountId)
     {
         var existingAccount = _accountDirectoryService.GetAccount(accountId);
-        if (accountId == Guid.Empty || existingAccount is null)
+        if (accountId <= 0 || existingAccount is null)
         {
             TempData["SiteNotice"] = "ไม่พบบัญชีที่ต้องการปิด";
             return RedirectToAction(nameof(Accounts));
@@ -393,25 +437,31 @@ public class AdminController : Controller
         AdminAccountEditorViewModel? editForm = null,
         string activeModal = "")
     {
+        var currentRoleKey = GetCurrentAdminRoleKey();
         var accounts = _accountDirectoryService.GetAllAccounts();
-        var roles = _accountDirectoryService.GetRoles();
         var statusOptions = _accountDirectoryService.GetStatuses();
+        var addRoleOptions = BuildAddRoleOptions(currentRoleKey);
+        var editRoleOptions = BuildEditRoleOptions(currentRoleKey);
+        var defaultRole = addRoleOptions.FirstOrDefault() ?? "User";
 
         return new AdminAccountsViewModel
         {
             DateRangeLabel = $"Account sync {DateTime.Now:dd MMM yyyy}",
             SummaryItems = BuildAccountSummary(accounts),
             Accounts = accounts.Select(MapAccount).ToList(),
-            Roles = roles,
+            AddRoleOptions = addRoleOptions,
+            EditRoleOptions = editRoleOptions,
             StatusOptions = statusOptions,
+            CanCreateStaffAccounts = AdminPortalAuth.CanCreateStaffAccounts(currentRoleKey),
+            CanChangeRoles = AdminPortalAuth.CanChangeAccountRoles(currentRoleKey),
             AddForm = addForm ?? new AdminAccountEditorViewModel
             {
-                Role = "Staff",
+                Role = defaultRole,
                 Status = "Active"
             },
             EditForm = editForm ?? new AdminAccountEditorViewModel
             {
-                Role = "Staff",
+                Role = defaultRole,
                 Status = "Active"
             },
             ActiveModal = activeModal
@@ -556,8 +606,38 @@ public class AdminController : Controller
             PhoneNumber = form.PhoneNumber,
             Role = form.Role,
             Status = form.Status,
-            Notes = form.Notes
+            Notes = form.Notes,
+            Password = form.Password ?? string.Empty
         };
+    }
+
+    private string GetCurrentAdminRoleKey()
+    {
+        return HttpContext.Session.GetString(AdminPortalAuth.SessionAccountRoleKey)?.Trim().ToLowerInvariant() ?? string.Empty;
+    }
+
+    private static IReadOnlyList<string> BuildAddRoleOptions(string currentRoleKey)
+    {
+        return AdminPortalAuth.CanCreateStaffAccounts(currentRoleKey)
+            ? ["User", "Staff"]
+            : ["User"];
+    }
+
+    private static IReadOnlyList<string> BuildEditRoleOptions(string currentRoleKey)
+    {
+        return BuildAddRoleOptions(currentRoleKey);
+    }
+
+    private static bool CanAssignRole(string currentRoleKey, string requestedRole)
+    {
+        return BuildAddRoleOptions(currentRoleKey)
+            .Contains(requestedRole, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static bool CanKeepOrAssignRole(string currentRoleKey, string requestedRole, string existingRole)
+    {
+        return string.Equals(requestedRole, existingRole, StringComparison.OrdinalIgnoreCase) ||
+               CanAssignRole(currentRoleKey, requestedRole);
     }
 
     private static IReadOnlyList<AdminInfoItemViewModel> BuildAccountSummary(IReadOnlyList<AccountRecord> accounts)
