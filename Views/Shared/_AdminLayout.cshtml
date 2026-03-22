@@ -23,7 +23,7 @@
                         <p>Control Center</p>
                     </div>
 
-                    <span class="admin-sidebar-badge">05</span>
+                    <span class="admin-sidebar-badge">06</span>
                 </div>
 
                 <nav class="admin-nav">
@@ -42,6 +42,10 @@
                     <a class="admin-nav-item @(adminSection == "Products" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Products" aria-label="Products" title="Products">
                         <span class="admin-nav-glyph is-products" aria-hidden="true"></span>
                         <span>Products</span>
+                    </a>
+                    <a class="admin-nav-item @(adminSection == "Items" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Items" aria-label="Items" title="Items">
+                        <span class="admin-nav-glyph is-items" aria-hidden="true"></span>
+                        <span>Items</span>
                     </a>
                     <a class="admin-nav-item @(adminSection == "Accounts" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Accounts" aria-label="Accounts" title="Accounts">
                         <span class="admin-nav-glyph is-reports" aria-hidden="true"></span>
@@ -64,6 +68,11 @@
         </aside>
 
         <div class="admin-main-wrap">
+            @if (TempData["SiteNotice"] is string siteNotice)
+            {
+                <div class="site-notice admin-site-notice" role="status">@siteNotice</div>
+            }
+
             <header class="admin-topbar">
                 <div>
                     <h1>@ViewData["Title"]</h1>
@@ -87,5 +96,9 @@
             </footer>
         </div>
     </div>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

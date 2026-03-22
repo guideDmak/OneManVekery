@@ -1,0 +1,183 @@
+@model CartPageViewModel
+
+@{
+    ViewData["Title"] = "ตะกร้า";
+}
+
+<section class="page-banner">
+    <div class="container bakery-container">
+        <div class="page-banner-card">
+            <p class="page-banner-brand">One Man Vekery</p>
+            <h1>ตะกร้าและการชำระเงิน</h1>
+            <p class="page-banner-crumb">
+                <a asp-action="Index">หน้าแรก</a>
+                <span>&gt;</span>
+                <strong>ตะกร้า</strong>
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="cart-page-section">
+    <div class="container bakery-container">
+        @if (!Model.HasItems)
+        {
+            <article class="cart-empty-state">
+                <div>
+                    <p class="section-overline">ตะกร้าของคุณ</p>
+                    <h2>ตะกร้ายังว่างอยู่</h2>
+                    <p>เลือกขนมที่ชอบจากหน้าสินค้า แล้วกลับมาสรุปยอดและเลือกวิธีชำระเงินได้จากหน้านี้ทันที</p>
+                </div>
+                <a class="btn store-primary-btn" asp-action="Shop">เลือกสินค้าต่อ</a>
+            </article>
+        }
+        else
+        {
+            <div class="cart-layout">
+                <article class="cart-list-card">
+                    <div class="cart-list-head">
+                        <div>
+                            <p class="section-overline">ตะกร้าของคุณ</p>
+                            <h2>มีสินค้า @Model.ItemCount ชิ้น พร้อมชำระเงิน</h2>
+                        </div>
+                        <span class="cart-list-note">ส่งฟรีเมื่อยอดสั่งซื้อ 300 ฿ ขึ้นไป</span>
+                    </div>
+
+                    <div class="cart-item-list">
+                        @foreach (var item in Model.Items)
+                        {
+                            <article class="cart-item-card">
+                                <div class="cart-item-media">
+                                    <img src="@Url.Content(item.ImagePath)" alt="@item.Name" class="cart-item-image" />
+                                </div>
+
+                                <div class="cart-item-body">
+                                    <div class="cart-item-head">
+                                        <div>
+                                            <p class="cart-item-category">@item.Category</p>
+                                            <h3>@item.Name</h3>
+                                        </div>
+                                        @if (item.IsSoldOut)
+                                        {
+                                            <span class="cart-item-flag">หมดแล้ว</span>
+                                        }
+                                    </div>
+
+                                    <p class="cart-item-description">@item.Description</p>
+
+                                    <div class="cart-item-footer">
+                                        <div class="cart-item-pricing">
+                                            <span>ราคาต่อชิ้น</span>
+                                            <strong>@item.UnitPriceLabel</strong>
+                                        </div>
+
+                                        <div class="cart-quantity-control">
+                                            <form asp-action="ChangeCartQuantity" method="post" class="admin-inline-form">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="productId" value="@item.ProductId" />
+                                                <input type="hidden" name="delta" value="-1" />
+                                                <button type="submit" class="cart-qty-button">-</button>
+                                            </form>
+
+                                            <span>@item.Quantity</span>
+
+                                            <form asp-action="ChangeCartQuantity" method="post" class="admin-inline-form">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="productId" value="@item.ProductId" />
+                                                <input type="hidden" name="delta" value="1" />
+                                                <button type="submit" class="cart-qty-button is-plus">+</button>
+                                            </form>
+                                        </div>
+
+                                        <div class="cart-item-pricing cart-item-total">
+                                            <span>รวมรายการนี้</span>
+                                            <strong>@item.LineTotalLabel</strong>
+                                        </div>
+
+                                        <form asp-action="RemoveFromCart" method="post" class="cart-remove-form">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="productId" value="@item.ProductId" />
+                                            <button type="submit" class="btn store-outline-btn cart-remove-button">ลบออก</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                </article>
+
+                <aside class="cart-summary-card">
+                    <div class="cart-summary-head">
+                        <p class="section-overline">ชำระเงิน</p>
+                        <h2>เลือกวิธีจ่ายและยืนยันออเดอร์</h2>
+                    </div>
+
+                    <div class="cart-summary-totals">
+                        <div class="cart-summary-row">
+                            <span>ค่าสินค้า</span>
+                            <strong>@Model.Subtotal.ToString("0.##") ฿</strong>
+                        </div>
+                        <div class="cart-summary-row">
+                            <span>ค่าส่ง</span>
+                            <strong>@Model.DeliveryFee.ToString("0.##") ฿</strong>
+                        </div>
+                        <div class="cart-summary-row is-total">
+                            <span>รวมทั้งหมด</span>
+                            <strong>@Model.Total.ToString("0.##") ฿</strong>
+                        </div>
+                    </div>
+
+                    <form asp-action="Checkout" method="post" class="cart-checkout-form">
+                        @Html.AntiForgeryToken()
+                        <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+
+                        <div class="cart-payment-options">
+                            @foreach (var option in Model.PaymentOptions)
+                            {
+                                <label class="cart-payment-option @(Model.Checkout.PaymentMethod == option.Code ? "is-selected" : string.Empty)">
+                                    <input asp-for="Checkout.PaymentMethod" type="radio" value="@option.Code" />
+                                    <div>
+                                        <strong>@option.Label</strong>
+                                        <span>@option.Description</span>
+                                    </div>
+                                </label>
+                            }
+                            <span asp-validation-for="Checkout.PaymentMethod" class="text-danger small"></span>
+                        </div>
+
+                        <div class="cart-form-grid">
+                            <div class="cart-form-span-full">
+                                <label asp-for="Checkout.CustomerName" class="form-label">ชื่อผู้รับ</label>
+                                <input asp-for="Checkout.CustomerName" class="form-control bakery-field" placeholder="ชื่อ-นามสกุล" />
+                                <span asp-validation-for="Checkout.CustomerName" class="text-danger small"></span>
+                            </div>
+
+                            <div class="cart-form-span-full">
+                                <label asp-for="Checkout.PhoneNumber" class="form-label">เบอร์โทร</label>
+                                <input asp-for="Checkout.PhoneNumber" class="form-control bakery-field" placeholder="089-000-1122" />
+                                <span asp-validation-for="Checkout.PhoneNumber" class="text-danger small"></span>
+                            </div>
+
+                            <div class="cart-form-span-full">
+                                <label asp-for="Checkout.DeliveryAddress" class="form-label">ที่อยู่จัดส่ง</label>
+                                <textarea asp-for="Checkout.DeliveryAddress" class="form-control bakery-field bakery-field-area cart-address-field" placeholder="บ้านเลขที่ ถนน แขวง เขต จังหวัด"></textarea>
+                                <span asp-validation-for="Checkout.DeliveryAddress" class="text-danger small"></span>
+                            </div>
+
+                            <div class="cart-form-span-full">
+                                <label asp-for="Checkout.Notes" class="form-label">หมายเหตุ</label>
+                                <textarea asp-for="Checkout.Notes" class="form-control bakery-field bakery-field-area cart-note-field" placeholder="เวลาที่สะดวกรับ, เทียนวันเกิด, การ์ดอวยพร ฯลฯ"></textarea>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn store-primary-btn cart-checkout-button">ยืนยันการชำระเงิน</button>
+                    </form>
+                </aside>
+            </div>
+        }
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

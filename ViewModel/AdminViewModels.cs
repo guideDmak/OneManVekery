@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace OneManVekery.ViewModel;
 
 public class AdminDashboardViewModel
@@ -124,21 +126,159 @@ public class AdminAccountsViewModel
     public IReadOnlyList<AdminAccountRecordViewModel> Accounts { get; init; } = [];
 
     public IReadOnlyList<string> Roles { get; init; } = [];
+
+    public IReadOnlyList<string> StatusOptions { get; init; } = [];
+
+    public AdminAccountEditorViewModel AddForm { get; init; } = new();
+
+    public AdminAccountEditorViewModel EditForm { get; init; } = new();
+
+    public string ActiveModal { get; init; } = string.Empty;
+}
+
+public class AdminItemsPageViewModel
+{
+    public string DateRangeLabel { get; init; } = string.Empty;
+
+    public IReadOnlyList<AdminInfoItemViewModel> SummaryItems { get; init; } = [];
+
+    public IReadOnlyList<AdminInventoryItemViewModel> Items { get; init; } = [];
+
+    public IReadOnlyList<string> Categories { get; init; } = [];
+
+    public IReadOnlyList<string> ImageOptions { get; init; } = [];
+
+    public AdminItemEditorViewModel AddForm { get; init; } = new();
+
+    public AdminItemEditorViewModel EditForm { get; init; } = new();
+
+    public string ActiveModal { get; init; } = string.Empty;
+}
+
+public class AdminInventoryItemViewModel
+{
+    public Guid ItemId { get; init; }
+
+    public string ItemCode { get; init; } = string.Empty;
+
+    public string Sku { get; init; } = string.Empty;
+
+    public string Name { get; init; } = string.Empty;
+
+    public string Category { get; init; } = string.Empty;
+
+    public string Tagline { get; init; } = string.Empty;
+
+    public string Notes { get; init; } = string.Empty;
+
+    public string ImagePath { get; init; } = string.Empty;
+
+    public string PriceLabel { get; init; } = string.Empty;
+
+    public int StockQuantity { get; init; }
+
+    public int ReorderLevel { get; init; }
+
+    public string StatusLabel { get; init; } = string.Empty;
+
+    public string StatusKey { get; init; } = string.Empty;
+
+    public string UpdatedAtLabel { get; init; } = string.Empty;
+
+    public bool IsPublished { get; init; }
+}
+
+public class AdminItemEditorViewModel
+{
+    public Guid ItemId { get; set; }
+
+    public string ItemCode { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "กรุณากรอกชื่อสินค้า")]
+    [StringLength(80, ErrorMessage = "ชื่อสินค้าต้องไม่เกิน 80 ตัวอักษร")]
+    public string Name { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "กรุณากรอกหมวดสินค้า")]
+    [StringLength(40, ErrorMessage = "หมวดสินค้าต้องไม่เกิน 40 ตัวอักษร")]
+    public string Category { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "กรุณากรอก SKU")]
+    [StringLength(24, MinimumLength = 3, ErrorMessage = "SKU ต้องมี 3-24 ตัวอักษร")]
+    public string Sku { get; set; } = string.Empty;
+
+    [Range(typeof(decimal), "1", "99999", ErrorMessage = "ราคาต้องมากกว่า 0")]
+    public decimal Price { get; set; }
+
+    [Range(0, 5000, ErrorMessage = "จำนวนสต็อกต้องอยู่ระหว่าง 0-5000")]
+    public int StockQuantity { get; set; }
+
+    [Range(0, 1000, ErrorMessage = "จุดเตือนสต็อกต้องอยู่ระหว่าง 0-1000")]
+    public int ReorderLevel { get; set; }
+
+    [StringLength(120, ErrorMessage = "คำอธิบายสั้นต้องไม่เกิน 120 ตัวอักษร")]
+    public string Tagline { get; set; } = string.Empty;
+
+    [StringLength(240, ErrorMessage = "หมายเหตุต้องไม่เกิน 240 ตัวอักษร")]
+    public string Notes { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "กรุณากรอก path รูปสินค้า")]
+    [StringLength(160, ErrorMessage = "path รูปสินค้าต้องไม่เกิน 160 ตัวอักษร")]
+    public string ImagePath { get; set; } = "/images/theme-cake.svg";
+
+    public bool IsPublished { get; set; } = true;
 }
 
 public class AdminAccountRecordViewModel
 {
+    public Guid AccountId { get; init; }
+
+    public string AccountCode { get; init; } = string.Empty;
+
     public string FullName { get; init; } = string.Empty;
 
     public string Email { get; init; } = string.Empty;
+
+    public string PhoneNumber { get; init; } = string.Empty;
 
     public string Role { get; init; } = string.Empty;
 
     public string Status { get; init; } = string.Empty;
 
+    public string StatusKey { get; init; } = string.Empty;
+
     public string LastActive { get; init; } = string.Empty;
 
     public string Notes { get; init; } = string.Empty;
+}
+
+public class AdminAccountEditorViewModel
+{
+    public Guid AccountId { get; set; }
+
+    public string AccountCode { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "กรุณากรอกชื่อบัญชี")]
+    [StringLength(80, ErrorMessage = "ชื่อบัญชีต้องไม่เกิน 80 ตัวอักษร")]
+    public string FullName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "กรุณากรอกอีเมล")]
+    [EmailAddress(ErrorMessage = "รูปแบบอีเมลไม่ถูกต้อง")]
+    public string Email { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "กรุณากรอกเบอร์โทร")]
+    [Phone(ErrorMessage = "รูปแบบเบอร์โทรไม่ถูกต้อง")]
+    public string PhoneNumber { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "กรุณาเลือก role")]
+    public string Role { get; set; } = "Staff";
+
+    [Required(ErrorMessage = "กรุณาเลือกสถานะ")]
+    public string Status { get; set; } = "Active";
+
+    [StringLength(160, ErrorMessage = "หมายเหตุต้องไม่เกิน 160 ตัวอักษร")]
+    public string Notes { get; set; } = string.Empty;
+
+    public string LastActiveDisplay { get; set; } = string.Empty;
 }
 
 public class AdminInfoItemViewModel

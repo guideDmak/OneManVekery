@@ -1,0 +1,140 @@
+@model OrderStatusPageViewModel
+
+@{
+    ViewData["Title"] = "สถานะคำสั่งซื้อ";
+}
+
+<section class="page-banner">
+    <div class="container bakery-container">
+        <div class="page-banner-card">
+            <p class="page-banner-brand">One Man Vekery</p>
+            <h1>บิลคำสั่งซื้อ</h1>
+            <p class="page-banner-crumb">
+                <a asp-action="Index">หน้าแรก</a>
+                <span>&gt;</span>
+                <strong>สถานะคำสั่งซื้อ</strong>
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="order-success-section">
+    <div class="container bakery-container">
+        <div class="order-success-hero">
+            <div class="order-success-copy">
+                <span class="order-success-icon">OK</span>
+                <div>
+                    <p class="section-overline">สั่งซื้อสำเร็จ</p>
+                    <h2>ซื้อเสร็จสิ้นแล้ว</h2>
+                    <p>ออเดอร์ของคุณถูกสร้างเรียบร้อยแล้ว สามารถใช้เลขบิลด้านขวาเพื่อตรวจสอบสถานะได้ทันที</p>
+                </div>
+            </div>
+
+            <div class="order-success-meta">
+                <div class="order-meta-row">
+                    <span>เลขออเดอร์</span>
+                    <strong>@Model.OrderNumber</strong>
+                </div>
+                <div class="order-meta-row">
+                    <span>วันที่</span>
+                    <strong>@Model.CreatedAt.ToString("dd MMM yyyy, HH:mm")</strong>
+                </div>
+                <div class="order-meta-row">
+                    <span>การชำระเงิน</span>
+                    <strong>@Model.PaymentMethodLabel</strong>
+                </div>
+                <div class="order-meta-row">
+                    <span>สถานะ</span>
+                    <strong>@Model.CurrentStatusLabel</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="order-status-grid">
+            @foreach (var step in Model.StatusSteps)
+            {
+                <article class="order-status-card is-@step.State">
+                    <span class="order-status-marker">@step.Marker</span>
+                    <h3>@step.Title</h3>
+                    <p>@step.Description</p>
+                </article>
+            }
+        </div>
+
+        <div class="order-receipt-grid">
+            <article class="order-bill-card">
+                <div class="order-bill-head">
+                    <div>
+                        <p class="section-overline">ใบเสร็จ</p>
+                        <h2>บิลคำสั่งซื้อ</h2>
+                    </div>
+                    <span class="order-status-pill">@Model.CurrentStatusLabel</span>
+                </div>
+
+                <div class="order-bill-list">
+                    @foreach (var item in Model.Items)
+                    {
+                        <div class="order-bill-item">
+                            <div>
+                                <strong>@item.Name</strong>
+                                <span>@item.Category</span>
+                            </div>
+                            <div>
+                                <span>@item.Quantity x @item.UnitPrice.ToString("0.##") ฿</span>
+                                <strong>@item.LineTotal.ToString("0.##") ฿</strong>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="order-bill-summary">
+                    <div class="order-summary-row">
+                        <span>ค่าสินค้า</span>
+                        <strong>@Model.Subtotal.ToString("0.##") ฿</strong>
+                    </div>
+                    <div class="order-summary-row">
+                        <span>ค่าส่ง</span>
+                        <strong>@Model.DeliveryFee.ToString("0.##") ฿</strong>
+                    </div>
+                    <div class="order-summary-row is-total">
+                        <span>รวมทั้งหมด</span>
+                        <strong>@Model.Total.ToString("0.##") ฿</strong>
+                    </div>
+                </div>
+            </article>
+
+            <aside class="order-details-card">
+                <div class="order-detail-block">
+                    <p class="section-overline">สถานะปัจจุบัน</p>
+                    <h2>@Model.CurrentStatusLabel</h2>
+                    <p>@Model.CurrentStatusDescription</p>
+                </div>
+
+                <div class="order-detail-block">
+                    <p class="section-overline">ข้อมูลจัดส่ง</p>
+                    <strong>@Model.CustomerName</strong>
+                    <span>@Model.PhoneNumber</span>
+                    <p>@Model.DeliveryAddress</p>
+                </div>
+
+                <div class="order-detail-block">
+                    <p class="section-overline">วิธีชำระเงิน</p>
+                    <strong>@Model.PaymentMethodLabel</strong>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(Model.Notes))
+                {
+                    <div class="order-detail-block">
+                        <p class="section-overline">หมายเหตุ</p>
+                        <p>@Model.Notes</p>
+                    </div>
+                }
+
+                <div class="order-action-row">
+                    <a class="btn store-primary-btn" asp-action="Shop">เลือกสินค้าต่อ</a>
+                    <a class="btn store-outline-btn" asp-action="Index">กลับหน้าแรก</a>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>

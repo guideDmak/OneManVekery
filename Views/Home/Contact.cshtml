@@ -1,18 +1,18 @@
 @model ContactPageViewModel
 
 @{
-    ViewData["Title"] = "Contact";
+    ViewData["Title"] = "ติดต่อ";
 }
 
 <section class="page-banner">
     <div class="container bakery-container">
         <div class="page-banner-card">
             <p class="page-banner-brand">One Man Vekery</p>
-            <h1>Contact</h1>
+            <h1>ติดต่อ</h1>
             <p class="page-banner-crumb">
-                <a asp-action="Index">Home</a>
+                <a asp-action="Index">หน้าแรก</a>
                 <span>&gt;</span>
-                <strong>Contact</strong>
+                <strong>ติดต่อ</strong>
             </p>
         </div>
     </div>
@@ -21,10 +21,10 @@
 <section class="contact-page-section">
     <div class="container bakery-container">
         <div class="section-heading section-heading-center contact-heading">
-            <h2>Get In Touch With Us</h2>
+            <h2>พูดคุยกับร้านได้ที่นี่</h2>
             <p>
-                For more information about our bakery items and custom cake service,
-                feel free to send us a message. We keep the layout close to the PDF but adapt it for the shop.
+                หากต้องการสอบถามเรื่องสินค้า เค้กตามสั่ง หรือรายละเอียดการจัดส่ง
+                สามารถส่งข้อความเข้ามาได้เลย เราจะติดต่อกลับให้เร็วที่สุด
             </p>
         </div>
 
@@ -49,35 +49,35 @@
                     <div asp-validation-summary="ModelOnly" class="text-danger small form-span-full"></div>
 
                     <div>
-                        <label asp-for="Form.Name" class="form-label">Your name</label>
-                        <input asp-for="Form.Name" class="form-control bakery-field" placeholder="Abc" />
+                        <label asp-for="Form.Name" class="form-label">ชื่อของคุณ</label>
+                        <input asp-for="Form.Name" class="form-control bakery-field" placeholder="เช่น อัญชลี" />
                         <span asp-validation-for="Form.Name" class="text-danger small"></span>
                     </div>
 
                     <div>
-                        <label asp-for="Form.PhoneNumber" class="form-label">Phone</label>
+                        <label asp-for="Form.PhoneNumber" class="form-label">เบอร์โทร</label>
                         <input asp-for="Form.PhoneNumber" class="form-control bakery-field" placeholder="089-000-1122" />
                         <span asp-validation-for="Form.PhoneNumber" class="text-danger small"></span>
                     </div>
 
                     <div class="form-span-full">
-                        <label asp-for="Form.Email" class="form-label">Email address</label>
+                        <label asp-for="Form.Email" class="form-label">อีเมล</label>
                         <input asp-for="Form.Email" class="form-control bakery-field" placeholder="abc@def.com" />
                         <span asp-validation-for="Form.Email" class="text-danger small"></span>
                     </div>
 
                     <div class="form-span-full">
-                        <label asp-for="Form.Subject" class="form-label">Subject</label>
-                        <input asp-for="Form.Subject" class="form-control bakery-field" placeholder="This is optional" />
+                        <label asp-for="Form.Subject" class="form-label">หัวข้อ</label>
+                        <input asp-for="Form.Subject" class="form-control bakery-field" placeholder="ไม่กรอกก็ได้" />
                     </div>
 
                     <div class="form-span-full">
-                        <label asp-for="Form.Message" class="form-label">Message</label>
-                        <textarea asp-for="Form.Message" class="form-control bakery-field bakery-field-area" placeholder="Hi! I'd like to ask about"></textarea>
+                        <label asp-for="Form.Message" class="form-label">ข้อความ</label>
+                        <textarea asp-for="Form.Message" class="form-control bakery-field bakery-field-area" placeholder="ต้องการสอบถามเรื่อง..."></textarea>
                         <span asp-validation-for="Form.Message" class="text-danger small"></span>
                     </div>
 
-                    <button type="submit" class="btn store-primary-btn form-span-full contact-submit-btn">Submit</button>
+                    <button type="submit" class="btn store-primary-btn form-span-full contact-submit-btn">ส่งข้อความ</button>
                 </form>
             </div>
         </div>

@@ -1,18 +1,33 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using OneManVekery.Models;
+using OneManVekery.Services;
 using OneManVekery.ViewModel;
 
 namespace OneManVekery.Controllers;
 
 public class HomeController : Controller
 {
+    private readonly IStoreCatalogService _storeCatalogService;
+    private readonly IStoreCartService _storeCartService;
+    private readonly IStoreOrderService _storeOrderService;
+
+    public HomeController(
+        IStoreCatalogService storeCatalogService,
+        IStoreCartService storeCartService,
+        IStoreOrderService storeOrderService)
+    {
+        _storeCatalogService = storeCatalogService;
+        _storeCartService = storeCartService;
+        _storeOrderService = storeOrderService;
+    }
+
     public IActionResult Index()
     {
         return View(new HomeIndexViewModel
         {
             Categories = GetCategories(),
-            Products = GetProducts(),
+            Products = _storeCatalogService.GetProducts(),
             Inspirations = GetInspirations(),
             Features = GetStoreFeatures()
         });
@@ -23,9 +38,108 @@ public class HomeController : Controller
     {
         return View(new ShopPageViewModel
         {
-            Products = GetProducts(),
+            Products = _storeCatalogService.GetProducts(),
             Features = GetStoreFeatures()
         });
+    }
+
+    [HttpGet]
+    public IActionResult Cart()
+    {
+        return View(BuildCartPageModel());
+    }
+
+    [HttpGet]
+    public IActionResult OrderStatus(string orderNumber)
+    {
+        var order = _storeOrderService.GetOrder(orderNumber);
+        if (order is null)
+        {
+            TempData["SiteNotice"] = "ไม่พบออเดอร์ที่ต้องการ";
+            return RedirectToAction(nameof(Shop));
+        }
+
+        return View(BuildOrderStatusPageModel(order));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult AddToCart(string productId)
+    {
+        if (_storeCartService.AddItem(productId))
+        {
+            TempData["SiteNotice"] = "เพิ่มสินค้าเข้าตะกร้าแล้ว";
+        }
+        else
+        {
+            TempData["SiteNotice"] = "ไม่สามารถเพิ่มสินค้านี้เข้าตะกร้าได้";
+        }
+
+        return RedirectToAction(nameof(Cart));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult ChangeCartQuantity(string productId, int delta)
+    {
+        if (!_storeCartService.ChangeQuantity(productId, delta))
+        {
+            TempData["SiteNotice"] = "ไม่สามารถอัปเดตจำนวนสินค้าได้";
+        }
+
+        return RedirectToAction(nameof(Cart));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult RemoveFromCart(string productId)
+    {
+        if (_storeCartService.RemoveItem(productId))
+        {
+            TempData["SiteNotice"] = "ลบสินค้าออกจากตะกร้าแล้ว";
+        }
+        else
+        {
+            TempData["SiteNotice"] = "ไม่พบสินค้าที่ต้องการลบ";
+        }
+
+        return RedirectToAction(nameof(Cart));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult Checkout(CartCheckoutViewModel checkout)
+    {
+        var cartItems = _storeCartService.GetItems();
+        if (cartItems.Count == 0)
+        {
+            TempData["SiteNotice"] = "ตะกร้าสินค้ายังว่างอยู่";
+            return RedirectToAction(nameof(Cart));
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return View("Cart", BuildCartPageModel(checkout));
+        }
+
+        var deliveryFee = CalculateDeliveryFee(cartItems);
+        var paymentMethodLabel = ResolvePaymentLabel(checkout.PaymentMethod);
+        var order = _storeOrderService.CreateOrder(
+            new CartCheckoutSnapshot
+            {
+                CustomerName = checkout.CustomerName,
+                PhoneNumber = checkout.PhoneNumber,
+                DeliveryAddress = checkout.DeliveryAddress,
+                PaymentMethodCode = checkout.PaymentMethod,
+                Notes = checkout.Notes
+            },
+            cartItems,
+            deliveryFee,
+            paymentMethodLabel);
+
+        _storeCartService.Clear();
+
+        return RedirectToAction(nameof(OrderStatus), new { orderNumber = order.OrderNumber });
     }
 
     [HttpGet]
@@ -35,28 +149,28 @@ public class HomeController : Controller
         {
             Stats =
             [
-                new AboutStatViewModel { Value = "500+", Label = "orders packed with care" },
-                new AboutStatViewModel { Value = "12", Label = "signature bakery items" },
-                new AboutStatViewModel { Value = "7 days", Label = "fresh batches every week" }
+                new AboutStatViewModel { Value = "500+", Label = "ออเดอร์ที่แพ็กอย่างตั้งใจ" },
+                new AboutStatViewModel { Value = "12", Label = "เมนูซิกเนเจอร์ของร้าน" },
+                new AboutStatViewModel { Value = "7 วัน", Label = "อบสดใหม่ทุกสัปดาห์" }
             ],
             Values =
             [
                 new ServiceFeatureViewModel
                 {
                     IconText = "01",
-                    Title = "Fresh Daily",
+                    Title = "อบสดทุกวัน",
                     Description = "อบขนมใหม่ทุกวันเพื่อให้รสชาติและเนื้อสัมผัสดีที่สุดก่อนถึงมือลูกค้า"
                 },
                 new ServiceFeatureViewModel
                 {
                     IconText = "02",
-                    Title = "Soft Pink Identity",
+                    Title = "ภาพลักษณ์ชมพูละมุน",
                     Description = "แบรนด์และแพ็กเกจเน้นโทนชมพู-ขาวให้รู้สึกอบอุ่นและน่าหยิบเป็นของฝาก"
                 },
                 new ServiceFeatureViewModel
                 {
                     IconText = "03",
-                    Title = "Made For Celebration",
+                    Title = "เหมาะกับทุกโอกาสพิเศษ",
                     Description = "ออกแบบเมนูให้เหมาะทั้งวันเกิด เบรกออฟฟิศ หรือของขวัญเล็ก ๆ"
                 }
             ],
@@ -65,19 +179,19 @@ public class HomeController : Controller
                 new ProcessStepViewModel
                 {
                     Number = "01",
-                    Title = "Mix",
+                    Title = "ผสม",
                     Description = "คัดวัตถุดิบและผสมสูตรให้ได้กลิ่นและความนุ่มตามมาตรฐานร้าน"
                 },
                 new ProcessStepViewModel
                 {
                     Number = "02",
-                    Title = "Bake",
+                    Title = "อบ",
                     Description = "อบเป็นรอบ ๆ ตลอดวันเพื่อคุมคุณภาพและให้ขนมออกจากเตาอย่างสดที่สุด"
                 },
                 new ProcessStepViewModel
                 {
                     Number = "03",
-                    Title = "Finish",
+                    Title = "ตกแต่งและจัดส่ง",
                     Description = "ตกแต่ง แพ็ก และจัดส่งด้วยโทนภาพลักษณ์เดียวกับหน้าร้านและหน้าเว็บ"
                 }
             ]
@@ -124,26 +238,174 @@ public class HomeController : Controller
                 new ContactInfoCardViewModel
                 {
                     IconText = "A",
-                    Title = "Address",
+                    Title = "ที่อยู่",
                     LineOne = "123 Pink Bakery Lane",
                     LineTwo = "Bangkok, Thailand 10200"
                 },
                 new ContactInfoCardViewModel
                 {
                     IconText = "P",
-                    Title = "Phone",
-                    LineOne = "Mobile: 089-000-1122",
+                    Title = "ช่องทางติดต่อ",
+                    LineOne = "โทร: 089-000-1122",
                     LineTwo = "Line: @onemanvekery"
                 },
                 new ContactInfoCardViewModel
                 {
                     IconText = "T",
-                    Title = "Working Time",
-                    LineOne = "Monday-Friday: 09:00 - 20:00",
-                    LineTwo = "Saturday-Sunday: 09:00 - 21:00"
+                    Title = "เวลาทำการ",
+                    LineOne = "จันทร์-ศุกร์: 09:00 - 20:00",
+                    LineTwo = "เสาร์-อาทิตย์: 09:00 - 21:00"
                 }
             ],
             Features = GetStoreFeatures()
+        };
+    }
+
+    private CartPageViewModel BuildCartPageModel(CartCheckoutViewModel? checkout = null)
+    {
+        var cartItems = _storeCartService.GetItems();
+        var subtotal = cartItems.Sum(item => item.LineTotal);
+        var deliveryFee = CalculateDeliveryFee(cartItems);
+
+        return new CartPageViewModel
+        {
+            Items = cartItems.Select(item => new CartLineViewModel
+            {
+                ProductId = item.ProductId,
+                Name = item.Name,
+                Category = item.Category,
+                Description = item.Description,
+                ImagePath = item.ImagePath,
+                UnitPrice = item.UnitPrice,
+                Quantity = item.Quantity,
+                IsSoldOut = item.IsSoldOut,
+                UnitPriceLabel = $"{item.UnitPrice:0.##} ฿",
+                LineTotalLabel = $"{item.LineTotal:0.##} ฿"
+            }).ToList(),
+            PaymentOptions = BuildPaymentOptions(),
+            Checkout = checkout ?? new CartCheckoutViewModel
+            {
+                PaymentMethod = "promptpay"
+            },
+            ItemCount = cartItems.Sum(item => item.Quantity),
+            Subtotal = subtotal,
+            DeliveryFee = deliveryFee
+        };
+    }
+
+    private static OrderStatusPageViewModel BuildOrderStatusPageModel(OrderReceiptRecord order)
+    {
+        var currentStatus = ResolveOrderStatus(order.CurrentStatusCode);
+
+        return new OrderStatusPageViewModel
+        {
+            OrderNumber = order.OrderNumber,
+            CreatedAt = order.CreatedAt,
+            CustomerName = order.CustomerName,
+            PhoneNumber = order.PhoneNumber,
+            DeliveryAddress = order.DeliveryAddress,
+            PaymentMethodLabel = order.PaymentMethodLabel,
+            Notes = order.Notes,
+            CurrentStatusLabel = currentStatus.Title,
+            CurrentStatusDescription = currentStatus.Description,
+            Items = order.Items.Select(item => new OrderReceiptLineViewModel
+            {
+                Name = item.Name,
+                Category = item.Category,
+                Quantity = item.Quantity,
+                UnitPrice = item.UnitPrice,
+                LineTotal = item.LineTotal
+            }).ToList(),
+            StatusSteps = BuildOrderProgressSteps(order.CurrentStatusCode),
+            Subtotal = order.Subtotal,
+            DeliveryFee = order.DeliveryFee
+        };
+    }
+
+    private static IReadOnlyList<PaymentOptionViewModel> BuildPaymentOptions()
+    {
+        return
+        [
+            new PaymentOptionViewModel
+            {
+                Code = "promptpay",
+                Label = "PromptPay",
+                Description = "ชำระเร็วผ่าน QR พร้อมเพย์หลังยืนยันคำสั่งซื้อ"
+            },
+            new PaymentOptionViewModel
+            {
+                Code = "card",
+                Label = "บัตรเครดิต / เดบิต",
+                Description = "จ่ายด้วยบัตรเพื่อสรุปยอดทันที"
+            },
+            new PaymentOptionViewModel
+            {
+                Code = "bank-transfer",
+                Label = "โอนผ่านธนาคาร",
+                Description = "แนบสลิปหลังโอนเงินเข้าบัญชีร้าน"
+            },
+            new PaymentOptionViewModel
+            {
+                Code = "cash-on-delivery",
+                Label = "เก็บเงินปลายทาง",
+                Description = "ชำระเงินปลายทางเมื่อรับสินค้า"
+            }
+        ];
+    }
+
+    private static string ResolvePaymentLabel(string paymentMethod)
+    {
+        return BuildPaymentOptions()
+            .FirstOrDefault(option => option.Code == paymentMethod)?.Label
+            ?? "วิธีที่เลือก";
+    }
+
+    private static decimal CalculateDeliveryFee(IReadOnlyList<CartLineRecord> cartItems)
+    {
+        if (cartItems.Count == 0)
+        {
+            return 0;
+        }
+
+        var subtotal = cartItems.Sum(item => item.LineTotal);
+        return subtotal >= 300 ? 0 : 45;
+    }
+
+    private static IReadOnlyList<OrderProgressStepViewModel> BuildOrderProgressSteps(string currentStatusCode)
+    {
+        var steps = new[]
+        {
+            ("paid", "จ่ายเสร็จ", "ร้านยืนยันคำสั่งซื้อและรับชำระเงินเรียบร้อยแล้ว", "01"),
+            ("shipping", "กำลังส่ง", "ออเดอร์กำลังถูกแพ็กและส่งออกไปยังปลายทาง", "02"),
+            ("delivered", "ส่งเสร็จสิ้น", "ออเดอร์ส่งถึงผู้รับเรียบร้อยและปิดงานสมบูรณ์", "03")
+        };
+
+        var currentIndex = Array.FindIndex(steps, step => step.Item1 == currentStatusCode);
+        if (currentIndex < 0)
+        {
+            currentIndex = 0;
+        }
+
+        return steps.Select((step, index) => new OrderProgressStepViewModel
+        {
+            Title = step.Item2,
+            Description = step.Item3,
+            Marker = step.Item4,
+            State = index < currentIndex
+                ? "complete"
+                : index == currentIndex
+                    ? "current"
+                    : "pending"
+        }).ToList();
+    }
+
+    private static (string Title, string Description) ResolveOrderStatus(string currentStatusCode)
+    {
+        return currentStatusCode switch
+        {
+            "shipping" => ("กำลังส่ง", "คนส่งกำลังนำขนมออกจากร้านและมุ่งหน้าไปยังปลายทาง"),
+            "delivered" => ("ส่งเสร็จสิ้น", "ออเดอร์นี้ส่งถึงผู้รับเรียบร้อยแล้ว"),
+            _ => ("จ่ายเสร็จ", "ระบบยืนยันการชำระเงินแล้วและกำลังเตรียมออเดอร์ให้คุณ")
         };
     }
 
@@ -153,112 +415,24 @@ public class HomeController : Controller
         [
             new CategoryCardViewModel
             {
-                Title = "Macaron",
-                Subtitle = "Soft shell, sweet filling, perfect for gift boxes",
+                Title = "มาการอง",
+                Subtitle = "เปลือกบาง ไส้นุ่ม เหมาะกับการจัดเป็นกล่องของขวัญ",
                 ThemeKey = "macaron",
                 ImagePath = "/images/theme-macaron.svg"
             },
             new CategoryCardViewModel
             {
-                Title = "Cake",
-                Subtitle = "Celebration cakes with fresh cream and fruit notes",
+                Title = "เค้ก",
+                Subtitle = "เค้กสำหรับวันพิเศษ พร้อมครีมสดและผลไม้",
                 ThemeKey = "cake",
                 ImagePath = "/images/theme-cake.svg"
             },
             new CategoryCardViewModel
             {
-                Title = "Fresh Bakery",
-                Subtitle = "Croissant, choux and daily baked sweet pastries",
+                Title = "เบเกอรี่อบสด",
+                Subtitle = "ครัวซองต์ ชูครีม และขนมอบประจำวันจากเตาร้อน ๆ",
                 ThemeKey = "bakery",
                 ImagePath = "/images/theme-gold.svg"
-            }
-        ];
-    }
-
-    private static IReadOnlyList<ProductCardViewModel> GetProducts()
-    {
-        return
-        [
-            new ProductCardViewModel
-            {
-                Name = "Rose Macaron Box",
-                Category = "Macaron",
-                Description = "Rose and vanilla macarons for soft pink gift sets",
-                Price = 120,
-                OriginalPrice = 140,
-                Badge = "-15%",
-                ThemeKey = "macaron",
-                ImagePath = "/images/theme-macaron.svg"
-            },
-            new ProductCardViewModel
-            {
-                Name = "Strawberry Shortcake",
-                Category = "Cake",
-                Description = "Fresh cream cake with soft sponge and strawberry topping",
-                Price = 145,
-                OriginalPrice = 165,
-                Badge = "New",
-                ThemeKey = "cake",
-                ImagePath = "/images/theme-cake.svg"
-            },
-            new ProductCardViewModel
-            {
-                Name = "Vanilla Choux Cream",
-                Category = "Choux Cream",
-                Description = "Light pastry shell with smooth vanilla custard filling",
-                Price = 55,
-                ThemeKey = "cream",
-                ImagePath = "/images/theme-cream.svg"
-            },
-            new ProductCardViewModel
-            {
-                Name = "Butter Croissant",
-                Category = "Bakery",
-                Description = "Flaky layers with rich butter aroma from the morning batch",
-                Price = 69,
-                Badge = "Sold Out",
-                ThemeKey = "gold",
-                ImagePath = "/images/theme-gold.svg",
-                IsSoldOut = true
-            },
-            new ProductCardViewModel
-            {
-                Name = "Blueberry Cheesecake",
-                Category = "Cake",
-                Description = "Creamy cheesecake finished with blueberry glaze",
-                Price = 159,
-                Badge = "New",
-                ThemeKey = "berry",
-                ImagePath = "/images/theme-berry.svg"
-            },
-            new ProductCardViewModel
-            {
-                Name = "Mini Eclair Set",
-                Category = "Bakery",
-                Description = "Small eclair box for afternoon sharing and coffee time",
-                Price = 89,
-                OriginalPrice = 110,
-                Badge = "-20%",
-                ThemeKey = "cream",
-                ImagePath = "/images/theme-cream.svg"
-            },
-            new ProductCardViewModel
-            {
-                Name = "Milk Cloud Roll",
-                Category = "Cake",
-                Description = "Japanese style roll cake with soft milk whipped cream",
-                Price = 135,
-                ThemeKey = "milk",
-                ImagePath = "/images/theme-milk.svg"
-            },
-            new ProductCardViewModel
-            {
-                Name = "Cherry Tart Slice",
-                Category = "Bakery",
-                Description = "Buttery tart shell with cherry compote and almond cream",
-                Price = 95,
-                ThemeKey = "berry",
-                ImagePath = "/images/theme-berry.svg"
             }
         ];
     }
@@ -270,16 +444,16 @@ public class HomeController : Controller
             new InspirationCardViewModel
             {
                 Number = "01",
-                Title = "High Tea Table",
-                Subtitle = "Macaron Mood",
+                Title = "โต๊ะขนมจิบน้ำชา",
+                Subtitle = "โทนมาการองละมุน",
                 ThemeKey = "macaron",
                 ImagePath = "/images/inspiration-tea.svg"
             },
             new InspirationCardViewModel
             {
                 Number = "02",
-                Title = "Birthday Set Up",
-                Subtitle = "Cake Celebration",
+                Title = "เซตวันเกิด",
+                Subtitle = "บรรยากาศเค้กฉลอง",
                 ThemeKey = "cake",
                 ImagePath = "/images/inspiration-birthday.svg"
             }
@@ -293,26 +467,26 @@ public class HomeController : Controller
             new ServiceFeatureViewModel
             {
                 IconText = "F",
-                Title = "Fresh Daily",
-                Description = "crafted from fresh bakery batches"
+                Title = "อบสดทุกวัน",
+                Description = "ทำใหม่ทุกวันจากรอบอบของร้าน"
             },
             new ServiceFeatureViewModel
             {
                 IconText = "P",
-                Title = "Premium Ingredients",
-                Description = "soft cream, butter and quality fillings"
+                Title = "วัตถุดิบพรีเมียม",
+                Description = "ครีม เนย และไส้คุณภาพดีในทุกเมนู"
             },
             new ServiceFeatureViewModel
             {
                 IconText = "S",
-                Title = "Free Shipping",
-                Description = "order over 100 THB"
+                Title = "ส่งฟรีตามเงื่อนไข",
+                Description = "ส่งฟรีเมื่อยอดสั่งซื้อถึงขั้นต่ำที่กำหนด"
             },
             new ServiceFeatureViewModel
             {
                 IconText = "H",
-                Title = "Friendly Support",
-                Description = "helpful support for every order"
+                Title = "ดูแลทุกออเดอร์",
+                Description = "ตอบคำถามและช่วยดูแลตลอดการสั่งซื้อ"
             }
         ];
     }

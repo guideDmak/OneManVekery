@@ -1,10 +1,18 @@
 using Microsoft.AspNetCore.Mvc;
+using OneManVekery.Services;
 using OneManVekery.ViewModel;
 
 namespace OneManVekery.Controllers;
 
 public class AccountController : Controller
 {
+    private readonly IAccountDirectoryService _accountDirectoryService;
+
+    public AccountController(IAccountDirectoryService accountDirectoryService)
+    {
+        _accountDirectoryService = accountDirectoryService;
+    }
+
     [HttpGet]
     public IActionResult Login()
     {
@@ -41,12 +49,27 @@ public class AccountController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult Register(RegisterViewModel model)
     {
+        if (_accountDirectoryService.EmailExists(model.Email))
+        {
+            ModelState.AddModelError(nameof(model.Email), "อีเมลนี้ถูกใช้งานแล้ว");
+        }
+
         if (!ModelState.IsValid)
         {
             return View(model);
         }
 
-        TempData["SiteNotice"] = "สมัครสมาชิกตัวอย่างเรียบร้อยแล้ว กรุณาเข้าสู่ระบบ";
+        _accountDirectoryService.AddAccount(new AccountInput
+        {
+            FullName = model.FullName,
+            Email = model.Email,
+            PhoneNumber = model.PhoneNumber,
+            Role = "User",
+            Status = "Active",
+            Notes = "Registered from storefront"
+        });
+
+        TempData["SiteNotice"] = "สมัครสมาชิกผู้ใช้งานเรียบร้อยแล้ว บัญชีประเภทพนักงานและแอดมินต้องเพิ่มจากหน้าแอดมินเท่านั้น";
         return RedirectToAction(nameof(Login));
     }
 }

@@ -1,7 +1,7 @@
 @model LoginViewModel
 
 @{
-    ViewData["Title"] = "Login";
+    ViewData["Title"] = "เข้าสู่ระบบ";
     ViewData["HideChrome"] = true;
 }
 
@@ -10,10 +10,10 @@
         <div class="auth-shell auth-shell-login">
             <div class="auth-panel auth-panel-form">
                 <div class="auth-form-wrap">
-                    <h1>Welcome Back &#128075;</h1>
+                    <h1>ยินดีต้อนรับกลับ</h1>
                     <p class="auth-copy">
-                        Today is a new day. It's your day. You shape it.<br />
-                        Sign in to start managing your projects.
+                        เข้าสู่ระบบเพื่อกลับมาดูสินค้าโปรด ตะกร้า และรายการสั่งซื้อของคุณ
+                        หากต้องการจัดการหลังบ้านยังสามารถเข้าจากเมนูแอดมินได้เหมือนเดิม
                     </p>
 
                     <form asp-action="Login" method="post" class="auth-form">
@@ -21,44 +21,44 @@
                         <div asp-validation-summary="ModelOnly" class="text-danger small auth-form-span"></div>
 
                         <div class="auth-field-wrap">
-                            <label asp-for="Email" class="form-label">Email</label>
-                            <input asp-for="Email" class="form-control bakery-field auth-field" placeholder="Example@email.com" />
+                            <label asp-for="Email" class="form-label">อีเมล</label>
+                            <input asp-for="Email" class="form-control bakery-field auth-field" placeholder="example@email.com" />
                             <span asp-validation-for="Email" class="text-danger small"></span>
                         </div>
 
                         <div class="auth-field-wrap">
-                            <label asp-for="Password" class="form-label">Password</label>
-                            <input asp-for="Password" class="form-control bakery-field auth-field" placeholder="At least 8 characters" />
+                            <label asp-for="Password" class="form-label">รหัสผ่าน</label>
+                            <input asp-for="Password" class="form-control bakery-field auth-field" placeholder="อย่างน้อย 8 ตัวอักษร" />
                             <span asp-validation-for="Password" class="text-danger small"></span>
                             <div class="auth-helper-row">
-                                <a href="#">Forgot Password?</a>
+                                <a href="#">ลืมรหัสผ่าน?</a>
                             </div>
                         </div>
 
-                        <button type="submit" class="btn auth-submit w-100">Sign in</button>
+                        <button type="submit" class="btn auth-submit w-100">เข้าสู่ระบบ</button>
                     </form>
 
                     <div class="auth-divider">
-                        <span>Or</span>
+                        <span>หรือ</span>
                     </div>
 
                     <div class="auth-socials">
                         <button type="button" class="btn auth-social-btn">
                             <span class="auth-social-icon auth-social-icon-google">G</span>
-                            Sign in with Google
+                            เข้าสู่ระบบด้วย Google
                         </button>
                         <button type="button" class="btn auth-social-btn">
                             <span class="auth-social-icon auth-social-icon-facebook">f</span>
-                            Sign in with Facebook
+                            เข้าสู่ระบบด้วย Facebook
                         </button>
                     </div>
 
                     <p class="auth-switch auth-switch-center">
-                        Don't you have an account?
-                        <a asp-action="Register">Sign up</a>
+                        ยังไม่มีบัญชี?
+                        <a asp-action="Register">สมัครสมาชิก</a>
                     </p>
 
-                    <p class="auth-copyright">&copy; 2023 ALL RIGHTS RESERVED</p>
+                    <p class="auth-copyright">&copy; 2026 One Man Vekery</p>
                 </div>
             </div>
 

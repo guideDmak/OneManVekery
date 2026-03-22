@@ -1,43 +1,43 @@
 @model HomeIndexViewModel
 
 @{
-    ViewData["Title"] = "Home";
+    ViewData["Title"] = "หน้าแรก";
 }
 
 <section class="store-hero">
     <div class="container bakery-container">
         <div class="store-hero-panel">
             <div class="store-hero-art">
-                <span class="hero-floating hero-floating-top">Freshly baked</span>
+                <span class="hero-floating hero-floating-top">อบสดใหม่</span>
                 <div class="store-hero-visual-shell">
                     <img src="@Url.Content("~/images/hero-bakery.svg")" alt="Bakery collection" class="hero-main-image" />
 
                     <div class="hero-sweet-board">
                         <article class="hero-sweet-card theme-cake">
                             <strong>Strawberry Cake</strong>
-                            <span>Soft cream layers</span>
+                            <span>ครีมนุ่มละมุน</span>
                         </article>
                         <article class="hero-sweet-card theme-macaron">
                             <strong>Rose Macaron</strong>
-                            <span>Gift box favorite</span>
+                            <span>เหมาะกับกล่องของขวัญ</span>
                         </article>
                         <article class="hero-sweet-card theme-gold">
                             <strong>Butter Croissant</strong>
-                            <span>Morning batch</span>
+                            <span>อบใหม่ทุกเช้า</span>
                         </article>
                     </div>
                 </div>
             </div>
 
             <div class="store-hero-card">
-                <span class="store-kicker">New Arrival</span>
+                <span class="store-kicker">มาใหม่</span>
                 <p class="store-brand-label">One Man Vekery</p>
-                <h1>Discover Our Sweet Collection</h1>
+                <h1>รวมขนมหวานของร้านไว้ในที่เดียว</h1>
                 <p>
                     เค้ก มาการอง ชูครีม และขนมอบสดในโทนชมพู-ขาว
                     ปรับ layout ให้ใกล้กับดีไซน์ใน PDF แต่เปลี่ยนเนื้อหาให้เป็นร้านเบเกอรี่ของเรา
                 </p>
-                <a class="btn store-primary-btn" asp-action="Shop">BUY NOW</a>
+                <a class="btn store-primary-btn" asp-action="Shop">สั่งซื้อเลย</a>
             </div>
         </div>
     </div>
@@ -46,8 +46,8 @@
 <section class="range-section">
     <div class="container bakery-container">
         <div class="section-heading section-heading-center">
-            <p class="section-overline">Sweet selections</p>
-            <h2>Browse The Range</h2>
+            <p class="section-overline">หมวดขนมแนะนำ</p>
+            <h2>เลือกดูตามสไตล์ที่ชอบ</h2>
             <p>เลือกหมวดขนมตามฟีลที่อยากได้ในวันนั้น ไม่ว่าจะเป็นของฝาก เค้กวันเกิด หรือขนมทานคู่กาแฟ</p>
         </div>
 
@@ -69,7 +69,7 @@
 <section class="catalog-section">
     <div class="container bakery-container">
         <div class="section-heading section-heading-center">
-            <h2>Our Products</h2>
+            <h2>สินค้าแนะนำ</h2>
         </div>
 
         <div class="catalog-grid">
@@ -97,16 +97,20 @@
                             }
                         </div>
 
-                        <button type="button" class="btn store-card-btn" @(product.IsSoldOut ? "disabled" : null)>
-                            @(product.IsSoldOut ? "Sold Out" : "Add to cart")
-                        </button>
+                        <form asp-action="AddToCart" method="post" class="store-cart-form">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="productId" value="@product.ProductId" />
+                            <button type="submit" class="btn store-card-btn" @(product.IsSoldOut ? "disabled" : null)>
+                                @(product.IsSoldOut ? "หมดแล้ว" : "เพิ่มลงตะกร้า")
+                            </button>
+                        </form>
                     </div>
                 </article>
             }
         </div>
 
         <div class="section-action">
-            <a class="btn store-outline-btn" asp-action="Shop">Show More</a>
+            <a class="btn store-outline-btn" asp-action="Shop">ดูทั้งหมด</a>
         </div>
     </div>
 </section>
@@ -115,9 +119,9 @@
     <div class="container bakery-container">
         <div class="inspiration-layout">
             <div class="inspiration-copy">
-                <h2>50+ Sweet table inspirations</h2>
+                <h2>ไอเดียจัดโต๊ะขนมมากกว่า 50 แบบ</h2>
                 <p>จัดโต๊ะขนมให้ดูละมุนขึ้นด้วยชุดมาการอง เค้กผลไม้ และขนมอบสดในโทนชมพู-ครีมแบบร้านของเรา</p>
-                <a class="btn store-primary-btn" asp-action="About">Explore More</a>
+                <a class="btn store-primary-btn" asp-action="About">ดูเพิ่มเติม</a>
             </div>
 
             <div class="inspiration-gallery">

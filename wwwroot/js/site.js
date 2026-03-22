@@ -31,3 +31,100 @@ if (searchRoot) {
   searchInput?.addEventListener("input", filterProducts);
   categoryInput?.addEventListener("change", filterProducts);
 }
+
+const adminItemsRoot = document.querySelector("[data-admin-items]");
+
+if (adminItemsRoot && window.bootstrap) {
+  const addModalElement = document.getElementById("addItemModal");
+  const editModalElement = document.getElementById("editItemModal");
+
+  const setFieldValue = (id, value) => {
+    const field = document.getElementById(id);
+    if (!field) {
+      return;
+    }
+
+    field.value = value ?? "";
+  };
+
+  const setCheckboxValue = (id, isChecked) => {
+    const field = document.getElementById(id);
+    if (!field) {
+      return;
+    }
+
+    field.checked = isChecked;
+  };
+
+  editModalElement?.addEventListener("show.bs.modal", (event) => {
+    const trigger = event.relatedTarget;
+    if (!(trigger instanceof HTMLElement) || !trigger.dataset.itemId) {
+      return;
+    }
+
+    setFieldValue("EditForm_ItemId", trigger.dataset.itemId);
+    setFieldValue("EditForm_ItemCode", trigger.dataset.itemCode);
+    setFieldValue("EditForm_Name", trigger.dataset.name);
+    setFieldValue("EditForm_Category", trigger.dataset.category);
+    setFieldValue("EditForm_Sku", trigger.dataset.sku);
+    setFieldValue("EditForm_Price", trigger.dataset.price);
+    setFieldValue("EditForm_StockQuantity", trigger.dataset.stockQuantity);
+    setFieldValue("EditForm_ReorderLevel", trigger.dataset.reorderLevel);
+    setFieldValue("EditForm_Tagline", trigger.dataset.tagline);
+    setFieldValue("EditForm_Notes", trigger.dataset.notes);
+    setFieldValue("EditForm_ImagePath", trigger.dataset.imagePath);
+    setFieldValue("EditStockDisplay", `${trigger.dataset.stockQuantity || 0} units`);
+    setCheckboxValue("EditForm_IsPublished", trigger.dataset.isPublished === "true");
+  });
+
+  const activeModal = adminItemsRoot.dataset.activeModal;
+  if (activeModal === "add" && addModalElement) {
+    window.bootstrap.Modal.getOrCreateInstance(addModalElement).show();
+  }
+
+  if (activeModal === "edit" && editModalElement) {
+    window.bootstrap.Modal.getOrCreateInstance(editModalElement).show();
+  }
+}
+
+const adminAccountsRoot = document.querySelector("[data-admin-accounts]");
+
+if (adminAccountsRoot && window.bootstrap) {
+  const addAccountModalElement = document.getElementById("addAccountModal");
+  const editAccountModalElement = document.getElementById("editAccountModal");
+
+  const setAccountFieldValue = (id, value) => {
+    const field = document.getElementById(id);
+    if (!field) {
+      return;
+    }
+
+    field.value = value ?? "";
+  };
+
+  editAccountModalElement?.addEventListener("show.bs.modal", (event) => {
+    const trigger = event.relatedTarget;
+    if (!(trigger instanceof HTMLElement) || !trigger.dataset.accountId) {
+      return;
+    }
+
+    setAccountFieldValue("EditForm_AccountId", trigger.dataset.accountId);
+    setAccountFieldValue("EditForm_AccountCode", trigger.dataset.accountCode);
+    setAccountFieldValue("EditForm_FullName", trigger.dataset.fullName);
+    setAccountFieldValue("EditForm_Email", trigger.dataset.email);
+    setAccountFieldValue("EditForm_PhoneNumber", trigger.dataset.phoneNumber);
+    setAccountFieldValue("EditForm_Role", trigger.dataset.role);
+    setAccountFieldValue("EditForm_Status", trigger.dataset.status);
+    setAccountFieldValue("EditForm_LastActiveDisplay", trigger.dataset.lastActive);
+    setAccountFieldValue("EditForm_Notes", trigger.dataset.notes);
+  });
+
+  const activeModal = adminAccountsRoot.dataset.activeModal;
+  if (activeModal === "account-add" && addAccountModalElement) {
+    window.bootstrap.Modal.getOrCreateInstance(addAccountModalElement).show();
+  }
+
+  if (activeModal === "account-edit" && editAccountModalElement) {
+    window.bootstrap.Modal.getOrCreateInstance(editAccountModalElement).show();
+  }
+}

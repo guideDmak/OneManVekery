@@ -1,0 +1,311 @@
+@model AdminItemsPageViewModel
+
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Items";
+    ViewData["AdminDateRange"] = Model.DateRangeLabel;
+    ViewData["AdminSection"] = "Items";
+}
+
+<section class="admin-page-banner admin-page-banner-compact">
+    <div>
+        <p class="admin-page-kicker">Items</p>
+        <h2>Manage bakery inventory</h2>
+        <span>จัดการสินค้าแบบการ์ด มีรูปสินค้า ปรับสต็อกได้ทันที และเปิด popup เพื่อเพิ่มหรือแก้ไขข้อมูล</span>
+    </div>
+    <button type="button" class="admin-primary-button" data-bs-toggle="modal" data-bs-target="#addItemModal">
+        Add Item
+    </button>
+</section>
+
+<section class="admin-account-summary-grid admin-item-summary-grid">
+    @foreach (var item in Model.SummaryItems)
+    {
+        <article class="admin-card admin-account-summary-card admin-item-summary-card @($"is-{item.AccentKey}")">
+            <small>@item.Label</small>
+            <strong>@item.Value</strong>
+            <span>@item.Detail</span>
+        </article>
+    }
+</section>
+
+<datalist id="adminItemCategories">
+    @foreach (var category in Model.Categories)
+    {
+        <option value="@category"></option>
+    }
+</datalist>
+
+<datalist id="adminItemImages">
+    @foreach (var imagePath in Model.ImageOptions)
+    {
+        <option value="@imagePath"></option>
+    }
+</datalist>
+
+<section class="admin-items-page" data-admin-items data-active-modal="@Model.ActiveModal">
+    <div class="admin-items-card-grid">
+        @foreach (var item in Model.Items)
+        {
+            <article class="admin-card admin-item-card">
+                <div class="admin-item-card-media">
+                    <img src="@Url.Content(item.ImagePath)"
+                         alt="@item.Name"
+                         class="admin-item-card-image"
+                         onerror="this.src='@Url.Content("~/images/theme-cake.svg")';" />
+                </div>
+
+                <div class="admin-item-card-body">
+                    <div class="admin-item-card-head">
+                        <div>
+                            <p class="admin-item-card-code">@item.ItemCode</p>
+                            <h3>@item.Name</h3>
+                        </div>
+                        <span class="admin-status-badge @($"is-{item.StatusKey}")">@item.StatusLabel</span>
+                    </div>
+
+                    <p class="admin-item-card-caption">@item.Tagline</p>
+
+                    <div class="admin-item-meta-row">
+                        <span class="admin-item-meta-chip">@item.Category</span>
+                        <span class="admin-item-meta-chip">@item.PriceLabel</span>
+                        <span class="admin-item-meta-chip">SKU @item.Sku</span>
+                    </div>
+
+                    <div class="admin-item-stock-row">
+                        <div class="admin-item-stock-copy">
+                            <small>Stock</small>
+                            <strong>@item.StockQuantity</strong>
+                            <span>Reorder when below @item.ReorderLevel</span>
+                        </div>
+
+                        <div class="admin-item-stock-actions">
+                            <form asp-action="AdjustItemStock" method="post" class="admin-inline-form">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="itemId" value="@item.ItemId" />
+                                <input type="hidden" name="quantityDelta" value="-1" />
+                                <button type="submit" class="admin-stock-circle-button is-minus" @(item.StockQuantity == 0 ? "disabled" : null)>-</button>
+                            </form>
+
+                            <form asp-action="AdjustItemStock" method="post" class="admin-inline-form">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="itemId" value="@item.ItemId" />
+                                <input type="hidden" name="quantityDelta" value="1" />
+                                <button type="submit" class="admin-stock-circle-button is-plus">+</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="admin-item-card-footer">
+                        <span class="admin-item-updated">Updated @item.UpdatedAtLabel</span>
+
+                        <button type="button"
+                                class="admin-secondary-button admin-edit-item-button"
+                                data-bs-toggle="modal"
+                                data-bs-target="#editItemModal"
+                                data-item-id="@item.ItemId"
+                                data-item-code="@item.ItemCode"
+                                data-name="@item.Name"
+                                data-category="@item.Category"
+                                data-sku="@item.Sku"
+                                data-price="@item.PriceLabel.Replace(" ฿", string.Empty)"
+                                data-stock-quantity="@item.StockQuantity"
+                                data-reorder-level="@item.ReorderLevel"
+                                data-tagline="@item.Tagline"
+                                data-notes="@item.Notes"
+                                data-image-path="@item.ImagePath"
+                                data-is-published="@item.IsPublished.ToString().ToLowerInvariant()">
+                            Edit
+                        </button>
+                    </div>
+                </div>
+            </article>
+        }
+    </div>
+</section>
+
+<div class="modal fade admin-modal" id="addItemModal" tabindex="-1" aria-labelledby="addItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <p class="admin-modal-kicker">Create Item</p>
+                    <h2 class="modal-title" id="addItemModalLabel">Add New Item</h2>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <form asp-action="AddItem" method="post" class="admin-item-form">
+                    @Html.AntiForgeryToken()
+
+                    <div class="admin-readonly-note">
+                        Item ID จะถูกสร้างอัตโนมัติหลังบันทึก
+                    </div>
+
+                    <div class="admin-form-grid">
+                        <div class="admin-form-span-full">
+                            <label asp-for="AddForm.Name" class="form-label">Item name</label>
+                            <input asp-for="AddForm.Name" class="form-control bakery-field" placeholder="Rose Macaron Box" />
+                            <span asp-validation-for="AddForm.Name" class="text-danger small"></span>
+                        </div>
+
+                        <div>
+                            <label asp-for="AddForm.Category" class="form-label">Category</label>
+                            <input asp-for="AddForm.Category" class="form-control bakery-field" list="adminItemCategories" placeholder="Cake" />
+                            <span asp-validation-for="AddForm.Category" class="text-danger small"></span>
+                        </div>
+
+                        <div>
+                            <label asp-for="AddForm.Sku" class="form-label">SKU</label>
+                            <input asp-for="AddForm.Sku" class="form-control bakery-field" placeholder="CK-STRAW-07" />
+                            <span asp-validation-for="AddForm.Sku" class="text-danger small"></span>
+                        </div>
+
+                        <div>
+                            <label asp-for="AddForm.Price" class="form-label">Price</label>
+                            <input asp-for="AddForm.Price" class="form-control bakery-field" type="number" min="1" step="0.01" />
+                            <span asp-validation-for="AddForm.Price" class="text-danger small"></span>
+                        </div>
+
+                        <div>
+                            <label asp-for="AddForm.StockQuantity" class="form-label">Opening stock</label>
+                            <input asp-for="AddForm.StockQuantity" class="form-control bakery-field" type="number" min="0" step="1" />
+                            <span asp-validation-for="AddForm.StockQuantity" class="text-danger small"></span>
+                        </div>
+
+                        <div>
+                            <label asp-for="AddForm.ReorderLevel" class="form-label">Reorder level</label>
+                            <input asp-for="AddForm.ReorderLevel" class="form-control bakery-field" type="number" min="0" step="1" />
+                            <span asp-validation-for="AddForm.ReorderLevel" class="text-danger small"></span>
+                        </div>
+
+                        <div class="admin-form-span-full">
+                            <label asp-for="AddForm.ImagePath" class="form-label">Image path</label>
+                            <input asp-for="AddForm.ImagePath" class="form-control bakery-field" list="adminItemImages" placeholder="/images/theme-cake.svg" />
+                            <span asp-validation-for="AddForm.ImagePath" class="text-danger small"></span>
+                        </div>
+
+                        <div class="admin-form-span-full">
+                            <label asp-for="AddForm.Tagline" class="form-label">Short description</label>
+                            <input asp-for="AddForm.Tagline" class="form-control bakery-field" placeholder="Best seller for gift boxes" />
+                            <span asp-validation-for="AddForm.Tagline" class="text-danger small"></span>
+                        </div>
+
+                        <div class="admin-form-span-full">
+                            <label asp-for="AddForm.Notes" class="form-label">Notes</label>
+                            <textarea asp-for="AddForm.Notes" class="form-control bakery-field bakery-field-area admin-field-area" placeholder="Internal note for team"></textarea>
+                            <span asp-validation-for="AddForm.Notes" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <label class="form-check form-switch admin-switch-field">
+                        <input asp-for="AddForm.IsPublished" class="form-check-input" />
+                        <span class="form-check-label">Publish item immediately</span>
+                    </label>
+
+                    <div class="admin-form-actions">
+                        <button type="button" class="admin-secondary-button" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="admin-primary-button">Create Item</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade admin-modal" id="editItemModal" tabindex="-1" aria-labelledby="editItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <p class="admin-modal-kicker">Edit Item</p>
+                    <h2 class="modal-title" id="editItemModalLabel">Update Item Details</h2>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <form asp-action="UpdateItem" method="post" class="admin-item-form">
+                    @Html.AntiForgeryToken()
+                    <input asp-for="EditForm.ItemId" type="hidden" />
+                    <input asp-for="EditForm.StockQuantity" type="hidden" />
+
+                    <div class="admin-form-grid">
+                        <div>
+                            <label asp-for="EditForm.ItemCode" class="form-label">Item ID</label>
+                            <input asp-for="EditForm.ItemCode" class="form-control bakery-field admin-readonly-field" readonly />
+                        </div>
+
+                        <div>
+                            <label class="form-label">Current stock</label>
+                            <input type="text" id="EditStockDisplay" class="form-control bakery-field admin-readonly-field" readonly value="@(Model.EditForm.StockQuantity > 0 ? $"{Model.EditForm.StockQuantity} units" : string.Empty)" />
+                        </div>
+
+                        <div class="admin-form-span-full">
+                            <label asp-for="EditForm.Name" class="form-label">Item name</label>
+                            <input asp-for="EditForm.Name" class="form-control bakery-field" />
+                            <span asp-validation-for="EditForm.Name" class="text-danger small"></span>
+                        </div>
+
+                        <div>
+                            <label asp-for="EditForm.Category" class="form-label">Category</label>
+                            <input asp-for="EditForm.Category" class="form-control bakery-field" list="adminItemCategories" />
+                            <span asp-validation-for="EditForm.Category" class="text-danger small"></span>
+                        </div>
+
+                        <div>
+                            <label asp-for="EditForm.Sku" class="form-label">SKU</label>
+                            <input asp-for="EditForm.Sku" class="form-control bakery-field" />
+                            <span asp-validation-for="EditForm.Sku" class="text-danger small"></span>
+                        </div>
+
+                        <div>
+                            <label asp-for="EditForm.Price" class="form-label">Price</label>
+                            <input asp-for="EditForm.Price" class="form-control bakery-field" type="number" min="1" step="0.01" />
+                            <span asp-validation-for="EditForm.Price" class="text-danger small"></span>
+                        </div>
+
+                        <div>
+                            <label asp-for="EditForm.ReorderLevel" class="form-label">Reorder level</label>
+                            <input asp-for="EditForm.ReorderLevel" class="form-control bakery-field" type="number" min="0" step="1" />
+                            <span asp-validation-for="EditForm.ReorderLevel" class="text-danger small"></span>
+                        </div>
+
+                        <div class="admin-form-span-full">
+                            <label asp-for="EditForm.ImagePath" class="form-label">Image path</label>
+                            <input asp-for="EditForm.ImagePath" class="form-control bakery-field" list="adminItemImages" />
+                            <span asp-validation-for="EditForm.ImagePath" class="text-danger small"></span>
+                        </div>
+
+                        <div class="admin-form-span-full">
+                            <label asp-for="EditForm.Tagline" class="form-label">Short description</label>
+                            <input asp-for="EditForm.Tagline" class="form-control bakery-field" />
+                            <span asp-validation-for="EditForm.Tagline" class="text-danger small"></span>
+                        </div>
+
+                        <div class="admin-form-span-full">
+                            <label asp-for="EditForm.Notes" class="form-label">Notes</label>
+                            <textarea asp-for="EditForm.Notes" class="form-control bakery-field bakery-field-area admin-field-area"></textarea>
+                            <span asp-validation-for="EditForm.Notes" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <label class="form-check form-switch admin-switch-field">
+                        <input asp-for="EditForm.IsPublished" class="form-check-input" />
+                        <span class="form-check-label">Published in storefront</span>
+                    </label>
+
+                    <div class="admin-form-actions">
+                        <button type="button" class="admin-secondary-button" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="admin-primary-button">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

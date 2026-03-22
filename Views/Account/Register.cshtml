@@ -1,7 +1,7 @@
 @model RegisterViewModel
 
 @{
-    ViewData["Title"] = "Register";
+    ViewData["Title"] = "สมัครสมาชิก";
     ViewData["HideChrome"] = true;
 }
 
@@ -10,9 +10,11 @@
         <div class="auth-shell auth-shell-register">
             <div class="auth-panel auth-panel-form">
                 <div class="auth-form-wrap">
-                    <h1>Create Account</h1>
+                    <h1>สร้างบัญชีผู้ใช้</h1>
                     <p class="auth-copy">
-                        Sign up to save your favorite bakery items and continue your order easily.
+                        สมัครสมาชิกเพื่อบันทึกเมนูโปรดและสั่งขนมต่อได้สะดวกขึ้น
+                        บัญชีที่สมัครจากหน้านี้จะเป็นบัญชีผู้ใช้งานทั่วไปเท่านั้น
+                        และไม่สามารถใช้เข้าสู่หน้าหลังบ้านได้
                     </p>
 
                     <form asp-action="Register" method="post" class="auth-form auth-form-register">
@@ -20,41 +22,41 @@
                         <div asp-validation-summary="ModelOnly" class="text-danger small auth-form-span"></div>
 
                         <div class="auth-field-wrap">
-                            <label asp-for="FullName" class="form-label">Full name</label>
-                            <input asp-for="FullName" class="form-control bakery-field auth-field" placeholder="Your full name" />
+                            <label asp-for="FullName" class="form-label">ชื่อ - นามสกุล</label>
+                            <input asp-for="FullName" class="form-control bakery-field auth-field" placeholder="ชื่อ - นามสกุล" />
                             <span asp-validation-for="FullName" class="text-danger small"></span>
                         </div>
 
                         <div class="auth-field-wrap">
-                            <label asp-for="Email" class="form-label">Email</label>
-                            <input asp-for="Email" class="form-control bakery-field auth-field" placeholder="Example@email.com" />
+                            <label asp-for="Email" class="form-label">อีเมล</label>
+                            <input asp-for="Email" class="form-control bakery-field auth-field" placeholder="example@email.com" />
                             <span asp-validation-for="Email" class="text-danger small"></span>
                         </div>
 
                         <div class="auth-field-wrap">
-                            <label asp-for="PhoneNumber" class="form-label">Phone number</label>
+                            <label asp-for="PhoneNumber" class="form-label">เบอร์โทร</label>
                             <input asp-for="PhoneNumber" class="form-control bakery-field auth-field" placeholder="08x-xxx-xxxx" />
                             <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
                         </div>
 
                         <div class="auth-field-wrap">
-                            <label asp-for="Password" class="form-label">Password</label>
-                            <input asp-for="Password" class="form-control bakery-field auth-field" placeholder="At least 8 characters" />
+                            <label asp-for="Password" class="form-label">รหัสผ่าน</label>
+                            <input asp-for="Password" class="form-control bakery-field auth-field" placeholder="อย่างน้อย 8 ตัวอักษร" />
                             <span asp-validation-for="Password" class="text-danger small"></span>
                         </div>
 
                         <div class="auth-field-wrap">
-                            <label asp-for="ConfirmPassword" class="form-label">Confirm password</label>
-                            <input asp-for="ConfirmPassword" class="form-control bakery-field auth-field" placeholder="Type your password again" />
+                            <label asp-for="ConfirmPassword" class="form-label">ยืนยันรหัสผ่าน</label>
+                            <input asp-for="ConfirmPassword" class="form-control bakery-field auth-field" placeholder="กรอกรหัสผ่านอีกครั้ง" />
                             <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
                         </div>
 
-                        <button type="submit" class="btn auth-submit w-100 auth-form-span">Create account</button>
+                        <button type="submit" class="btn auth-submit w-100 auth-form-span">สร้างบัญชี</button>
                     </form>
 
                     <p class="auth-switch auth-switch-center auth-switch-register">
-                        Already have an account?
-                        <a asp-action="Login">Sign in</a>
+                        มีบัญชีอยู่แล้ว?
+                        <a asp-action="Login">ไปหน้าเข้าสู่ระบบ</a>
                     </p>
                 </div>
             </div>

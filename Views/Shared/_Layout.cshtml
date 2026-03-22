@@ -1,6 +1,9 @@
-﻿@{
+﻿@inject OneManVekery.Services.IStoreCartService CartService
+
+@{
     var hideChrome = ViewData["HideChrome"] is bool value && value;
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
+    var cartCount = hideChrome ? 0 : CartService.GetItemCount();
 }
 
 <!DOCTYPE html>
@@ -10,6 +13,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - One Man Vekery</title>
     <script type="importmap"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Pridi:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/OneManVekery.styles.css" asp-append-version="true" />
@@ -24,7 +30,7 @@
                         <span class="bakery-brand-mark">OV</span>
                         <span>
                             One Man Vekery
-                            <small>Sweet bakery in pink mood</small>
+                            <small>ร้านขนมโทนชมพูละมุน</small>
                         </span>
                     </a>
                     <button class="navbar-toggler bakery-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#bakeryNav" aria-controls="bakeryNav"
@@ -34,22 +40,28 @@
                     <div class="collapse navbar-collapse" id="bakeryNav">
                         <ul class="navbar-nav ms-auto align-items-lg-center bakery-nav-links">
                             <li class="nav-item">
-                                <a class="nav-link @(currentAction == "Index" ? "active" : string.Empty)" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                                <a class="nav-link @(currentAction == "Index" ? "active" : string.Empty)" asp-area="" asp-controller="Home" asp-action="Index">หน้าแรก</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link @(currentAction == "Shop" ? "active" : string.Empty)" asp-area="" asp-controller="Home" asp-action="Shop">Shop</a>
+                                <a class="nav-link @(currentAction == "Shop" ? "active" : string.Empty)" asp-area="" asp-controller="Home" asp-action="Shop">สินค้า</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link @(currentAction == "About" ? "active" : string.Empty)" asp-area="" asp-controller="Home" asp-action="About">About</a>
+                                <a class="nav-link @(currentAction == "About" ? "active" : string.Empty)" asp-area="" asp-controller="Home" asp-action="About">เกี่ยวกับร้าน</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link @(currentAction == "Contact" ? "active" : string.Empty)" asp-area="" asp-controller="Home" asp-action="Contact">Contact</a>
+                                <a class="nav-link @(currentAction == "Contact" ? "active" : string.Empty)" asp-area="" asp-controller="Home" asp-action="Contact">ติดต่อ</a>
                             </li>
                             <li class="nav-item">
-                                <a class="btn bakery-btn bakery-btn-light" asp-area="" asp-controller="Account" asp-action="Login">Login</a>
+                                <a class="bakery-cart-link @(currentAction == "Cart" ? "active" : string.Empty)" asp-area="" asp-controller="Home" asp-action="Cart">
+                                    <span>ตะกร้า</span>
+                                    <span class="bakery-cart-count">@cartCount</span>
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="btn bakery-btn bakery-btn-primary" asp-area="" asp-controller="Account" asp-action="Register">Register</a>
+                                <a class="btn bakery-btn bakery-btn-light" asp-area="" asp-controller="Account" asp-action="Login">เข้าสู่ระบบ</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="btn bakery-btn bakery-btn-primary" asp-area="" asp-controller="Account" asp-action="Register">สมัครสมาชิก</a>
                             </li>
                         </ul>
                     </div>
@@ -80,31 +92,32 @@
                     </div>
 
                     <div>
-                        <p class="site-footer-label">Links</p>
-                        <a asp-controller="Home" asp-action="Index">Home</a>
-                        <a asp-controller="Home" asp-action="Shop">Shop</a>
-                        <a asp-controller="Home" asp-action="About">About</a>
-                        <a asp-controller="Home" asp-action="Contact">Contact</a>
+                        <p class="site-footer-label">เมนู</p>
+                        <a asp-controller="Home" asp-action="Index">หน้าแรก</a>
+                        <a asp-controller="Home" asp-action="Shop">สินค้า</a>
+                        <a asp-controller="Home" asp-action="Cart">ตะกร้า</a>
+                        <a asp-controller="Home" asp-action="About">เกี่ยวกับร้าน</a>
+                        <a asp-controller="Home" asp-action="Contact">ติดต่อ</a>
                     </div>
 
                     <div>
-                        <p class="site-footer-label">Help</p>
-                        <span>Payment Options</span>
-                        <span>Returns</span>
-                        <span>Privacy Policies</span>
+                        <p class="site-footer-label">ช่วยเหลือ</p>
+                        <span>วิธีชำระเงิน</span>
+                        <span>การคืนสินค้า</span>
+                        <span>นโยบายความเป็นส่วนตัว</span>
                     </div>
 
                     <div>
-                        <p class="site-footer-label">Newsletter</p>
+                        <p class="site-footer-label">ข่าวสารร้าน</p>
                         <form class="site-footer-newsletter">
-                            <input type="email" class="form-control bakery-field" placeholder="Enter Your Email Address" />
-                            <button type="button" class="btn store-inline-btn">SUBSCRIBE</button>
+                            <input type="email" class="form-control bakery-field" placeholder="กรอกอีเมลของคุณ" />
+                            <button type="button" class="btn store-inline-btn">ติดตาม</button>
                         </form>
                     </div>
                 </div>
 
                 <div class="site-footer-bottom">
-                    2026 One Man Vekery. All rights reserved
+                    2026 One Man Vekery. สงวนลิขสิทธิ์
                 </div>
             </div>
         </footer>

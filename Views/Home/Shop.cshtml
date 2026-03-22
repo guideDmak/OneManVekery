@@ -1,18 +1,18 @@
 @model ShopPageViewModel
 
 @{
-    ViewData["Title"] = "Shop";
+    ViewData["Title"] = "สินค้า";
 }
 
 <section class="page-banner">
     <div class="container bakery-container">
         <div class="page-banner-card">
             <p class="page-banner-brand">One Man Vekery</p>
-            <h1>Shop</h1>
+            <h1>สินค้า</h1>
             <p class="page-banner-crumb">
-                <a asp-action="Index">Home</a>
+                <a asp-action="Index">หน้าแรก</a>
                 <span>&gt;</span>
-                <strong>Shop</strong>
+                <strong>สินค้า</strong>
             </p>
         </div>
     </div>
@@ -22,18 +22,18 @@
     <div class="container bakery-container">
         <div class="shop-toolbar-shell">
             <div class="shop-toolbar-left">
-                <span class="shop-toolbar-tag">Filter</span>
-                <p>Showing 1-@Model.Products.Count of @Model.Products.Count results</p>
+                <span class="shop-toolbar-tag">ตัวกรอง</span>
+                <p>แสดง 1-@Model.Products.Count จากทั้งหมด @Model.Products.Count รายการ</p>
             </div>
 
             <div class="shop-toolbar-right">
                 <div class="shop-toolbar-box">
-                    <span>Show</span>
+                    <span>แสดง</span>
                     <strong>@Model.Products.Count</strong>
                 </div>
                 <div class="shop-toolbar-box">
-                    <span>Sort by</span>
-                    <strong>Popular</strong>
+                    <span>เรียงตาม</span>
+                    <strong>ยอดนิยม</strong>
                 </div>
             </div>
         </div>
@@ -45,17 +45,17 @@
         <div class="search-panel" data-product-search>
             <div class="search-inputs">
                 <div>
-                    <label for="shopSearch" class="form-label">Search bakery item</label>
-                    <input id="shopSearch" class="form-control bakery-field" type="search" placeholder="cake, macaron, choux" data-search-input />
+                    <label for="shopSearch" class="form-label">ค้นหาสินค้า</label>
+                    <input id="shopSearch" class="form-control bakery-field" type="search" placeholder="เค้ก, มาการอง, ชูครีม" data-search-input />
                 </div>
                 <div>
-                    <label for="shopCategory" class="form-label">Category</label>
+                    <label for="shopCategory" class="form-label">หมวดสินค้า</label>
                     <select id="shopCategory" class="form-select bakery-field" data-category-input>
-                        <option value="all">All category</option>
-                        <option value="Cake">Cake</option>
-                        <option value="Macaron">Macaron</option>
-                        <option value="Choux Cream">Choux Cream</option>
-                        <option value="Bakery">Bakery</option>
+                        <option value="all">ทุกหมวด</option>
+                        <option value="Cake">เค้ก</option>
+                        <option value="Macaron">มาการอง</option>
+                        <option value="Choux Cream">ชูครีม</option>
+                        <option value="Bakery">เบเกอรี่</option>
                     </select>
                 </div>
             </div>
@@ -88,9 +88,13 @@
                                 }
                             </div>
 
-                            <button type="button" class="btn store-card-btn" @(product.IsSoldOut ? "disabled" : null)>
-                                @(product.IsSoldOut ? "Sold Out" : "Add to cart")
-                            </button>
+                            <form asp-action="AddToCart" method="post" class="store-cart-form">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="productId" value="@product.ProductId" />
+                                <button type="submit" class="btn store-card-btn" @(product.IsSoldOut ? "disabled" : null)>
+                                    @(product.IsSoldOut ? "หมดแล้ว" : "เพิ่มลงตะกร้า")
+                                </button>
+                            </form>
                         </div>
                     </article>
                 }
@@ -105,7 +109,7 @@
             <span class="active">1</span>
             <span>2</span>
             <span>3</span>
-            <span class="next">Next</span>
+            <span class="next">ถัดไป</span>
         </div>
     </div>
 </section>

@@ -1,10 +1,22 @@
 using Microsoft.AspNetCore.Mvc;
+using OneManVekery.Services;
 using OneManVekery.ViewModel;
 
 namespace OneManVekery.Controllers;
 
 public class AdminController : Controller
 {
+    private readonly IAccountDirectoryService _accountDirectoryService;
+    private readonly IInventoryCatalogService _inventoryCatalogService;
+
+    public AdminController(
+        IAccountDirectoryService accountDirectoryService,
+        IInventoryCatalogService inventoryCatalogService)
+    {
+        _accountDirectoryService = accountDirectoryService;
+        _inventoryCatalogService = inventoryCatalogService;
+    }
+
     [HttpGet]
     public IActionResult Index()
     {
@@ -30,9 +42,160 @@ public class AdminController : Controller
     }
 
     [HttpGet]
+    public IActionResult Items()
+    {
+        return View(BuildItemsModel());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult AddItem([Bind(Prefix = "AddForm")] AdminItemEditorViewModel form)
+    {
+        if (_inventoryCatalogService.SkuExists(form.Sku))
+        {
+            ModelState.AddModelError("AddForm.Sku", "SKU นี้ถูกใช้งานแล้ว");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return View("Items", BuildItemsModel(addForm: form, activeModal: "add"));
+        }
+
+        var createdItem = _inventoryCatalogService.AddItem(CreateInventoryInput(form));
+        TempData["SiteNotice"] = $"เพิ่มสินค้า {createdItem.Name} เรียบร้อยแล้ว";
+
+        return RedirectToAction(nameof(Items));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult UpdateItem([Bind(Prefix = "EditForm")] AdminItemEditorViewModel form)
+    {
+        if (form.ItemId == Guid.Empty || _inventoryCatalogService.GetItem(form.ItemId) is null)
+        {
+            TempData["SiteNotice"] = "ไม่พบสินค้าที่ต้องการแก้ไข";
+            return RedirectToAction(nameof(Items));
+        }
+
+        if (_inventoryCatalogService.SkuExists(form.Sku, form.ItemId))
+        {
+            ModelState.AddModelError("EditForm.Sku", "SKU นี้ถูกใช้งานแล้ว");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return View("Items", BuildItemsModel(editForm: form, activeModal: "edit"));
+        }
+
+        _inventoryCatalogService.UpdateItem(form.ItemId, CreateInventoryInput(form));
+        TempData["SiteNotice"] = $"อัปเดตสินค้า {form.Name} แล้ว";
+
+        return RedirectToAction(nameof(Items));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult AdjustItemStock(Guid itemId, int quantityDelta)
+    {
+        var existingItem = _inventoryCatalogService.GetItem(itemId);
+        if (itemId == Guid.Empty || existingItem is null)
+        {
+            TempData["SiteNotice"] = "ไม่พบสินค้าที่ต้องการปรับสต็อก";
+            return RedirectToAction(nameof(Items));
+        }
+
+        if (quantityDelta == 0)
+        {
+            TempData["SiteNotice"] = "กรุณาระบุจำนวนสต็อกที่ต้องการเปลี่ยน";
+            return RedirectToAction(nameof(Items));
+        }
+
+        if (!_inventoryCatalogService.AdjustStock(itemId, quantityDelta))
+        {
+            TempData["SiteNotice"] = $"สต็อกของ {existingItem.Name} ลดต่ำกว่า 0 ไม่ได้";
+            return RedirectToAction(nameof(Items));
+        }
+
+        var actionLabel = quantityDelta > 0
+            ? $"เพิ่มสต็อก {quantityDelta}"
+            : $"ลดสต็อก {Math.Abs(quantityDelta)}";
+
+        TempData["SiteNotice"] = $"{actionLabel} สำหรับ {existingItem.Name} แล้ว";
+
+        return RedirectToAction(nameof(Items));
+    }
+
+    [HttpGet]
     public IActionResult Accounts()
     {
         return View(BuildAccountsModel());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult AddAccount([Bind(Prefix = "AddForm")] AdminAccountEditorViewModel form)
+    {
+        if (_accountDirectoryService.EmailExists(form.Email))
+        {
+            ModelState.AddModelError("AddForm.Email", "อีเมลนี้ถูกใช้งานแล้ว");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return View("Accounts", BuildAccountsModel(addForm: form, activeModal: "account-add"));
+        }
+
+        var createdAccount = _accountDirectoryService.AddAccount(CreateAccountInput(form));
+        TempData["SiteNotice"] = $"เพิ่มบัญชี {createdAccount.FullName} เรียบร้อยแล้ว";
+
+        return RedirectToAction(nameof(Accounts));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult UpdateAccount([Bind(Prefix = "EditForm")] AdminAccountEditorViewModel form)
+    {
+        if (form.AccountId == Guid.Empty || _accountDirectoryService.GetAccount(form.AccountId) is null)
+        {
+            TempData["SiteNotice"] = "ไม่พบบัญชีที่ต้องการแก้ไข";
+            return RedirectToAction(nameof(Accounts));
+        }
+
+        if (_accountDirectoryService.EmailExists(form.Email, form.AccountId))
+        {
+            ModelState.AddModelError("EditForm.Email", "อีเมลนี้ถูกใช้งานแล้ว");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return View("Accounts", BuildAccountsModel(editForm: form, activeModal: "account-edit"));
+        }
+
+        _accountDirectoryService.UpdateAccount(form.AccountId, CreateAccountInput(form));
+        TempData["SiteNotice"] = $"อัปเดตบัญชี {form.FullName} แล้ว";
+
+        return RedirectToAction(nameof(Accounts));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult CloseAccount(Guid accountId)
+    {
+        var existingAccount = _accountDirectoryService.GetAccount(accountId);
+        if (accountId == Guid.Empty || existingAccount is null)
+        {
+            TempData["SiteNotice"] = "ไม่พบบัญชีที่ต้องการปิด";
+            return RedirectToAction(nameof(Accounts));
+        }
+
+        if (!_accountDirectoryService.CloseAccount(accountId))
+        {
+            TempData["SiteNotice"] = "ไม่สามารถปิดบัญชีนี้ได้";
+            return RedirectToAction(nameof(Accounts));
+        }
+
+        TempData["SiteNotice"] = $"ปิดบัญชี {existingAccount.FullName} แล้ว";
+        return RedirectToAction(nameof(Accounts));
     }
 
     [HttpGet]
@@ -225,35 +388,64 @@ public class AdminController : Controller
         };
     }
 
-    private static AdminAccountsViewModel BuildAccountsModel()
+    private AdminAccountsViewModel BuildAccountsModel(
+        AdminAccountEditorViewModel? addForm = null,
+        AdminAccountEditorViewModel? editForm = null,
+        string activeModal = "")
     {
+        var accounts = _accountDirectoryService.GetAllAccounts();
+        var roles = _accountDirectoryService.GetRoles();
+        var statusOptions = _accountDirectoryService.GetStatuses();
+
         return new AdminAccountsViewModel
         {
-            DateRangeLabel = "Jan 01 - Jan 28",
-            SummaryItems =
-            [
-                new AdminInfoItemViewModel { Label = "All Accounts", Value = "18", Detail = "System members" },
-                new AdminInfoItemViewModel { Label = "Active", Value = "14", Detail = "Can sign in", AccentKey = "green" },
-                new AdminInfoItemViewModel { Label = "Suspended", Value = "2", Detail = "Waiting review", AccentKey = "gold" },
-                new AdminInfoItemViewModel { Label = "Closed", Value = "2", Detail = "Kept for history", AccentKey = "red" }
-            ],
-            Accounts =
-            [
-                new AdminAccountRecordViewModel { FullName = "Mad Bakery", Email = "owner@madbakery.com", Role = "Owner", Status = "Active", LastActive = "Today, 09:15 AM", Notes = "Full access" },
-                new AdminAccountRecordViewModel { FullName = "Nicha Saelim", Email = "nicha@madbakery.com", Role = "Admin", Status = "Active", LastActive = "Today, 08:42 AM", Notes = "Order approvals" },
-                new AdminAccountRecordViewModel { FullName = "Pimchanok Dee", Email = "pim@madbakery.com", Role = "Manager", Status = "Active", LastActive = "Today, 08:10 AM", Notes = "Stock and reports" },
-                new AdminAccountRecordViewModel { FullName = "Krittin Boon", Email = "krittin@madbakery.com", Role = "Staff", Status = "Suspended", LastActive = "Mar 17, 2026", Notes = "Waiting password reset" },
-                new AdminAccountRecordViewModel { FullName = "Arisa Moon", Email = "arisa@madbakery.com", Role = "Support", Status = "Closed", LastActive = "Mar 09, 2026", Notes = "Closed account, keep history" },
-                new AdminAccountRecordViewModel { FullName = "Thanawat Korn", Email = "thanawat@madbakery.com", Role = "Staff", Status = "Active", LastActive = "Mar 18, 2026", Notes = "Packaging team" }
-            ],
-            Roles =
-            [
-                "Owner",
-                "Admin",
-                "Manager",
-                "Staff",
-                "Support"
-            ]
+            DateRangeLabel = $"Account sync {DateTime.Now:dd MMM yyyy}",
+            SummaryItems = BuildAccountSummary(accounts),
+            Accounts = accounts.Select(MapAccount).ToList(),
+            Roles = roles,
+            StatusOptions = statusOptions,
+            AddForm = addForm ?? new AdminAccountEditorViewModel
+            {
+                Role = "Staff",
+                Status = "Active"
+            },
+            EditForm = editForm ?? new AdminAccountEditorViewModel
+            {
+                Role = "Staff",
+                Status = "Active"
+            },
+            ActiveModal = activeModal
+        };
+    }
+
+    private AdminItemsPageViewModel BuildItemsModel(
+        AdminItemEditorViewModel? addForm = null,
+        AdminItemEditorViewModel? editForm = null,
+        string activeModal = "")
+    {
+        var items = _inventoryCatalogService.GetAllItems();
+        var categories = BuildCategories(items, addForm?.Category, editForm?.Category);
+        var imageOptions = BuildImageOptions(items, addForm?.ImagePath, editForm?.ImagePath);
+
+        return new AdminItemsPageViewModel
+        {
+            DateRangeLabel = $"Inventory sync {DateTime.Now:dd MMM yyyy}",
+            SummaryItems = BuildInventorySummary(items),
+            Items = items.Select(MapInventoryItem).ToList(),
+            Categories = categories,
+            ImageOptions = imageOptions,
+            AddForm = addForm ?? new AdminItemEditorViewModel
+            {
+                ReorderLevel = 10,
+                ImagePath = "/images/theme-cake.svg",
+                IsPublished = true
+            },
+            EditForm = editForm ?? new AdminItemEditorViewModel
+            {
+                ImagePath = "/images/theme-cake.svg",
+                IsPublished = true
+            },
+            ActiveModal = activeModal
         };
     }
 
@@ -336,5 +528,163 @@ public class AdminController : Controller
             new AdminLatestOrderViewModel { Product = "Flowering Cactus", Quantity = "x2", Date = "Sep 2, 2020", Revenue = "$162.15", NetProfit = "$86.65", Status = "Completed" },
             new AdminLatestOrderViewModel { Product = "Shell Collection", Quantity = "x4", Date = "Sep 20, 2020", Revenue = "$378.34", NetProfit = "$49.08", Status = "Completed" }
         ];
+    }
+
+    private static InventoryItemInput CreateInventoryInput(AdminItemEditorViewModel form)
+    {
+        return new InventoryItemInput
+        {
+            Name = form.Name,
+            Category = form.Category,
+            Sku = form.Sku,
+            Price = form.Price,
+            StockQuantity = form.StockQuantity,
+            ReorderLevel = form.ReorderLevel,
+            Tagline = form.Tagline,
+            Notes = form.Notes,
+            ImagePath = form.ImagePath,
+            IsPublished = form.IsPublished
+        };
+    }
+
+    private static AccountInput CreateAccountInput(AdminAccountEditorViewModel form)
+    {
+        return new AccountInput
+        {
+            FullName = form.FullName,
+            Email = form.Email,
+            PhoneNumber = form.PhoneNumber,
+            Role = form.Role,
+            Status = form.Status,
+            Notes = form.Notes
+        };
+    }
+
+    private static IReadOnlyList<AdminInfoItemViewModel> BuildAccountSummary(IReadOnlyList<AccountRecord> accounts)
+    {
+        var activeCount = accounts.Count(account => account.Status == "Active");
+        var suspendedCount = accounts.Count(account => account.Status == "Suspended");
+        var closedCount = accounts.Count(account => account.Status == "Closed");
+
+        return
+        [
+            new AdminInfoItemViewModel { Label = "All Accounts", Value = accounts.Count.ToString(), Detail = "System members" },
+            new AdminInfoItemViewModel { Label = "Active", Value = activeCount.ToString(), Detail = "Can sign in", AccentKey = "green" },
+            new AdminInfoItemViewModel { Label = "Suspended", Value = suspendedCount.ToString(), Detail = "Waiting review", AccentKey = "gold" },
+            new AdminInfoItemViewModel { Label = "Closed", Value = closedCount.ToString(), Detail = "Kept for history", AccentKey = "red" }
+        ];
+    }
+
+    private static AdminAccountRecordViewModel MapAccount(AccountRecord account)
+    {
+        return new AdminAccountRecordViewModel
+        {
+            AccountId = account.AccountId,
+            AccountCode = account.AccountCode,
+            FullName = account.FullName,
+            Email = account.Email,
+            PhoneNumber = account.PhoneNumber,
+            Role = account.Role,
+            Status = account.Status,
+            StatusKey = account.Status.ToLowerInvariant(),
+            LastActive = FormatLastActive(account.LastActiveAt),
+            Notes = account.Notes
+        };
+    }
+
+    private static string FormatLastActive(DateTime lastActiveAt)
+    {
+        return lastActiveAt.Date == DateTime.Today
+            ? $"Today, {lastActiveAt:hh:mm tt}"
+            : $"{lastActiveAt:MMM dd, yyyy}";
+    }
+
+    private static IReadOnlyList<AdminInfoItemViewModel> BuildInventorySummary(IReadOnlyList<InventoryItemRecord> items)
+    {
+        var publishedCount = items.Count(item => item.IsPublished);
+        var lowStockCount = items.Count(item => item.IsPublished && item.StockQuantity > 0 && item.StockQuantity <= item.ReorderLevel);
+        var soldOutCount = items.Count(item => item.IsPublished && item.StockQuantity == 0);
+        var totalUnits = items.Sum(item => item.StockQuantity);
+
+        return
+        [
+            new AdminInfoItemViewModel { Label = "All Items", Value = items.Count.ToString(), Detail = "Tracked bakery products" },
+            new AdminInfoItemViewModel { Label = "Published", Value = publishedCount.ToString(), Detail = "Visible in storefront", AccentKey = "green" },
+            new AdminInfoItemViewModel { Label = "Low Stock", Value = lowStockCount.ToString(), Detail = "Need refill soon", AccentKey = "gold" },
+            new AdminInfoItemViewModel { Label = "Units On Hand", Value = totalUnits.ToString("N0"), Detail = $"{soldOutCount} sold out", AccentKey = soldOutCount > 0 ? "red" : "blue" }
+        ];
+    }
+
+    private static AdminInventoryItemViewModel MapInventoryItem(InventoryItemRecord item)
+    {
+        var status = GetInventoryStatus(item);
+
+        return new AdminInventoryItemViewModel
+        {
+            ItemId = item.ItemId,
+            ItemCode = item.ItemCode,
+            Sku = item.Sku,
+            Name = item.Name,
+            Category = item.Category,
+            Tagline = item.Tagline,
+            Notes = item.Notes,
+            ImagePath = item.ImagePath,
+            PriceLabel = $"{item.Price:0.##} ฿",
+            StockQuantity = item.StockQuantity,
+            ReorderLevel = item.ReorderLevel,
+            StatusLabel = status.Label,
+            StatusKey = status.Key,
+            UpdatedAtLabel = item.UpdatedAt.ToString("dd MMM yyyy, HH:mm"),
+            IsPublished = item.IsPublished
+        };
+    }
+
+    private static IReadOnlyList<string> BuildCategories(IReadOnlyList<InventoryItemRecord> items, params string?[] extraCategories)
+    {
+        return items
+            .Select(item => item.Category)
+            .Concat(extraCategories.Where(category => !string.IsNullOrWhiteSpace(category)).Select(category => category!))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(category => category, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static IReadOnlyList<string> BuildImageOptions(IReadOnlyList<InventoryItemRecord> items, params string?[] extraImagePaths)
+    {
+        return items
+            .Select(item => item.ImagePath)
+            .Concat(
+            [
+                "/images/theme-cake.svg",
+                "/images/theme-macaron.svg",
+                "/images/theme-cream.svg",
+                "/images/theme-gold.svg",
+                "/images/theme-berry.svg",
+                "/images/theme-milk.svg"
+            ])
+            .Concat(extraImagePaths.Where(path => !string.IsNullOrWhiteSpace(path)).Select(path => path!))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static (string Label, string Key) GetInventoryStatus(InventoryItemRecord item)
+    {
+        if (!item.IsPublished)
+        {
+            return ("Draft", "draft");
+        }
+
+        if (item.StockQuantity <= 0)
+        {
+            return ("Sold Out", "sold-out");
+        }
+
+        if (item.StockQuantity <= item.ReorderLevel)
+        {
+            return ("Low Stock", "low-stock");
+        }
+
+        return ("In Stock", "in-stock");
     }
 }

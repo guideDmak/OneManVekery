@@ -1,7 +1,23 @@
+using OneManVekery.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddSingleton<IInventoryCatalogService, InMemoryInventoryCatalogService>();
+builder.Services.AddSingleton<IAccountDirectoryService, InMemoryAccountDirectoryService>();
+builder.Services.AddSingleton<IStoreCatalogService, InMemoryStoreCatalogService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.Cookie.Name = ".OneManVekery.Session";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.IdleTimeout = TimeSpan.FromHours(8);
+});
+builder.Services.AddScoped<IStoreCartService, SessionStoreCartService>();
+builder.Services.AddScoped<IStoreOrderService, SessionStoreOrderService>();
 
 var app = builder.Build();
 
@@ -15,6 +31,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseRouting();
+app.UseSession();
 
 app.UseAuthorization();
 
