@@ -97,23 +97,48 @@ public class AdminProductsViewModel
 
     public IReadOnlyList<AdminMetricCardViewModel> Metrics { get; init; } = [];
 
-    public string ProductName { get; init; } = string.Empty;
+    public IReadOnlyList<AdminInfoItemViewModel> SummaryItems { get; init; } = [];
+
+    public IReadOnlyList<AdminProductShowcaseViewModel> Products { get; init; } = [];
+}
+
+public class AdminProductShowcaseViewModel
+{
+    public int ProductId { get; init; }
+
+    public string ProductCode { get; init; } = string.Empty;
+
+    public string Name { get; init; } = string.Empty;
 
     public string Category { get; init; } = string.Empty;
 
-    public string ProductCaption { get; init; } = string.Empty;
+    public string Tagline { get; init; } = string.Empty;
 
-    public IReadOnlyList<AdminInfoItemViewModel> SummaryItems { get; init; } = [];
+    public string ImagePath { get; init; } = string.Empty;
+
+    public string PriceLabel { get; init; } = string.Empty;
+
+    public string StockLabel { get; init; } = string.Empty;
+
+    public int StockQuantity { get; init; }
+
+    public int ReorderLevel { get; init; }
+
+    public string SalesLabel { get; init; } = string.Empty;
 
     public string RevenueLabel { get; init; } = string.Empty;
 
-    public string RevenueValue { get; init; } = string.Empty;
+    public string VisibilityLabel { get; init; } = string.Empty;
 
-    public string RevenueDelta { get; init; } = string.Empty;
+    public string VisibilityKey { get; init; } = string.Empty;
 
-    public IReadOnlyList<AdminChartPointViewModel> RevenueChart { get; init; } = [];
+    public string PublishedCopy { get; init; } = string.Empty;
 
-    public IReadOnlyList<AdminLatestOrderViewModel> Orders { get; init; } = [];
+    public bool IsPublished { get; init; }
+
+    public int UnitsSold { get; init; }
+
+    public decimal RevenueAmount { get; init; }
 }
 
 public class AdminProfileViewModel
@@ -508,4 +533,6 @@ public class AdminSelectOptionViewModel
     public string SecondaryLabel { get; init; } = string.Empty;
 
     public string DataValue { get; init; } = string.Empty;
+
+    public string DataExtra { get; init; } = string.Empty;
 }

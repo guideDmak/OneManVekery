@@ -364,7 +364,7 @@ const adminOrdersRoot = document.querySelector("[data-admin-orders]");
 if (adminOrdersRoot && window.bootstrap) {
   const addOrderModalElement = document.getElementById("addOrderModal");
   const editOrderModalElement = document.getElementById("editOrderModal");
-  const addOrderForm = adminOrdersRoot.querySelector("[data-add-order-form]");
+  const addOrderForm = document.querySelector("[data-add-order-form]");
   const customerCombobox = addOrderForm?.querySelector("[data-order-customer-combobox]");
   const customerIdInput = addOrderForm?.querySelector("[data-order-customer-id]");
   const customerSearchInput = addOrderForm?.querySelector("[data-order-customer-search]");
@@ -372,9 +372,22 @@ if (adminOrdersRoot && window.bootstrap) {
   const customerSelectedCopy = addOrderForm?.querySelector("[data-order-customer-selected]");
   const customerOptionButtons = [...(addOrderForm?.querySelectorAll("[data-order-customer-option]") || [])];
   const customerPhoneInput = addOrderForm?.querySelector("[data-order-customer-phone]");
+  const deliveryFeeInput = addOrderForm?.querySelector("#AddForm_DeliveryFee");
+  const productPickerCombobox = addOrderForm?.querySelector("[data-order-product-picker-combobox]");
+  const productPickerIdInput = addOrderForm?.querySelector("[data-order-product-picker-id]");
+  const productPickerSearchInput = addOrderForm?.querySelector("[data-order-product-picker-search]");
+  const productPickerSuggestions = addOrderForm?.querySelector("[data-order-product-picker-suggestions]");
+  const productPickerOptionButtons = [...(addOrderForm?.querySelectorAll("[data-order-product-picker-option]") || [])];
+  const productPickerQuantityInput = addOrderForm?.querySelector("[data-order-product-picker-qty]");
+  const productPickerMeta = addOrderForm?.querySelector("[data-order-product-picker-meta]");
+  const productAddButton = addOrderForm?.querySelector("[data-order-product-add]");
   const orderLinesRoot = addOrderForm?.querySelector("[data-order-lines]");
-  const addOrderLineButton = addOrderForm?.querySelector("[data-add-order-line]");
-  const orderLineTemplate = document.getElementById("orderLineTemplate");
+  const orderLineTemplate = document.getElementById("orderLineRowTemplate");
+  const orderSummaryEmpty = addOrderForm?.querySelector("[data-order-summary-empty]");
+  const orderSubtotalElement = addOrderForm?.querySelector("[data-order-subtotal]");
+  const orderDeliveryFeeElement = addOrderForm?.querySelector("[data-order-delivery-fee]");
+  const orderGrandTotalElement = addOrderForm?.querySelector("[data-order-grand-total]");
+  const defaultProductPickerMessage = "พิมพ์ชื่อสินค้าหรือ SKU เพื่อค้นหา";
 
   const setOrderFieldValue = (id, value) => {
     const field = document.getElementById(id);
@@ -383,27 +396,6 @@ if (adminOrdersRoot && window.bootstrap) {
     }
 
     field.value = value ?? "";
-  };
-
-  const updateOrderLineMeta = (lineRow) => {
-    if (!(lineRow instanceof HTMLElement)) {
-      return;
-    }
-
-    const productSelect = lineRow.querySelector("[data-order-product-select]");
-    const metaLabel = lineRow.querySelector("[data-order-line-meta]");
-
-    if (!(productSelect instanceof HTMLSelectElement) || !(metaLabel instanceof HTMLElement)) {
-      return;
-    }
-
-    const selectedOption = productSelect.selectedOptions[0];
-    if (!selectedOption || !selectedOption.value) {
-      metaLabel.textContent = "";
-      return;
-    }
-
-    metaLabel.textContent = `Available stock: ${selectedOption.dataset.stock || 0}`;
   };
 
   const hideCustomerSuggestions = () => {
@@ -496,84 +488,430 @@ if (adminOrdersRoot && window.bootstrap) {
     filterCustomerOptions();
   });
 
-  document.addEventListener("click", (event) => {
-    if (!(customerCombobox instanceof HTMLElement)) {
+  const formatNumber = (value) => Number(value || 0).toLocaleString("th-TH", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  });
+
+  const formatMoney = (value) => `${formatNumber(value)} ฿`;
+
+  const parseQuantity = (value) => Math.max(1, Number.parseInt(String(value || "1"), 10) || 1);
+
+  const getProductData = (source) => {
+    if (!(source instanceof HTMLElement) || !(source.dataset.productId || "").trim()) {
+      return null;
+    }
+
+    return {
+      id: source.dataset.productId || "",
+      name: source.dataset.productName || "",
+      meta: source.dataset.productMeta || "",
+      stock: Math.max(0, Number.parseInt(source.dataset.productStock || "0", 10) || 0),
+      price: Math.max(0, Number.parseFloat(source.dataset.productPrice || "0") || 0)
+    };
+  };
+
+  const getProductDataById = (productId) => {
+    if (!productId) {
+      return null;
+    }
+
+    const optionButton = productPickerOptionButtons.find((button) =>
+      button instanceof HTMLButtonElement && button.dataset.productId === productId
+    );
+
+    return optionButton instanceof HTMLElement ? getProductData(optionButton) : null;
+  };
+
+  const describeProduct = (product) => {
+    if (!product) {
+      return defaultProductPickerMessage;
+    }
+
+    return `ราคา ${formatMoney(product.price)} • คงเหลือ ${formatNumber(product.stock)} ชิ้น`;
+  };
+
+  const setProductPickerMessage = (message, isError = false) => {
+    if (!(productPickerMeta instanceof HTMLElement)) {
       return;
     }
 
-    const target = event.target;
-    if (target instanceof Node && !customerCombobox.contains(target)) {
-      hideCustomerSuggestions();
-    }
-  });
+    productPickerMeta.textContent = message;
+    productPickerMeta.classList.toggle("is-error", isError);
+  };
 
-  const bindOrderLine = (lineRow) => {
+  const hideProductSuggestions = () => {
+    productPickerSuggestions?.classList.add("d-none");
+  };
+
+  const getOrderLineRows = () =>
+    [...(orderLinesRoot?.querySelectorAll("[data-order-line-row]") || [])]
+      .filter((row) => row instanceof HTMLElement);
+
+  const createOrderLineRow = () => {
+    if (!(orderLineTemplate instanceof HTMLTemplateElement)) {
+      return null;
+    }
+
+    const fragment = orderLineTemplate.content.cloneNode(true);
+    const wrapper = document.createElement("tbody");
+    wrapper.append(fragment);
+    return wrapper.querySelector("[data-order-line-row]");
+  };
+
+  const setOrderLineData = (lineRow, product) => {
+    if (!(lineRow instanceof HTMLElement) || !product) {
+      return;
+    }
+
+    lineRow.dataset.productId = product.id;
+    lineRow.dataset.productName = product.name;
+    lineRow.dataset.productMeta = product.meta;
+    lineRow.dataset.productStock = String(product.stock);
+    lineRow.dataset.productPrice = String(product.price);
+  };
+
+  const updateOrderLineRow = (lineRow) => {
     if (!(lineRow instanceof HTMLElement)) {
       return;
     }
 
-    if (lineRow.dataset.orderLineBound === "true") {
-      updateOrderLineMeta(lineRow);
+    const product = getProductData(lineRow);
+    const productIdInput = lineRow.querySelector("[data-order-line-product-id]");
+    const quantityInput = lineRow.querySelector("[data-order-line-qty]");
+    const nameElement = lineRow.querySelector("[data-order-line-name]");
+    const metaElement = lineRow.querySelector("[data-order-line-meta]");
+    const unitPriceElement = lineRow.querySelector("[data-order-line-unit-price]");
+    const lineTotalElement = lineRow.querySelector("[data-order-line-total]");
+
+    if (!(productIdInput instanceof HTMLInputElement) ||
+      !(quantityInput instanceof HTMLInputElement) ||
+      !(nameElement instanceof HTMLElement) ||
+      !(metaElement instanceof HTMLElement) ||
+      !(unitPriceElement instanceof HTMLElement) ||
+      !(lineTotalElement instanceof HTMLElement) ||
+      !product) {
       return;
     }
 
-    const removeButton = lineRow.querySelector("[data-remove-order-line]");
-    const productSelect = lineRow.querySelector("[data-order-product-select]");
+    const maxQuantity = product.stock > 0 ? product.stock : null;
+    let quantity = parseQuantity(quantityInput.value);
+    if (typeof maxQuantity === "number") {
+      quantity = Math.min(quantity, maxQuantity);
+    }
 
-    removeButton?.addEventListener("click", () => {
-      if (!(orderLinesRoot instanceof HTMLElement)) {
-        return;
-      }
-
-      const allLines = orderLinesRoot.querySelectorAll("[data-order-line-row]");
-      if (allLines.length <= 1) {
-        return;
-      }
-
-      lineRow.remove();
-      reindexOrderLines();
-    });
-
-    productSelect?.addEventListener("change", () => {
-      updateOrderLineMeta(lineRow);
-    });
-
-    updateOrderLineMeta(lineRow);
-    lineRow.dataset.orderLineBound = "true";
+    quantityInput.value = String(quantity);
+    productIdInput.value = product.id;
+    nameElement.textContent = product.name;
+    metaElement.textContent = product.meta || describeProduct(product);
+    unitPriceElement.textContent = formatMoney(product.price);
+    lineTotalElement.textContent = formatMoney(product.price * quantity);
   };
 
-  const reindexOrderLines = () => {
-    if (!(orderLinesRoot instanceof HTMLElement)) {
-      return;
-    }
+  const syncOrderLineNames = () => {
+    getOrderLineRows().forEach((lineRow, index) => {
+      const productIdInput = lineRow.querySelector("[data-order-line-product-id]");
+      const quantityInput = lineRow.querySelector("[data-order-line-qty]");
 
-    [...orderLinesRoot.querySelectorAll("[data-order-line-row]")].forEach((lineRow, index) => {
-      const productSelect = lineRow.querySelector("[data-order-product-select]");
-      const quantityInput = lineRow.querySelector('input[type="number"]');
-
-      if (productSelect instanceof HTMLSelectElement) {
-        productSelect.name = `AddForm.Items[${index}].ProductId`;
+      if (productIdInput instanceof HTMLInputElement) {
+        productIdInput.name = `AddForm.Items[${index}].ProductId`;
       }
 
       if (quantityInput instanceof HTMLInputElement) {
         quantityInput.name = `AddForm.Items[${index}].Quantity`;
       }
-
-      bindOrderLine(lineRow);
     });
   };
 
-  addOrderLineButton?.addEventListener("click", () => {
-    if (!(orderLinesRoot instanceof HTMLElement) || !(orderLineTemplate instanceof HTMLTemplateElement)) {
+  const syncOrderSummary = () => {
+    const lineRows = getOrderLineRows();
+    let subtotal = 0;
+
+    lineRows.forEach((lineRow) => {
+      updateOrderLineRow(lineRow);
+
+      const quantityInput = lineRow.querySelector("[data-order-line-qty]");
+      const product = getProductData(lineRow);
+      if (!(quantityInput instanceof HTMLInputElement) || !product) {
+        return;
+      }
+
+      subtotal += product.price * parseQuantity(quantityInput.value);
+    });
+
+    const deliveryFee = deliveryFeeInput instanceof HTMLInputElement
+      ? Math.max(0, Number.parseFloat(deliveryFeeInput.value || "0") || 0)
+      : 0;
+    const grandTotal = subtotal + deliveryFee;
+
+    orderSummaryEmpty?.classList.toggle("d-none", lineRows.length > 0);
+
+    if (orderSubtotalElement instanceof HTMLElement) {
+      orderSubtotalElement.textContent = formatMoney(subtotal);
+    }
+
+    if (orderDeliveryFeeElement instanceof HTMLElement) {
+      orderDeliveryFeeElement.textContent = formatMoney(deliveryFee);
+    }
+
+    if (orderGrandTotalElement instanceof HTMLElement) {
+      orderGrandTotalElement.textContent = formatMoney(grandTotal);
+    }
+  };
+
+  const clearProductPicker = (focusInput = false) => {
+    if (productPickerIdInput instanceof HTMLInputElement) {
+      productPickerIdInput.value = "";
+    }
+
+    if (productPickerSearchInput instanceof HTMLInputElement) {
+      productPickerSearchInput.value = "";
+      if (focusInput) {
+        productPickerSearchInput.focus();
+      }
+    }
+
+    if (productPickerQuantityInput instanceof HTMLInputElement) {
+      productPickerQuantityInput.value = "1";
+    }
+
+    setProductPickerMessage(defaultProductPickerMessage);
+    hideProductSuggestions();
+  };
+
+  const applyProductSelection = (source) => {
+    const product = getProductData(source);
+    if (!product) {
       return;
     }
 
-    const fragment = orderLineTemplate.content.cloneNode(true);
-    orderLinesRoot.append(fragment);
-    reindexOrderLines();
+    if (productPickerIdInput instanceof HTMLInputElement) {
+      productPickerIdInput.value = product.id;
+    }
+
+    if (productPickerSearchInput instanceof HTMLInputElement) {
+      productPickerSearchInput.value = product.name;
+    }
+
+    if (productPickerQuantityInput instanceof HTMLInputElement) {
+      const currentQuantity = parseQuantity(productPickerQuantityInput.value);
+      const cappedQuantity = product.stock > 0 ? Math.min(currentQuantity, product.stock) : currentQuantity;
+      productPickerQuantityInput.value = String(cappedQuantity);
+    }
+
+    setProductPickerMessage(describeProduct(product));
+    hideProductSuggestions();
+  };
+
+  const filterProductOptions = () => {
+    if (!(productPickerSearchInput instanceof HTMLInputElement)) {
+      return;
+    }
+
+    const keyword = productPickerSearchInput.value.trim().toLowerCase();
+    let visibleCount = 0;
+
+    productPickerOptionButtons.forEach((optionButton) => {
+      if (!(optionButton instanceof HTMLButtonElement)) {
+        return;
+      }
+
+      const haystack = `${optionButton.dataset.productName || ""} ${optionButton.dataset.productMeta || ""}`.toLowerCase();
+      const isVisible = !keyword || haystack.includes(keyword);
+
+      optionButton.classList.toggle("d-none", !isVisible);
+      if (isVisible) {
+        visibleCount += 1;
+      }
+    });
+
+    productPickerSuggestions?.classList.toggle("d-none", visibleCount === 0);
+  };
+
+  const addSelectedProductToOrder = () => {
+    if (!(orderLinesRoot instanceof HTMLElement) ||
+      !(productPickerIdInput instanceof HTMLInputElement) ||
+      !(productPickerQuantityInput instanceof HTMLInputElement)) {
+      return;
+    }
+
+    const product = getProductDataById(productPickerIdInput.value);
+    if (!product) {
+      setProductPickerMessage("เลือกสินค้าก่อนเพิ่มลงออเดอร์", true);
+      return;
+    }
+
+    const requestedQuantity = parseQuantity(productPickerQuantityInput.value);
+    if (product.stock > 0 && requestedQuantity > product.stock) {
+      setProductPickerMessage(`สินค้า ${product.name} มีคงเหลือ ${formatNumber(product.stock)} ชิ้น`, true);
+      return;
+    }
+
+    const existingRow = getOrderLineRows().find((lineRow) => lineRow.dataset.productId === product.id);
+    if (existingRow instanceof HTMLElement) {
+      const quantityInput = existingRow.querySelector("[data-order-line-qty]");
+      if (!(quantityInput instanceof HTMLInputElement)) {
+        return;
+      }
+
+      const nextQuantity = parseQuantity(quantityInput.value) + requestedQuantity;
+      if (product.stock > 0 && nextQuantity > product.stock) {
+        setProductPickerMessage(`สินค้า ${product.name} มีคงเหลือ ${formatNumber(product.stock)} ชิ้น`, true);
+        return;
+      }
+
+      quantityInput.value = String(nextQuantity);
+      updateOrderLineRow(existingRow);
+    } else {
+      const newRow = createOrderLineRow();
+      if (!(newRow instanceof HTMLElement)) {
+        return;
+      }
+
+      setOrderLineData(newRow, product);
+
+      const quantityInput = newRow.querySelector("[data-order-line-qty]");
+      if (quantityInput instanceof HTMLInputElement) {
+        quantityInput.value = String(requestedQuantity);
+      }
+
+      orderLinesRoot.append(newRow);
+      updateOrderLineRow(newRow);
+    }
+
+    syncOrderLineNames();
+    syncOrderSummary();
+    clearProductPicker(true);
+  };
+
+  deliveryFeeInput?.addEventListener("input", syncOrderSummary);
+
+  productPickerOptionButtons.forEach((optionButton) => {
+    if (!(optionButton instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    optionButton.addEventListener("click", () => {
+      applyProductSelection(optionButton);
+    });
   });
 
-  reindexOrderLines();
+  productPickerSearchInput?.addEventListener("focus", () => {
+    filterProductOptions();
+  });
+
+  productPickerSearchInput?.addEventListener("input", () => {
+    if (productPickerIdInput instanceof HTMLInputElement) {
+      productPickerIdInput.value = "";
+    }
+
+    setProductPickerMessage(defaultProductPickerMessage);
+    filterProductOptions();
+  });
+
+  productPickerSearchInput?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+
+    event.preventDefault();
+
+    const firstVisibleOption = productPickerOptionButtons.find((optionButton) =>
+      optionButton instanceof HTMLButtonElement && !optionButton.classList.contains("d-none")
+    );
+
+    if (productPickerIdInput instanceof HTMLInputElement && productPickerIdInput.value) {
+      addSelectedProductToOrder();
+      return;
+    }
+
+    if (firstVisibleOption instanceof HTMLButtonElement) {
+      applyProductSelection(firstVisibleOption);
+    }
+  });
+
+  productPickerQuantityInput?.addEventListener("input", () => {
+    if (!(productPickerQuantityInput instanceof HTMLInputElement)) {
+      return;
+    }
+
+    const selectedProductId = productPickerIdInput instanceof HTMLInputElement
+      ? productPickerIdInput.value
+      : "";
+    const selectedProduct = getProductDataById(selectedProductId);
+    const quantity = parseQuantity(productPickerQuantityInput.value);
+
+    if (selectedProduct && selectedProduct.stock > 0) {
+      productPickerQuantityInput.value = String(Math.min(quantity, selectedProduct.stock));
+      return;
+    }
+
+    productPickerQuantityInput.value = String(quantity);
+  });
+
+  productAddButton?.addEventListener("click", addSelectedProductToOrder);
+
+  orderLinesRoot?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    const removeButton = target.closest("[data-remove-order-line]");
+    if (!(removeButton instanceof HTMLElement)) {
+      return;
+    }
+
+    const lineRow = removeButton.closest("[data-order-line-row]");
+    if (!(lineRow instanceof HTMLElement)) {
+      return;
+    }
+
+    lineRow.remove();
+    syncOrderLineNames();
+    syncOrderSummary();
+  });
+
+  orderLinesRoot?.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || !target.matches("[data-order-line-qty]")) {
+      return;
+    }
+
+    const lineRow = target.closest("[data-order-line-row]");
+    if (!(lineRow instanceof HTMLElement)) {
+      return;
+    }
+
+    updateOrderLineRow(lineRow);
+    syncOrderSummary();
+  });
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+
+    if (customerCombobox instanceof HTMLElement &&
+      target instanceof Node &&
+      !customerCombobox.contains(target)) {
+      hideCustomerSuggestions();
+    }
+
+    if (productPickerCombobox instanceof HTMLElement &&
+      target instanceof Node &&
+      !productPickerCombobox.contains(target)) {
+      hideProductSuggestions();
+    }
+  });
+
+  productPickerCombobox?.addEventListener("focusout", () => {
+    window.setTimeout(hideProductSuggestions, 120);
+  });
+
+  getOrderLineRows().forEach((lineRow) => {
+    updateOrderLineRow(lineRow);
+  });
+  syncOrderLineNames();
+  syncOrderSummary();
 
   editOrderModalElement?.addEventListener("show.bs.modal", (event) => {
     const trigger = event.relatedTarget;

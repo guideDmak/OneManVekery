@@ -278,58 +278,148 @@
                         <div class="admin-card-head admin-card-head-stack">
                             <div>
                                 <h3>Order Items</h3>
-                                <p>เลือกสินค้าและจำนวนที่ลูกค้าต้องการ</p>
+                                <p>เลือกสินค้าและจำนวนจากช่องเดียว แล้วเพิ่มรายการพร้อมดูยอดรวมในกล่องเดียวกัน</p>
                             </div>
-                            <button type="button" class="admin-secondary-button" data-add-order-line>
-                                Add Item
-                            </button>
                         </div>
 
-                        <div class="admin-order-lines" data-order-lines>
-                            @for (var index = 0; index < Model.AddForm.Items.Count; index++)
-                            {
-                                var line = Model.AddForm.Items[index];
-                                <div class="admin-order-line-row" data-order-line-row>
-                                    <div class="admin-order-line-grid">
-                                        <div>
-                                            <label class="form-label">Product</label>
-                                            <select name="AddForm.Items[@index].ProductId" class="form-select bakery-field" data-order-product-select>
-                                                <option value="">Select product</option>
-                                                @foreach (var product in Model.ProductOptions)
-                                                {
-                                                    if (product.Value == line.ProductId.ToString())
-                                                    {
-                                                        <option value="@product.Value" data-stock="@product.DataValue" selected="selected">
-                                                            @product.Label (@product.SecondaryLabel)
-                                                        </option>
-                                                    }
-                                                    else
-                                                    {
-                                                        <option value="@product.Value" data-stock="@product.DataValue">
-                                                            @product.Label (@product.SecondaryLabel)
-                                                        </option>
-                                                    }
-                                                }
-                                            </select>
-                                        </div>
+                        <div class="admin-order-panel">
+                            <div class="admin-order-picker-grid">
+                                <div>
+                                    <label class="form-label">Product</label>
+                                    <div class="admin-product-combobox" data-order-product-picker-combobox>
+                                        <input type="hidden" value="" data-order-product-picker-id />
+                                        <input type="search"
+                                               class="form-control bakery-field"
+                                               placeholder="พิมพ์ชื่อสินค้าหรือ SKU"
+                                               autocomplete="off"
+                                               data-order-product-picker-search />
 
-                                        <div>
-                                            <label class="form-label">Qty</label>
-                                            <input name="AddForm.Items[@index].Quantity"
-                                                   value="@line.Quantity"
-                                                   class="form-control bakery-field"
-                                                   type="number"
-                                                   min="1"
-                                                   step="1" />
+                                        <div class="admin-product-suggestions d-none" data-order-product-picker-suggestions>
+                                            @foreach (var product in Model.ProductOptions)
+                                            {
+                                                <button type="button"
+                                                        class="admin-product-option"
+                                                        data-order-product-picker-option
+                                                        data-product-id="@product.Value"
+                                                        data-product-name="@product.Label"
+                                                        data-product-meta="@product.SecondaryLabel"
+                                                        data-product-stock="@product.DataValue"
+                                                        data-product-price="@product.DataExtra">
+                                                    <strong>@product.Label</strong>
+                                                    <span>@product.SecondaryLabel</span>
+                                                </button>
+                                            }
                                         </div>
-                                    </div>
-
-                                    <div class="admin-order-line-footer">
-                                        <small data-order-line-meta></small>
-                                        <button type="button" class="admin-row-action-button is-danger" data-remove-order-line>Remove</button>
                                     </div>
                                 </div>
-                            }
+
+                                <div>
+                                    <label class="form-label">Qty</label>
+                                    <input class="form-control bakery-field"
+                                           type="number"
+                                           min="1"
+                                           step="1"
+                                           value="1"
+                                           data-order-product-picker-qty />
+                                </div>
+
+                                <div class="admin-order-picker-action">
+                                    <button type="button" class="admin-primary-button" data-order-product-add>
+                                        Add Item
+                                    </button>
+                                </div>
+                            </div>
+
+                            <small class="admin-order-picker-meta" data-order-product-picker-meta>พิมพ์ชื่อสินค้าหรือ SKU เพื่อค้นหา</small>
+
+                            <div class="admin-order-table-head">
+                                <div>
+                                    <h4>Price Summary</h4>
+                                    <p>แสดงราคาต่อชิ้น ราคารวมของแต่ละแถว และยอดรวมของออเดอร์</p>
+                                </div>
+                            </div>
+
+                            <div class="admin-table-wrap">
+                                <table class="admin-table admin-order-summary-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>Qty</th>
+                                            <th>Unit Price</th>
+                                            <th>Line Total</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody data-order-lines>
+                                        <tr data-order-summary-empty class="@(Model.AddForm.Items.Any(item => item.ProductId > 0) ? "d-none" : string.Empty)">
+                                            <td colspan="5">ยังไม่มีรายการสินค้า</td>
+                                        </tr>
+
+                                        @for (var index = 0; index < Model.AddForm.Items.Count; index++)
+                                        {
+                                            var line = Model.AddForm.Items[index];
+                                            var selectedProduct = Model.ProductOptions.FirstOrDefault(option => option.Value == line.ProductId.ToString());
+                                            if (selectedProduct is null)
+                                            {
+                                                continue;
+                                            }
+
+                                            var unitPriceText = decimal.TryParse(selectedProduct.DataExtra, out var unitPriceValue)
+                                                ? unitPriceValue.ToString("0.##")
+                                                : "0";
+                                            var lineTotal = decimal.TryParse(selectedProduct.DataExtra, out var priceValue)
+                                                ? priceValue * line.Quantity
+                                                : 0;
+
+                                            <tr data-order-line-row
+                                                data-product-id="@selectedProduct.Value"
+                                                data-product-name="@selectedProduct.Label"
+                                                data-product-meta="@selectedProduct.SecondaryLabel"
+                                                data-product-stock="@selectedProduct.DataValue"
+                                                data-product-price="@selectedProduct.DataExtra">
+                                                <td>
+                                                    <div class="admin-order-stack">
+                                                        <strong data-order-line-name>@selectedProduct.Label</strong>
+                                                        <span data-order-line-meta>@selectedProduct.SecondaryLabel</span>
+                                                    </div>
+                                                    <input type="hidden" name="AddForm.Items[@index].ProductId" value="@selectedProduct.Value" data-order-line-product-id />
+                                                </td>
+                                                <td>
+                                                    <input name="AddForm.Items[@index].Quantity"
+                                                           value="@line.Quantity"
+                                                           class="form-control bakery-field admin-order-summary-qty"
+                                                           type="number"
+                                                           min="1"
+                                                           step="1"
+                                                           data-order-line-qty />
+                                                </td>
+                                                <td data-order-line-unit-price>@unitPriceText ฿</td>
+                                                <td data-order-line-total>@lineTotal.ToString("0.##") ฿</td>
+                                                <td>
+                                                    <button type="button" class="admin-row-action-button is-danger" data-remove-order-line>Remove</button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="admin-order-footer">
+                                <div class="admin-order-totals">
+                                    <div class="admin-order-total-chip">
+                                        <span>Subtotal</span>
+                                        <strong data-order-subtotal>0 ฿</strong>
+                                    </div>
+                                    <div class="admin-order-total-chip">
+                                        <span>Delivery Fee</span>
+                                        <strong data-order-delivery-fee>0 ฿</strong>
+                                    </div>
+                                    <div class="admin-order-total-chip is-grand">
+                                        <span>Grand Total</span>
+                                        <strong data-order-grand-total>0 ฿</strong>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -343,31 +433,29 @@
     </div>
 </div>
 
-<template id="orderLineTemplate">
-    <div class="admin-order-line-row" data-order-line-row>
-        <div class="admin-order-line-grid">
-            <div>
-                <label class="form-label">Product</label>
-                <select class="form-select bakery-field" data-order-product-select>
-                    <option value="">Select product</option>
-                    @foreach (var product in Model.ProductOptions)
-                    {
-                        <option value="@product.Value" data-stock="@product.DataValue">@product.Label (@product.SecondaryLabel)</option>
-                    }
-                </select>
+<template id="orderLineRowTemplate">
+    <tr data-order-line-row data-product-id="" data-product-name="" data-product-meta="" data-product-stock="" data-product-price="">
+        <td>
+            <div class="admin-order-stack">
+                <strong data-order-line-name></strong>
+                <span data-order-line-meta></span>
             </div>
-
-            <div>
-                <label class="form-label">Qty</label>
-                <input class="form-control bakery-field" type="number" min="1" step="1" value="1" />
-            </div>
-        </div>
-
-        <div class="admin-order-line-footer">
-            <small data-order-line-meta></small>
+            <input type="hidden" value="" data-order-line-product-id />
+        </td>
+        <td>
+            <input class="form-control bakery-field admin-order-summary-qty"
+                   type="number"
+                   min="1"
+                   step="1"
+                   value="1"
+                   data-order-line-qty />
+        </td>
+        <td data-order-line-unit-price>0 ฿</td>
+        <td data-order-line-total>0 ฿</td>
+        <td>
             <button type="button" class="admin-row-action-button is-danger" data-remove-order-line>Remove</button>
-        </div>
-    </div>
+        </td>
+    </tr>
 </template>
 
 <div class="modal fade admin-modal" id="editOrderModal" tabindex="-1" aria-labelledby="editOrderModalLabel" aria-hidden="true">

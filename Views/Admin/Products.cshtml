@@ -5,7 +5,23 @@
     ViewData["Title"] = "Products";
     ViewData["AdminDateRange"] = Model.DateRangeLabel;
     ViewData["AdminSection"] = "Products";
+    var topProducts = Model.Products
+        .OrderByDescending(item => item.RevenueAmount)
+        .ThenByDescending(item => item.UnitsSold)
+        .Take(4)
+        .ToList();
+    var maxTopRevenue = topProducts.FirstOrDefault()?.RevenueAmount ?? 0;
+    var topProduct = topProducts.FirstOrDefault();
 }
+
+<section class="admin-page-banner admin-page-banner-compact">
+    <div>
+        <p class="admin-page-kicker">Products</p>
+        <h2>Storefront products</h2>
+        <span>Products = สิ่งที่เปิดขายบนหน้าร้าน ส่วน Items = ฝั่งสต็อกและข้อมูลหลังบ้าน</span>
+    </div>
+    <a class="admin-product-link-button" asp-action="Items">Open Items</a>
+</section>
 
 <section class="admin-metrics-grid">
     @foreach (var metric in Model.Metrics)
@@ -26,23 +42,90 @@
     }
 </section>
 
-<section class="admin-page-banner">
-    <div>
-        <p class="admin-page-kicker">Products</p>
-        <h2>@Model.ProductName</h2>
-        <span>@Model.Category</span>
-    </div>
-    <span class="admin-pill-tag">@Model.ProductCaption</span>
-</section>
+<section class="admin-detail-grid admin-products-detail-grid">
+    <article class="admin-card admin-product-spotlight-card">
+        <div class="admin-product-spotlight-copy">
+            @if (topProduct is null)
+            {
+                <div class="admin-card-head admin-card-head-stack">
+                    <div>
+                        <p class="admin-page-kicker">Top Product</p>
+                        <h3>No sales data yet</h3>
+                        <span>เมื่อมีคำสั่งซื้อจริง สินค้าขายดีจะขึ้นในส่วนนี้อัตโนมัติ</span>
+                    </div>
+                </div>
 
-<section class="admin-detail-grid">
-    <article class="admin-card admin-product-card">
-        <div class="admin-product-preview">
-            <span>BK</span>
+                <div class="admin-empty-state">
+                    ยังไม่มีข้อมูลยอดขายสินค้าจริงในระบบ
+                </div>
+            }
+            else
+            {
+                <div class="admin-product-spotlight-head">
+                    <div>
+                        <p class="admin-page-kicker">Top Product</p>
+                        <h3>@topProduct.Name</h3>
+                        <span>@topProduct.Category</span>
+                    </div>
+                    <span class="admin-status-badge @($"is-{topProduct.VisibilityKey}")">@topProduct.VisibilityLabel</span>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(topProduct.Tagline))
+                {
+                    <p class="admin-product-spotlight-caption">@topProduct.Tagline</p>
+                }
+
+                <div class="admin-product-spotlight-stats">
+                    <div class="admin-summary-row">
+                        <small>Revenue</small>
+                        <strong>@topProduct.RevenueLabel</strong>
+                        <span>ยอดขายจากคำสั่งซื้อทั้งหมด</span>
+                    </div>
+                    <div class="admin-summary-row">
+                        <small>Units Sold</small>
+                        <strong>@topProduct.SalesLabel</strong>
+                        <span>@topProduct.PublishedCopy</span>
+                    </div>
+                </div>
+
+                <div class="admin-product-top-chart">
+                    @if (topProducts.Count == 0)
+                    {
+                        <div class="admin-empty-state">
+                            ยังไม่มีข้อมูลยอดขายสินค้า
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var product in topProducts)
+                        {
+                            var barWidth = maxTopRevenue <= 0
+                                ? 0
+                                : Math.Max(18, (int)Math.Round((double)(product.RevenueAmount / maxTopRevenue) * 100));
+
+                            <div class="admin-product-top-chart-row">
+                                <div class="admin-product-top-chart-labels">
+                                    <strong>@product.Name</strong>
+                                    <span>@product.RevenueLabel • @product.SalesLabel</span>
+                                </div>
+                                <div class="admin-product-top-chart-bar-wrap">
+                                    <span class="admin-product-top-chart-bar" style="width:@($"{barWidth}%")"></span>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            }
         </div>
+    </article>
 
-        <h3>@Model.ProductName</h3>
-        <p>@Model.Category</p>
+    <article class="admin-card admin-product-guide-card">
+        <div class="admin-card-head admin-card-head-stack">
+            <div>
+                <h2>Products vs Items</h2>
+                <p>Products ใช้คุมการแสดงผลและการเปิดขายบนหน้าร้าน ส่วน Items ใช้คุม stock, SKU, และข้อมูลหลังบ้าน</p>
+            </div>
+        </div>
 
         <div class="admin-summary-list">
             @foreach (var item in Model.SummaryItems)
@@ -56,78 +139,91 @@
                 </div>
             }
         </div>
-    </article>
 
-    <article class="admin-card admin-revenue-card">
-        <div class="admin-card-head">
-            <div>
-                <h2>@Model.RevenueLabel</h2>
-                <div class="admin-chart-value">
-                    <strong>@Model.RevenueValue</strong>
-                    <span class="is-positive">@Model.RevenueDelta</span>
-                </div>
-            </div>
-            <a href="#">View Details</a>
-        </div>
-
-        <div class="admin-orders-chart admin-orders-chart-detail">
-            @foreach (var point in Model.RevenueChart)
-            {
-                <div class="admin-orders-chart-column">
-                    <div class="admin-orders-chart-track">
-                        <span class="admin-orders-chart-bar @(point.IsHighlighted ? "is-highlighted" : string.Empty)" style="height:@($"{point.Value}%")"></span>
-                    </div>
-                    <small>@point.Label</small>
-                </div>
-            }
+        <div class="admin-readonly-note admin-product-guide-note">
+            ถ้าต้องแก้ stock, SKU หรือข้อมูลสินค้าเชิงลึก ให้ไปที่หน้า <strong>Items</strong> แต่ถ้าจะเปิดขายหรือซ่อนจากหน้าร้าน ให้ทำจากหน้านี้
         </div>
     </article>
 </section>
 
 <section class="admin-orders-section">
     <article class="admin-card">
-        <div class="admin-card-head">
-            <h2>Orders</h2>
-            <a href="#">More</a>
+        <div class="admin-card-head admin-card-head-stack">
+            <div>
+                <h2>Storefront Catalog</h2>
+                <p>คุมว่าสินค้าตัวไหนพร้อมขายและมองเห็นได้บนหน้าร้าน</p>
+            </div>
+            <a class="admin-product-link-button is-ghost" asp-action="Items">Manage Stock In Items</a>
         </div>
 
-        <div class="admin-table-wrap">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Orders</th>
-                        <th>Customers</th>
-                        <th>Qty</th>
-                        <th>Date</th>
-                        <th>Revenue</th>
-                        <th>Net Profit</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var order in Model.Orders)
-                    {
-                        <tr>
-                            <td>@order.OrderId</td>
-                            <td>@order.Customer</td>
-                            <td>@order.Quantity</td>
-                            <td>@order.Date</td>
-                            <td>@order.Revenue</td>
-                            <td>@order.NetProfit</td>
-                            <td>
-                                <span class="admin-status-badge @($"is-{order.Status.ToLowerInvariant()}")">@order.Status</span>
-                            </td>
-                            <td>
-                                <div class="admin-actions">
-                                    <button type="button">View</button>
-                                    <button type="button">Edit</button>
+        @if (Model.Products.Count == 0)
+        {
+            <div class="admin-empty-state">
+                ยังไม่มีสินค้าในระบบ เริ่มเพิ่มสินค้าที่หน้า Items ก่อน
+            </div>
+        }
+        else
+        {
+            <div class="admin-products-grid">
+                @foreach (var product in Model.Products)
+                {
+                    <article class="admin-card admin-product-showcase-card">
+                        <div class="admin-product-showcase-media">
+                            <img src="@Url.Content(product.ImagePath)"
+                                 alt="@product.Name"
+                                 class="admin-product-showcase-image"
+                                 onerror="this.src='@Url.Content("~/images/theme-cake.svg")';" />
+                        </div>
+
+                        <div class="admin-product-showcase-body">
+                            <div class="admin-product-showcase-head">
+                                <div>
+                                    <p class="admin-item-card-code">@product.ProductCode</p>
+                                    <h3>@product.Name</h3>
                                 </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                                <span class="admin-status-badge @($"is-{product.VisibilityKey}")">@product.VisibilityLabel</span>
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(product.Tagline))
+                            {
+                                <p class="admin-product-showcase-caption">@product.Tagline</p>
+                            }
+
+                            <div class="admin-item-meta-row">
+                                <span class="admin-item-meta-chip">@product.Category</span>
+                                <span class="admin-item-meta-chip">@product.PriceLabel</span>
+                                <span class="admin-item-meta-chip">@product.StockLabel</span>
+                            </div>
+
+                            <div class="admin-product-showcase-stats">
+                                <div class="admin-summary-row">
+                                    <small>Revenue</small>
+                                    <strong>@product.RevenueLabel</strong>
+                                    <span>ยอดขายรวมของสินค้าตัวนี้</span>
+                                </div>
+                                <div class="admin-summary-row">
+                                    <small>Units Sold</small>
+                                    <strong>@product.SalesLabel</strong>
+                                    <span>@product.PublishedCopy</span>
+                                </div>
+                            </div>
+
+                            <div class="admin-product-showcase-footer">
+                                <form asp-action="SetProductVisibility" method="post" class="admin-product-visibility-form">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="productId" value="@product.ProductId" />
+                                    <input type="hidden" name="isPublished" value="@(!product.IsPublished).ToString().ToLowerInvariant()" />
+                                    <button type="submit" class="@(product.IsPublished ? "admin-secondary-button" : "admin-primary-button")">
+                                        @(product.IsPublished ? "Hide From Store" : "Publish To Store")
+                                    </button>
+                                </form>
+
+                                <a class="admin-product-link-button is-inline" asp-action="Items">Open Items</a>
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
     </article>
 </section>

@@ -16,6 +16,8 @@ public interface IInventoryCatalogService
 
     bool UpdateItem(int itemId, InventoryItemInput input);
 
+    bool SetPublishedState(int itemId, bool isPublished);
+
     bool AdjustStock(int itemId, int quantityDelta);
 }
 
@@ -159,6 +161,19 @@ public sealed class DbInventoryCatalogService : IInventoryCatalogService
         product.ImageUrl = NormalizeImagePath(input.ImagePath);
         product.IsActive = input.IsPublished;
 
+        _dbContext.SaveChanges();
+        return true;
+    }
+
+    public bool SetPublishedState(int itemId, bool isPublished)
+    {
+        var product = _dbContext.Products.FirstOrDefault(item => item.Id == itemId);
+        if (product is null)
+        {
+            return false;
+        }
+
+        product.IsActive = isPublished;
         _dbContext.SaveChanges();
         return true;
     }

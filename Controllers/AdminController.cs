@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using OneManVekery.Models.Db;
 using OneManVekery.Services;
 using OneManVekery.ViewModel;
+using System.Globalization;
 
 namespace OneManVekery.Controllers;
 
@@ -204,6 +205,30 @@ public class AdminController : Controller
     public IActionResult Products()
     {
         return View(BuildProductsModel());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult SetProductVisibility(int productId, bool isPublished)
+    {
+        var product = _inventoryCatalogService.GetItem(productId);
+        if (product is null)
+        {
+            TempData["SiteNotice"] = "ไม่พบสินค้าที่ต้องการอัปเดต";
+            return RedirectToAction(nameof(Products));
+        }
+
+        if (!_inventoryCatalogService.SetPublishedState(productId, isPublished))
+        {
+            TempData["SiteNotice"] = "อัปเดตสถานะสินค้าไม่สำเร็จ";
+            return RedirectToAction(nameof(Products));
+        }
+
+        TempData["SiteNotice"] = isPublished
+            ? $"เปิดขายสินค้า {product.Name} บนหน้าร้านแล้ว"
+            : $"ซ่อนสินค้า {product.Name} ออกจากหน้าร้านแล้ว";
+
+        return RedirectToAction(nameof(Products));
     }
 
     [HttpGet]
@@ -612,8 +637,9 @@ public class AdminController : Controller
             {
                 Value = product.Id.ToString(),
                 Label = product.Name,
-                SecondaryLabel = $"{product.Price:0.##} ฿ / stock {product.StockQty}",
-                DataValue = product.StockQty.ToString()
+                SecondaryLabel = $"{product.Sku} • {product.Price:0.##} ฿ / stock {product.StockQty}",
+                DataValue = product.StockQty.ToString(),
+                DataExtra = product.Price.ToString("0.##", CultureInfo.InvariantCulture)
             })
             .ToList();
     }
@@ -774,39 +800,36 @@ public class AdminController : Controller
         };
     }
 
-    private static AdminProductsViewModel BuildProductsModel()
+    private AdminProductsViewModel BuildProductsModel()
     {
+        var items = _inventoryCatalogService.GetAllItems();
+        var salesLookup = _dbContext.OrderItems
+            .AsNoTracking()
+            .Where(orderItem => orderItem.ProductId.HasValue)
+            .GroupBy(orderItem => orderItem.ProductId!.Value)
+            .Select(group => new
+            {
+                ProductId = group.Key,
+                UnitsSold = group.Sum(orderItem => orderItem.Qty),
+                RevenueAmount = group.Sum(orderItem => orderItem.LineTotal)
+            })
+            .ToDictionary(
+                item => item.ProductId,
+                item => (item.UnitsSold, item.RevenueAmount));
+
+        var products = items
+            .Select(item => MapProductShowcase(item, salesLookup))
+            .OrderByDescending(item => item.IsPublished)
+            .ThenByDescending(item => item.RevenueAmount)
+            .ThenBy(item => item.Name)
+            .ToList();
+
         return new AdminProductsViewModel
         {
-            DateRangeLabel = "Jan 01 - Jan 28",
-            Metrics = BuildDetailMetrics(),
-            ProductName = "Basket with handles",
-            Category = "General",
-            ProductCaption = "Soft launch highlight",
-            SummaryItems =
-            [
-                new AdminInfoItemViewModel { Label = "In Stock", Value = "9,520", Detail = "Ready to ship" },
-                new AdminInfoItemViewModel { Label = "Colors", Value = "Black, White, Blue, Yellow", Detail = "4 variants" },
-                new AdminInfoItemViewModel { Label = "Start Time", Value = "September 30, 2018", Detail = "Published product" },
-                new AdminInfoItemViewModel { Label = "Life Time Sells", Value = "40,02,030", Detail = "Across all channels" }
-            ],
-            RevenueLabel = "Revenue",
-            RevenueValue = "$2.5M",
-            RevenueDelta = "+12%",
-            RevenueChart = BuildRevenueChart(),
-            Orders =
-            [
-                new AdminLatestOrderViewModel { OrderId = "#32000200", Customer = "Priscilla Warren", Quantity = "2", Date = "Jan 10, 2020", Revenue = "$253.82", NetProfit = "$60.76", Status = "Completed" },
-                new AdminLatestOrderViewModel { OrderId = "#32000201", Customer = "Tanya Wilson", Quantity = "1", Date = "Sep 4, 2020", Revenue = "$556.24", NetProfit = "$66.41", Status = "Completed" },
-                new AdminLatestOrderViewModel { OrderId = "#32000202", Customer = "Theresa Alexander", Quantity = "3", Date = "Aug 30, 2020", Revenue = "$115.26", NetProfit = "$95.66", Status = "Completed" },
-                new AdminLatestOrderViewModel { OrderId = "#32000203", Customer = "Mitchell Lane", Quantity = "3", Date = "Aug 29, 2020", Revenue = "$675.51", NetProfit = "$84.80", Status = "Completed" },
-                new AdminLatestOrderViewModel { OrderId = "#32000204", Customer = "Arlene Richards", Quantity = "4", Date = "Dec 26, 2020", Revenue = "$910.71", NetProfit = "$46.52", Status = "Shipping" },
-                new AdminLatestOrderViewModel { OrderId = "#32000205", Customer = "Angel Howard", Quantity = "2", Date = "Apr 27, 2020", Revenue = "$897.90", NetProfit = "$81.54", Status = "Completed" },
-                new AdminLatestOrderViewModel { OrderId = "#32000206", Customer = "Greg Fox", Quantity = "1", Date = "May 5, 2020", Revenue = "$563.43", NetProfit = "$17.46", Status = "Pending" },
-                new AdminLatestOrderViewModel { OrderId = "#32000207", Customer = "Devon Bell", Quantity = "4", Date = "Oct 15, 2020", Revenue = "$883.96", NetProfit = "$43.08", Status = "Refund" },
-                new AdminLatestOrderViewModel { OrderId = "#32000208", Customer = "Shane Henry", Quantity = "3", Date = "Jul 12, 2020", Revenue = "$162.15", NetProfit = "$86.65", Status = "Completed" },
-                new AdminLatestOrderViewModel { OrderId = "#32000209", Customer = "Stella Webb", Quantity = "2", Date = "Jun 28, 2020", Revenue = "$378.34", NetProfit = "$49.08", Status = "Completed" }
-            ]
+            DateRangeLabel = $"Storefront sync {DateTime.Now:dd MMM yyyy}",
+            Metrics = BuildProductMetrics(products),
+            SummaryItems = BuildProductSummary(products),
+            Products = products
         };
     }
 
@@ -1015,6 +1038,75 @@ public class AdminController : Controller
     private string GetCurrentAdminRoleKey()
     {
         return HttpContext.Session.GetString(AdminPortalAuth.SessionAccountRoleKey)?.Trim().ToLowerInvariant() ?? string.Empty;
+    }
+
+    private static IReadOnlyList<AdminMetricCardViewModel> BuildProductMetrics(IReadOnlyList<AdminProductShowcaseViewModel> products)
+    {
+        var publishedCount = products.Count(product => product.IsPublished);
+        var hiddenCount = products.Count - publishedCount;
+        var totalUnitsSold = products.Sum(product => product.UnitsSold);
+        var totalRevenue = products.Sum(product => product.RevenueAmount);
+
+        return
+        [
+            new AdminMetricCardViewModel { Label = "Live Products", Value = publishedCount.ToString(), Delta = $"{hiddenCount} hidden", PositiveTrend = publishedCount > 0, AccentKey = "green" },
+            new AdminMetricCardViewModel { Label = "Units Sold", Value = totalUnitsSold.ToString("N0"), Delta = "Across all orders", PositiveTrend = totalUnitsSold > 0, AccentKey = "orange" },
+            new AdminMetricCardViewModel { Label = "Store Revenue", Value = $"{totalRevenue:0.##} ฿", Delta = "Product sales total", PositiveTrend = totalRevenue > 0, AccentKey = "gold" },
+            new AdminMetricCardViewModel { Label = "Draft / Hidden", Value = hiddenCount.ToString(), Delta = "Not visible in storefront", PositiveTrend = hiddenCount == 0, AccentKey = hiddenCount == 0 ? "blue" : "red" }
+        ];
+    }
+
+    private static IReadOnlyList<AdminInfoItemViewModel> BuildProductSummary(IReadOnlyList<AdminProductShowcaseViewModel> products)
+    {
+        var categoryCount = products
+            .Select(product => product.Category)
+            .Where(category => !string.IsNullOrWhiteSpace(category))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
+        var lowStockCount = products.Count(product => product.StockQuantity <= product.ReorderLevel && product.StockQuantity > 0);
+        var soldOutCount = products.Count(product => product.StockQuantity == 0);
+        var averagePrice = products.Count == 0
+            ? 0
+            : products
+                .Select(product => decimal.TryParse(product.PriceLabel.Replace(" ฿", string.Empty), out var price) ? price : 0)
+                .Average();
+
+        return
+        [
+            new AdminInfoItemViewModel { Label = "Categories", Value = categoryCount.ToString(), Detail = "Active bakery groups", AccentKey = "blue" },
+            new AdminInfoItemViewModel { Label = "Low Stock", Value = lowStockCount.ToString(), Detail = "สินค้าใกล้ถึงจุดเตือน", AccentKey = lowStockCount > 0 ? "gold" : "green" },
+            new AdminInfoItemViewModel { Label = "Sold Out", Value = soldOutCount.ToString(), Detail = "ควรเติมสต็อกก่อนเปิดขาย", AccentKey = soldOutCount > 0 ? "red" : "green" },
+            new AdminInfoItemViewModel { Label = "Average Price", Value = $"{averagePrice:0.##} ฿", Detail = "Average sell price", AccentKey = "orange" }
+        ];
+    }
+
+    private static AdminProductShowcaseViewModel MapProductShowcase(
+        InventoryItemRecord item,
+        IReadOnlyDictionary<int, (int UnitsSold, decimal RevenueAmount)> salesLookup)
+    {
+        salesLookup.TryGetValue(item.ItemId, out var sales);
+
+        return new AdminProductShowcaseViewModel
+        {
+            ProductId = item.ItemId,
+            ProductCode = item.ItemCode,
+            Name = item.Name,
+            Category = item.Category,
+            Tagline = item.Tagline,
+            ImagePath = item.ImagePath,
+            PriceLabel = $"{item.Price:0.##} ฿",
+            StockLabel = $"Stock {item.StockQuantity:N0}",
+            StockQuantity = item.StockQuantity,
+            ReorderLevel = item.ReorderLevel,
+            SalesLabel = $"{sales.UnitsSold:N0} sold",
+            RevenueLabel = $"{sales.RevenueAmount:0.##} ฿",
+            RevenueAmount = sales.RevenueAmount,
+            UnitsSold = sales.UnitsSold,
+            VisibilityLabel = item.IsPublished ? "Live" : "Hidden",
+            VisibilityKey = item.IsPublished ? "green" : "gold",
+            PublishedCopy = item.IsPublished ? "แสดงบนหน้าร้านและเลือกขายได้" : "ซ่อนจากหน้าร้านชั่วคราว",
+            IsPublished = item.IsPublished
+        };
     }
 
     private bool IsAjaxRequest()
