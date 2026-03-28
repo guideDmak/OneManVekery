@@ -8,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<OneManVekeryDBContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("OneManVekeryDb")));
-builder.Services.AddSingleton<IInventoryCatalogService, InMemoryInventoryCatalogService>();
+builder.Services.AddScoped<IInventoryCatalogService, DbInventoryCatalogService>();
 builder.Services.AddScoped<IAccountDirectoryService, DbAccountDirectoryService>();
 builder.Services.AddSingleton<IStoreCatalogService, InMemoryStoreCatalogService>();
 builder.Services.AddHttpContextAccessor();

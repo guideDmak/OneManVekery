@@ -44,6 +44,15 @@
             </button>
         </div>
 
+        <form class="admin-account-search-bar" data-account-search-form>
+            <input type="search"
+                   class="form-control bakery-field"
+                   placeholder="ค้นหาชื่อ, อีเมล, role, status หรือ Account ID"
+                   data-account-search-input />
+            <button type="submit" class="admin-primary-button" data-account-search-button>Search</button>
+            <button type="button" class="admin-secondary-button" data-account-search-reset>Clear</button>
+        </form>
+
         <div class="admin-table-wrap">
             <table class="admin-table admin-account-table">
                 <thead>
@@ -60,7 +69,8 @@
                 <tbody>
                     @foreach (var account in Model.Accounts)
                     {
-                        <tr>
+                        <tr data-account-row
+                            data-account-search="@($"{account.AccountCode} {account.FullName} {account.Email} {account.PhoneNumber} {account.Role} {account.Status} {account.LastActive} {account.Notes}")">
                             <td>
                                 <div class="admin-order-stack">
                                     <small class="admin-account-code">@account.AccountCode</small>
@@ -113,6 +123,10 @@
                     }
                 </tbody>
             </table>
+        </div>
+
+        <div class="admin-empty-state d-none" data-account-search-empty>
+            ไม่พบบัญชีที่ตรงกับคำค้นหา
         </div>
     </article>
 </section>

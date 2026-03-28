@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using OneManVekery.Models.Db;
 using OneManVekery.Services;
 using OneManVekery.ViewModel;
 
@@ -10,13 +12,16 @@ public class AdminController : Controller
 {
     private readonly IAccountDirectoryService _accountDirectoryService;
     private readonly IInventoryCatalogService _inventoryCatalogService;
+    private readonly OneManVekeryDBContext _dbContext;
 
     public AdminController(
         IAccountDirectoryService accountDirectoryService,
-        IInventoryCatalogService inventoryCatalogService)
+        IInventoryCatalogService inventoryCatalogService,
+        OneManVekeryDBContext dbContext)
     {
         _accountDirectoryService = accountDirectoryService;
         _inventoryCatalogService = inventoryCatalogService;
+        _dbContext = dbContext;
     }
 
     public override void OnActionExecuting(ActionExecutingContext context)
@@ -45,6 +50,148 @@ public class AdminController : Controller
     public IActionResult Orders()
     {
         return View(BuildOrdersModel());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult AddOrder([Bind(Prefix = "AddForm")] AdminOrderCreateViewModel form)
+    {
+        form.Items ??= [];
+
+        var customer = form.UserId <= 0
+            ? null
+            : _dbContext.Users
+                .AsNoTracking()
+                .Include(user => user.Role)
+                .FirstOrDefault(user => user.Id == form.UserId);
+
+        if (customer is null)
+        {
+            ModelState.AddModelError("AddForm.UserId", "ไม่พบลูกค้าที่เลือก");
+        }
+
+        var requestedItems = form.Items
+            .Where(item => item.ProductId > 0 && item.Quantity > 0)
+            .GroupBy(item => item.ProductId)
+            .Select(group => new AdminOrderLineEditorViewModel
+            {
+                ProductId = group.Key,
+                Quantity = group.Sum(item => item.Quantity)
+            })
+            .ToList();
+
+        if (requestedItems.Count == 0)
+        {
+            ModelState.AddModelError("AddForm.Items", "กรุณาเลือกสินค้าอย่างน้อย 1 รายการ");
+        }
+
+        var requestedProductIds = requestedItems
+            .Select(item => item.ProductId)
+            .Distinct()
+            .ToList();
+
+        var products = _dbContext.Products
+            .Where(product => requestedProductIds.Contains(product.Id))
+            .OrderBy(product => product.Name)
+            .ToList();
+
+        foreach (var requestedItem in requestedItems)
+        {
+            var product = products.FirstOrDefault(item => item.Id == requestedItem.ProductId);
+            if (product is null || !product.IsActive)
+            {
+                ModelState.AddModelError("AddForm.Items", "มีสินค้าที่เลือกไม่พร้อมใช้งาน");
+                continue;
+            }
+
+            if (requestedItem.Quantity > product.StockQty)
+            {
+                ModelState.AddModelError("AddForm.Items", $"สินค้า {product.Name} มีสต็อกไม่พอ");
+            }
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return View("Orders", BuildOrdersModel(addForm: EnsureOrderFormItems(form), activeModal: "order-add"));
+        }
+
+        var subtotal = requestedItems.Sum(requestedItem =>
+        {
+            var product = products.First(item => item.Id == requestedItem.ProductId);
+            return product.Price * requestedItem.Quantity;
+        });
+
+        using var transaction = _dbContext.Database.BeginTransaction();
+
+        var order = new Order
+        {
+            OrderNo = GenerateOrderNumber(),
+            UserId = customer!.Id,
+            CustomerName = customer.FullName,
+            Phone = string.IsNullOrWhiteSpace(form.Phone) ? customer.Phone ?? string.Empty : form.Phone.Trim(),
+            Address = form.Address.Trim(),
+            PaymentMethod = NormalizePaymentMethod(form.PaymentMethod),
+            PaymentStatus = NormalizePaymentStatus(form.PaymentStatus),
+            OrderStatus = NormalizeOrderStatus(form.OrderStatus),
+            Subtotal = subtotal,
+            DeliveryFee = Math.Round(Math.Max(0, form.DeliveryFee), 2),
+            TotalAmount = subtotal + Math.Round(Math.Max(0, form.DeliveryFee), 2),
+            Note = string.IsNullOrWhiteSpace(form.Note) ? null : form.Note.Trim(),
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.Orders.Add(order);
+        _dbContext.SaveChanges();
+
+        foreach (var requestedItem in requestedItems)
+        {
+            var product = products.First(item => item.Id == requestedItem.ProductId);
+            var lineTotal = product.Price * requestedItem.Quantity;
+
+            _dbContext.OrderItems.Add(new OrderItem
+            {
+                OrderId = order.Id,
+                ProductId = product.Id,
+                ProductName = product.Name,
+                Price = product.Price,
+                Qty = requestedItem.Quantity,
+                LineTotal = lineTotal
+            });
+
+            product.StockQty -= requestedItem.Quantity;
+        }
+
+        _dbContext.SaveChanges();
+        transaction.Commit();
+
+        TempData["SiteNotice"] = $"สร้างออเดอร์ {order.OrderNo} เรียบร้อยแล้ว";
+        return RedirectToAction(nameof(Orders));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult UpdateOrderStatus([Bind(Prefix = "EditForm")] AdminOrderEditorViewModel form)
+    {
+        var order = form.OrderId <= 0
+            ? null
+            : _dbContext.Orders.FirstOrDefault(item => item.Id == form.OrderId);
+
+        if (order is null)
+        {
+            TempData["SiteNotice"] = "ไม่พบออเดอร์ที่ต้องการอัปเดต";
+            return RedirectToAction(nameof(Orders));
+        }
+
+        var normalizedOrderStatus = NormalizeOrderStatus(form.OrderStatus);
+        var normalizedPaymentStatus = NormalizePaymentStatus(form.PaymentStatus);
+
+        order.OrderStatus = normalizedOrderStatus;
+        order.PaymentStatus = normalizedPaymentStatus;
+
+        _dbContext.SaveChanges();
+
+        TempData["SiteNotice"] = $"อัปเดตสถานะออเดอร์ {order.OrderNo} แล้ว";
+        return RedirectToAction(nameof(Orders));
     }
 
     [HttpGet]
@@ -89,7 +236,7 @@ public class AdminController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult UpdateItem([Bind(Prefix = "EditForm")] AdminItemEditorViewModel form)
     {
-        if (form.ItemId == Guid.Empty || _inventoryCatalogService.GetItem(form.ItemId) is null)
+        if (form.ItemId <= 0 || _inventoryCatalogService.GetItem(form.ItemId) is null)
         {
             TempData["SiteNotice"] = "ไม่พบสินค้าที่ต้องการแก้ไข";
             return RedirectToAction(nameof(Items));
@@ -113,34 +260,39 @@ public class AdminController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult AdjustItemStock(Guid itemId, int quantityDelta)
+    public IActionResult AdjustItemStock(int itemId, int quantityAmount = 1, int quantityDirection = 1)
     {
         var existingItem = _inventoryCatalogService.GetItem(itemId);
-        if (itemId == Guid.Empty || existingItem is null)
+        if (itemId <= 0 || existingItem is null)
         {
-            TempData["SiteNotice"] = "ไม่พบสินค้าที่ต้องการปรับสต็อก";
-            return RedirectToAction(nameof(Items));
+            return HandleItemStockResult("ไม่พบสินค้าที่ต้องการปรับสต็อก", null, isSuccess: false, statusCode: StatusCodes.Status404NotFound);
         }
 
-        if (quantityDelta == 0)
+        if (quantityAmount <= 0)
         {
-            TempData["SiteNotice"] = "กรุณาระบุจำนวนสต็อกที่ต้องการเปลี่ยน";
-            return RedirectToAction(nameof(Items));
+            return HandleItemStockResult("กรุณาระบุจำนวนสต็อกที่ต้องการเปลี่ยนอย่างน้อย 1", existingItem, isSuccess: false, statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var normalizedDirection = quantityDirection < 0 ? -1 : 1;
+        var quantityDelta = quantityAmount * normalizedDirection;
+
+        if (normalizedDirection < 0 && quantityAmount > existingItem.StockQuantity)
+        {
+            return HandleItemStockResult("จำนวนที่ลดต้องไม่เกินสต็อกคงเหลือ", existingItem, isSuccess: false, statusCode: StatusCodes.Status400BadRequest);
         }
 
         if (!_inventoryCatalogService.AdjustStock(itemId, quantityDelta))
         {
-            TempData["SiteNotice"] = $"สต็อกของ {existingItem.Name} ลดต่ำกว่า 0 ไม่ได้";
-            return RedirectToAction(nameof(Items));
+            return HandleItemStockResult($"สต็อกของ {existingItem.Name} ลดต่ำกว่า 0 ไม่ได้", existingItem, isSuccess: false, statusCode: StatusCodes.Status400BadRequest);
         }
 
-        var actionLabel = quantityDelta > 0
-            ? $"เพิ่มสต็อก {quantityDelta}"
-            : $"ลดสต็อก {Math.Abs(quantityDelta)}";
+        var updatedItem = _inventoryCatalogService.GetItem(itemId) ?? existingItem;
+        var actionLabel = normalizedDirection > 0
+            ? $"เพิ่มสต็อก {quantityAmount}"
+            : $"ลดสต็อก {quantityAmount}";
+        var notice = $"{actionLabel} สำหรับ {updatedItem.Name} แล้ว";
 
-        TempData["SiteNotice"] = $"{actionLabel} สำหรับ {existingItem.Name} แล้ว";
-
-        return RedirectToAction(nameof(Items));
+        return HandleItemStockResult(notice, updatedItem, isSuccess: true, updatedAtOverride: DateTime.Now);
     }
 
     [HttpGet]
@@ -316,52 +468,278 @@ public class AdminController : Controller
         };
     }
 
-    private static AdminOrdersViewModel BuildOrdersModel()
+    private AdminOrdersViewModel BuildOrdersModel(
+        AdminOrderCreateViewModel? addForm = null,
+        AdminOrderEditorViewModel? editForm = null,
+        string activeModal = "")
     {
+        var orders = _dbContext.Orders
+            .AsNoTracking()
+            .Include(order => order.OrderItems)
+            .OrderByDescending(order => order.CreatedAt)
+            .ToList();
+
+        var totalRevenue = orders.Sum(order => order.TotalAmount);
+        var deliveredCount = orders.Count(order => string.Equals(NormalizeOrderStatus(order.OrderStatus), "delivered", StringComparison.OrdinalIgnoreCase));
+
         return new AdminOrdersViewModel
         {
-            DateRangeLabel = "Jan 01 - Jan 28",
-            Metrics = BuildDashboardMetrics(),
-            UpdateLabel = "Orders Update",
-            UpdateValue = "$2.5M",
-            UpdateDelta = "+12%",
-            UpdateChart =
-            [
-                new AdminChartPointViewModel { Label = "16", Value = 42 },
-                new AdminChartPointViewModel { Label = "18", Value = 48 },
-                new AdminChartPointViewModel { Label = "20", Value = 52 },
-                new AdminChartPointViewModel { Label = "22", Value = 61 },
-                new AdminChartPointViewModel { Label = "24", Value = 82, IsHighlighted = true },
-                new AdminChartPointViewModel { Label = "26", Value = 76 },
-                new AdminChartPointViewModel { Label = "28", Value = 68 },
-                new AdminChartPointViewModel { Label = "30", Value = 58 },
-                new AdminChartPointViewModel { Label = "02", Value = 46 },
-                new AdminChartPointViewModel { Label = "04", Value = 72 },
-                new AdminChartPointViewModel { Label = "06", Value = 55 },
-                new AdminChartPointViewModel { Label = "08", Value = 63 },
-                new AdminChartPointViewModel { Label = "10", Value = 74 }
-            ],
-            FulfillmentSummary =
-            [
-                new AdminInfoItemViewModel { Label = "Completed", Value = "328", Detail = "Paid on time", AccentKey = "green" },
-                new AdminInfoItemViewModel { Label = "Shipping", Value = "184", Detail = "In transit", AccentKey = "blue" },
-                new AdminInfoItemViewModel { Label = "Pending", Value = "92", Detail = "Need confirm", AccentKey = "gold" },
-                new AdminInfoItemViewModel { Label = "Refund", Value = "16", Detail = "Need review", AccentKey = "red" }
-            ],
-            Orders =
-            [
-                new AdminLatestOrderViewModel { OrderId = "#5302002", Product = "Basket with handles", SecondaryText = "Grocery", Customer = "Ronald Jones", Quantity = "2 Items", Date = "Jan 10, 2020", Revenue = "$253.82", NetProfit = "$60.76", Status = "Completed" },
-                new AdminLatestOrderViewModel { OrderId = "#5302003", Product = "Pottery Vase", SecondaryText = "Decor", Customer = "Jacob Mckinney", Quantity = "5 Items", Date = "Sep 4, 2020", Revenue = "$556.24", NetProfit = "$66.41", Status = "Completed" },
-                new AdminLatestOrderViewModel { OrderId = "#5302004", Product = "Rose Holdback", SecondaryText = "Decor", Customer = "Randall Murphy", Quantity = "7 Items", Date = "Aug 30, 2020", Revenue = "$115.26", NetProfit = "$95.66", Status = "Completed" },
-                new AdminLatestOrderViewModel { OrderId = "#5302005", Product = "Analog Table Clock", SecondaryText = "Home", Customer = "Philip Webb", Quantity = "3 Items", Date = "Aug 29, 2020", Revenue = "$675.51", NetProfit = "$84.80", Status = "Completed" },
-                new AdminLatestOrderViewModel { OrderId = "#5302006", Product = "Flower vase", SecondaryText = "Decor", Customer = "Arthur Bell", Quantity = "4 Items", Date = "Dec 26, 2020", Revenue = "$910.71", NetProfit = "$46.52", Status = "Shipping" },
-                new AdminLatestOrderViewModel { OrderId = "#5302007", Product = "Table Lamp", SecondaryText = "Lighting", Customer = "Gregory Nguyen", Quantity = "5 Items", Date = "Apr 27, 2020", Revenue = "$897.90", NetProfit = "$81.54", Status = "Completed" },
-                new AdminLatestOrderViewModel { OrderId = "#5302008", Product = "Wall Clock", SecondaryText = "Home", Customer = "Soham Henry", Quantity = "3 Items", Date = "May 5, 2020", Revenue = "$563.43", NetProfit = "$17.46", Status = "Pending" },
-                new AdminLatestOrderViewModel { OrderId = "#5302009", Product = "Flowering Cactus", SecondaryText = "Garden", Customer = "Jenny Hawkins", Quantity = "5 Items", Date = "Oct 15, 2020", Revenue = "$883.96", NetProfit = "$43.08", Status = "Refund" },
-                new AdminLatestOrderViewModel { OrderId = "#5302010", Product = "Shell Collection", SecondaryText = "Decor", Customer = "Diane Cooper", Quantity = "4 Items", Date = "Jul 12, 2020", Revenue = "$162.15", NetProfit = "$86.65", Status = "Pending" },
-                new AdminLatestOrderViewModel { OrderId = "#5302012", Product = "Deco accessory", SecondaryText = "Decor", Customer = "Max Williamson", Quantity = "2 Items", Date = "Jun 28, 2020", Revenue = "$378.34", NetProfit = "$49.08", Status = "Completed" }
-            ]
+            DateRangeLabel = $"Order sync {DateTime.Now:dd MMM yyyy}",
+            Metrics = BuildOrderMetrics(orders),
+            UpdateLabel = "Order Revenue",
+            UpdateValue = $"{totalRevenue:0.##} ฿",
+            UpdateDelta = $"{deliveredCount} delivered",
+            UpdateChart = BuildOrderTrendChart(orders),
+            FulfillmentSummary = BuildOrderFulfillmentSummary(orders),
+            Orders = orders.Select(MapOrder).ToList(),
+            OrderStatusOptions = BuildOrderStatusOptions(),
+            PaymentStatusOptions = BuildPaymentStatusOptions(),
+            PaymentMethodOptions = BuildPaymentMethodOptions(),
+            CustomerOptions = BuildOrderCustomerOptions(),
+            ProductOptions = BuildOrderProductOptions(),
+            AddForm = EnsureOrderFormItems(addForm ?? new AdminOrderCreateViewModel
+            {
+                PaymentMethod = "card",
+                PaymentStatus = "paid",
+                OrderStatus = "paid"
+            }),
+            EditForm = editForm ?? new AdminOrderEditorViewModel
+            {
+                OrderStatus = "paid",
+                PaymentStatus = "paid"
+            },
+            ActiveModal = activeModal
         };
+    }
+
+    private static IReadOnlyList<AdminMetricCardViewModel> BuildOrderMetrics(IReadOnlyList<Order> orders)
+    {
+        var totalRevenue = orders.Sum(order => order.TotalAmount);
+        var averageOrderValue = orders.Count == 0 ? 0 : orders.Average(order => order.TotalAmount);
+        var totalItems = orders.Sum(order => order.OrderItems.Sum(item => item.Qty));
+        var attentionCount = orders.Count(order =>
+            string.Equals(NormalizeOrderStatus(order.OrderStatus), "paid", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(NormalizePaymentStatus(order.PaymentStatus), "failed", StringComparison.OrdinalIgnoreCase));
+
+        return
+        [
+            new AdminMetricCardViewModel { Label = "Total Orders", Value = orders.Count.ToString(), Delta = $"{orders.Count(order => NormalizePaymentStatus(order.PaymentStatus) == "paid")} paid", PositiveTrend = true, AccentKey = "orange" },
+            new AdminMetricCardViewModel { Label = "Revenue", Value = $"{totalRevenue:0.##} ฿", Delta = "Gross sales", PositiveTrend = true, AccentKey = "green" },
+            new AdminMetricCardViewModel { Label = "Avg Order", Value = $"{averageOrderValue:0.##} ฿", Delta = $"{totalItems} items total", PositiveTrend = true, AccentKey = "gold" },
+            new AdminMetricCardViewModel { Label = "Need Action", Value = attentionCount.ToString(), Delta = "Paid / failed payment", PositiveTrend = attentionCount == 0, AccentKey = attentionCount > 0 ? "red" : "green" }
+        ];
+    }
+
+    private static IReadOnlyList<AdminChartPointViewModel> BuildOrderTrendChart(IReadOnlyList<Order> orders)
+    {
+        var days = Enumerable.Range(0, 7)
+            .Select(offset => DateTime.Today.AddDays(offset - 6))
+            .ToList();
+        var counts = days
+            .Select(day => orders.Count(order => order.CreatedAt.Date == day.Date))
+            .ToList();
+        var maxCount = counts.DefaultIfEmpty(0).Max();
+
+        return days
+            .Select((day, index) => new AdminChartPointViewModel
+            {
+                Label = day.ToString("dd"),
+                Value = maxCount == 0 ? 12 : Math.Max(12, (int)Math.Round((counts[index] / (double)maxCount) * 100)),
+                IsHighlighted = day.Date == DateTime.Today
+            })
+            .ToList();
+    }
+
+    private static IReadOnlyList<AdminInfoItemViewModel> BuildOrderFulfillmentSummary(IReadOnlyList<Order> orders)
+    {
+        var paidCount = orders.Count(order => string.Equals(NormalizeOrderStatus(order.OrderStatus), "paid", StringComparison.OrdinalIgnoreCase));
+        var shippingCount = orders.Count(order => string.Equals(NormalizeOrderStatus(order.OrderStatus), "shipping", StringComparison.OrdinalIgnoreCase));
+        var deliveredCount = orders.Count(order => string.Equals(NormalizeOrderStatus(order.OrderStatus), "delivered", StringComparison.OrdinalIgnoreCase));
+        var refundedCount = orders.Count(order =>
+            string.Equals(NormalizeOrderStatus(order.OrderStatus), "refunded", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(NormalizePaymentStatus(order.PaymentStatus), "refunded", StringComparison.OrdinalIgnoreCase));
+
+        return
+        [
+            new AdminInfoItemViewModel { Label = "Paid", Value = paidCount.ToString(), Detail = "Ready to ship", AccentKey = "gold" },
+            new AdminInfoItemViewModel { Label = "Shipping", Value = shippingCount.ToString(), Detail = "In transit", AccentKey = "blue" },
+            new AdminInfoItemViewModel { Label = "Delivered", Value = deliveredCount.ToString(), Detail = "Completed orders", AccentKey = "green" },
+            new AdminInfoItemViewModel { Label = "Refunded", Value = refundedCount.ToString(), Detail = "Need follow-up", AccentKey = "red" }
+        ];
+    }
+
+    private static IReadOnlyList<string> BuildOrderStatusOptions()
+    {
+        return ["paid", "shipping", "delivered", "refunded", "cancelled"];
+    }
+
+    private static IReadOnlyList<string> BuildPaymentStatusOptions()
+    {
+        return ["pending", "paid", "failed", "refunded"];
+    }
+
+    private static IReadOnlyList<string> BuildPaymentMethodOptions()
+    {
+        return ["card", "bank-transfer", "cash"];
+    }
+
+    private IReadOnlyList<AdminSelectOptionViewModel> BuildOrderCustomerOptions()
+    {
+        return _dbContext.Users
+            .AsNoTracking()
+            .Include(user => user.Role)
+            .Where(user =>
+                user.Status == "Active" &&
+                user.Role.RoleKey == "user")
+            .OrderBy(user => user.FullName)
+            .Select(user => new AdminSelectOptionViewModel
+            {
+                Value = user.Id.ToString(),
+                Label = user.FullName,
+                SecondaryLabel = user.Email,
+                DataValue = user.Phone ?? string.Empty
+            })
+            .ToList();
+    }
+
+    private IReadOnlyList<AdminSelectOptionViewModel> BuildOrderProductOptions()
+    {
+        return _dbContext.Products
+            .AsNoTracking()
+            .Where(product => product.IsActive && product.StockQty > 0)
+            .OrderBy(product => product.Name)
+            .Select(product => new AdminSelectOptionViewModel
+            {
+                Value = product.Id.ToString(),
+                Label = product.Name,
+                SecondaryLabel = $"{product.Price:0.##} ฿ / stock {product.StockQty}",
+                DataValue = product.StockQty.ToString()
+            })
+            .ToList();
+    }
+
+    private static AdminOrderRecordViewModel MapOrder(Order order)
+    {
+        var firstItem = order.OrderItems
+            .OrderBy(item => item.Id)
+            .FirstOrDefault();
+        var totalQuantity = order.OrderItems.Sum(item => item.Qty);
+        var orderStatus = GetOrderStatusPresentation(order.OrderStatus);
+        var paymentStatus = GetPaymentStatusPresentation(order.PaymentStatus);
+
+        return new AdminOrderRecordViewModel
+        {
+            OrderId = order.Id,
+            OrderNumber = order.OrderNo,
+            ProductSummary = firstItem?.ProductName ?? "No items",
+            ItemCountLabel = totalQuantity <= 0 ? "0 items" : $"{totalQuantity} items",
+            CreatedAtLabel = order.CreatedAt.ToString("dd MMM yyyy, HH:mm"),
+            CustomerName = order.CustomerName,
+            TotalAmountLabel = $"{order.TotalAmount:0.##} ฿",
+            PaymentMethodLabel = $"{FormatPaymentMethod(order.PaymentMethod)} / {paymentStatus.Label}",
+            PaymentStatus = paymentStatus.Label,
+            PaymentStatusKey = paymentStatus.Key,
+            OrderStatus = orderStatus.Label,
+            OrderStatusKey = orderStatus.Key,
+            Phone = order.Phone,
+            Address = order.Address,
+            Note = order.Note ?? string.Empty
+        };
+    }
+
+    private static string NormalizeOrderStatus(string? status)
+    {
+        return (status ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "delivered" => "delivered",
+            "shipping" => "shipping",
+            "refunded" => "refunded",
+            "refund" => "refunded",
+            "cancelled" => "cancelled",
+            _ => "paid"
+        };
+    }
+
+    private static string NormalizePaymentStatus(string? status)
+    {
+        return (status ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "pending" => "pending",
+            "failed" => "failed",
+            "refunded" => "refunded",
+            _ => "paid"
+        };
+    }
+
+    private static string NormalizePaymentMethod(string? paymentMethod)
+    {
+        return (paymentMethod ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "bank-transfer" => "bank-transfer",
+            "cash" => "cash",
+            _ => "card"
+        };
+    }
+
+    private static (string Label, string Key) GetOrderStatusPresentation(string? status)
+    {
+        return NormalizeOrderStatus(status) switch
+        {
+            "shipping" => ("Shipping", "shipping"),
+            "delivered" => ("Delivered", "completed"),
+            "refunded" => ("Refunded", "refund"),
+            "cancelled" => ("Cancelled", "refund"),
+            _ => ("Paid", "pending")
+        };
+    }
+
+    private static (string Label, string Key) GetPaymentStatusPresentation(string? status)
+    {
+        return NormalizePaymentStatus(status) switch
+        {
+            "pending" => ("Pending", "pending"),
+            "failed" => ("Failed", "refund"),
+            "refunded" => ("Refunded", "refund"),
+            _ => ("Paid", "completed")
+        };
+    }
+
+    private static string FormatPaymentMethod(string? paymentMethod)
+    {
+        return (paymentMethod ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "bank-transfer" => "Bank Transfer",
+            "card" => "Card",
+            "cash" => "Cash",
+            _ => "Payment"
+        };
+    }
+
+    private AdminOrderCreateViewModel EnsureOrderFormItems(AdminOrderCreateViewModel form)
+    {
+        form.Items = form.Items
+            .Where(item => item.ProductId > 0 || item.Quantity > 0)
+            .ToList();
+
+        if (form.Items.Count == 0)
+        {
+            form.Items.Add(new AdminOrderLineEditorViewModel());
+        }
+
+        return form;
+    }
+
+    private string GenerateOrderNumber()
+    {
+        string orderNumber;
+
+        do
+        {
+            orderNumber = $"OVK-{DateTime.Now:yyyyMMddHHmmss}-{Random.Shared.Next(100, 999)}";
+        }
+        while (_dbContext.Orders.Any(order => order.OrderNo == orderNumber));
+
+        return orderNumber;
     }
 
     private static AdminCustomersViewModel BuildCustomersModel()
@@ -597,6 +975,29 @@ public class AdminController : Controller
         };
     }
 
+    private IActionResult HandleItemStockResult(
+        string message,
+        InventoryItemRecord? item,
+        bool isSuccess,
+        int statusCode = StatusCodes.Status200OK,
+        DateTime? updatedAtOverride = null)
+    {
+        if (IsAjaxRequest())
+        {
+            var payload = new
+            {
+                success = isSuccess,
+                message,
+                item = item is null ? null : BuildStockPayload(item, updatedAtOverride)
+            };
+
+            return StatusCode(statusCode, payload);
+        }
+
+        TempData["SiteNotice"] = message;
+        return RedirectToAction(nameof(Items));
+    }
+
     private static AccountInput CreateAccountInput(AdminAccountEditorViewModel form)
     {
         return new AccountInput
@@ -614,6 +1015,12 @@ public class AdminController : Controller
     private string GetCurrentAdminRoleKey()
     {
         return HttpContext.Session.GetString(AdminPortalAuth.SessionAccountRoleKey)?.Trim().ToLowerInvariant() ?? string.Empty;
+    }
+
+    private bool IsAjaxRequest()
+    {
+        return Request.Headers.TryGetValue("X-Requested-With", out var requestedWith) &&
+               string.Equals(requestedWith.ToString(), "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
     }
 
     private static IReadOnlyList<string> BuildAddRoleOptions(string currentRoleKey)
@@ -716,6 +1123,21 @@ public class AdminController : Controller
             StatusKey = status.Key,
             UpdatedAtLabel = item.UpdatedAt.ToString("dd MMM yyyy, HH:mm"),
             IsPublished = item.IsPublished
+        };
+    }
+
+    private static object BuildStockPayload(InventoryItemRecord item, DateTime? updatedAtOverride = null)
+    {
+        var mappedItem = MapInventoryItem(item);
+        var updatedAtLabel = (updatedAtOverride ?? item.UpdatedAt).ToString("dd MMM yyyy, HH:mm");
+
+        return new
+        {
+            mappedItem.ItemId,
+            mappedItem.StockQuantity,
+            mappedItem.StatusLabel,
+            mappedItem.StatusKey,
+            UpdatedAtLabel = updatedAtLabel
         };
     }
 

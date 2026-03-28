@@ -47,7 +47,7 @@
     <div class="admin-items-card-grid">
         @foreach (var item in Model.Items)
         {
-            <article class="admin-card admin-item-card">
+            <article class="admin-card admin-item-card" data-item-card data-item-id="@item.ItemId">
                 <div class="admin-item-card-media">
                     <img src="@Url.Content(item.ImagePath)"
                          alt="@item.Name"
@@ -61,7 +61,7 @@
                             <p class="admin-item-card-code">@item.ItemCode</p>
                             <h3>@item.Name</h3>
                         </div>
-                        <span class="admin-status-badge @($"is-{item.StatusKey}")">@item.StatusLabel</span>
+                        <span class="admin-status-badge @($"is-{item.StatusKey}")" data-stock-status-badge>@item.StatusLabel</span>
                     </div>
 
                     <p class="admin-item-card-caption">@item.Tagline</p>
@@ -75,29 +75,42 @@
                     <div class="admin-item-stock-row">
                         <div class="admin-item-stock-copy">
                             <small>Stock</small>
-                            <strong>@item.StockQuantity</strong>
+                            <strong data-stock-count>@item.StockQuantity</strong>
                             <span>Reorder when below @item.ReorderLevel</span>
                         </div>
 
                         <div class="admin-item-stock-actions">
-                            <form asp-action="AdjustItemStock" method="post" class="admin-inline-form">
+                            <form asp-action="AdjustItemStock" method="post" class="admin-stock-adjust-form" data-stock-adjust-form>
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="itemId" value="@item.ItemId" />
-                                <input type="hidden" name="quantityDelta" value="-1" />
-                                <button type="submit" class="admin-stock-circle-button is-minus" @(item.StockQuantity == 0 ? "disabled" : null)>-</button>
-                            </form>
+                                <input type="hidden" name="quantityDirection" value="1" data-stock-direction-input />
+                                <label class="admin-stock-amount-field">
+                                    <span>จำนวนที่จะปรับ</span>
+                                    <input type="number"
+                                           name="quantityAmount"
+                                           value="1"
+                                           min="1"
+                                           step="1"
+                                           inputmode="numeric"
+                                           class="admin-stock-amount-input"
+                                           data-stock-amount />
+                                </label>
 
-                            <form asp-action="AdjustItemStock" method="post" class="admin-inline-form">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="itemId" value="@item.ItemId" />
-                                <input type="hidden" name="quantityDelta" value="1" />
-                                <button type="submit" class="admin-stock-circle-button is-plus">+</button>
+                                <div class="admin-stock-button-group">
+                                    <button type="button"
+                                            class="admin-stock-circle-button is-minus"
+                                            data-stock-direction="-1"
+                                            @(item.StockQuantity == 0 ? "disabled" : null)>-</button>
+                                    <button type="button"
+                                            class="admin-stock-circle-button is-plus"
+                                            data-stock-direction="1">+</button>
+                                </div>
                             </form>
                         </div>
                     </div>
 
                     <div class="admin-item-card-footer">
-                        <span class="admin-item-updated">Updated @item.UpdatedAtLabel</span>
+                        <span class="admin-item-updated" data-stock-updated>Updated @item.UpdatedAtLabel</span>
 
                         <button type="button"
                                 class="admin-secondary-button admin-edit-item-button"

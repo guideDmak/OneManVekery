@@ -5,7 +5,25 @@
     ViewData["Title"] = "Orders";
     ViewData["AdminDateRange"] = Model.DateRangeLabel;
     ViewData["AdminSection"] = "Orders";
+    var selectedCustomer = Model.CustomerOptions.FirstOrDefault(option => option.Value == Model.AddForm.UserId.ToString());
+    var selectedCustomerLabel = selectedCustomer is null
+        ? string.Empty
+        : $"{selectedCustomer.Label} ({selectedCustomer.SecondaryLabel})";
+    var selectedCustomerCopy = selectedCustomer is null
+        ? "พิมพ์ชื่อลูกค้าหรืออีเมลเพื่อค้นหา"
+        : $"เลือกแล้ว: {selectedCustomer.Label} • {selectedCustomer.SecondaryLabel}";
 }
+
+<section class="admin-page-banner admin-page-banner-compact">
+    <div>
+        <p class="admin-page-kicker">Orders</p>
+        <h2>Manage bakery orders</h2>
+        <span>สร้างออเดอร์จากหลังบ้าน เลือกลูกค้า เลือกสินค้า และอัปเดตสถานะได้จากหน้าเดียว</span>
+    </div>
+    <button type="button" class="admin-primary-button" data-bs-toggle="modal" data-bs-target="#addOrderModal">
+        Add Order
+    </button>
+</section>
 
 <section class="admin-metrics-grid">
     @foreach (var metric in Model.Metrics)
@@ -71,11 +89,16 @@
     </article>
 </section>
 
-<section class="admin-orders-section">
+<section class="admin-orders-section" data-admin-orders data-active-modal="@Model.ActiveModal">
     <article class="admin-card">
         <div class="admin-card-head">
-            <h2>Latest Orders</h2>
-            <a href="#">More</a>
+            <div>
+                <h2>Order List</h2>
+                <p>ดูออเดอร์จริงจากฐานข้อมูลและอัปเดตสถานะได้จากหน้านี้</p>
+            </div>
+            <button type="button" class="admin-primary-button" data-bs-toggle="modal" data-bs-target="#addOrderModal">
+                Add Order
+            </button>
         </div>
 
         <div class="admin-table-wrap">
@@ -86,8 +109,8 @@
                         <th>Products</th>
                         <th>Date</th>
                         <th>Customer</th>
-                        <th>Revenue</th>
-                        <th>Net Profit</th>
+                        <th>Total</th>
+                        <th>Payment</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -96,24 +119,44 @@
                     @foreach (var order in Model.Orders)
                     {
                         <tr>
-                            <td>@order.OrderId</td>
+                            <td>@order.OrderNumber</td>
                             <td>
                                 <div class="admin-order-stack">
-                                    <strong>@order.Product</strong>
-                                    <span>@order.SecondaryText</span>
+                                    <strong>@order.ProductSummary</strong>
+                                    <span>@order.ItemCountLabel</span>
                                 </div>
                             </td>
-                            <td>@order.Date</td>
-                            <td>@order.Customer</td>
-                            <td>@order.Revenue</td>
-                            <td>@order.NetProfit</td>
+                            <td>@order.CreatedAtLabel</td>
+                            <td>@order.CustomerName</td>
+                            <td>@order.TotalAmountLabel</td>
                             <td>
-                                <span class="admin-status-badge @($"is-{order.Status.ToLowerInvariant()}")">@order.Status</span>
+                                <div class="admin-order-stack">
+                                    <strong>@order.PaymentMethodLabel</strong>
+                                    <span class="admin-status-badge @($"is-{order.PaymentStatusKey}")">@order.PaymentStatus</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="admin-status-badge @($"is-{order.OrderStatusKey}")">@order.OrderStatus</span>
                             </td>
                             <td>
                                 <div class="admin-actions">
-                                    <button type="button">View</button>
-                                    <button type="button">Edit</button>
+                                    <button type="button"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#editOrderModal"
+                                            data-order-id="@order.OrderId"
+                                            data-order-number="@order.OrderNumber"
+                                            data-customer-name="@order.CustomerName"
+                                            data-created-at="@order.CreatedAtLabel"
+                                            data-item-summary="@($"{order.ProductSummary} ({order.ItemCountLabel})")"
+                                            data-total-amount="@order.TotalAmountLabel"
+                                            data-payment-method="@order.PaymentMethodLabel"
+                                            data-order-status="@order.OrderStatus.ToLowerInvariant()"
+                                            data-payment-status="@order.PaymentStatus.ToLowerInvariant()"
+                                            data-phone="@order.Phone"
+                                            data-address="@order.Address"
+                                            data-note="@order.Note">
+                                        Manage
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -123,3 +166,305 @@
         </div>
     </article>
 </section>
+
+<div class="modal fade admin-modal" id="addOrderModal" tabindex="-1" aria-labelledby="addOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <p class="admin-modal-kicker">Create Order</p>
+                    <h2 class="modal-title" id="addOrderModalLabel">Add New Order</h2>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <form asp-action="AddOrder" method="post" class="admin-item-form" data-add-order-form>
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+                    <div class="admin-form-grid">
+                        <div class="admin-form-span-full">
+                            <label asp-for="AddForm.UserId" class="form-label">Customer</label>
+                            <input asp-for="AddForm.UserId" type="hidden" data-order-customer-id />
+                            <div class="admin-customer-combobox" data-order-customer-combobox>
+                                <input type="search"
+                                       class="form-control bakery-field"
+                                       placeholder="พิมพ์ชื่อลูกค้าหรืออีเมล"
+                                       value="@selectedCustomerLabel"
+                                       autocomplete="off"
+                                       data-order-customer-search />
+
+                                <div class="admin-customer-suggestions d-none" data-order-customer-suggestions>
+                                    @foreach (var customer in Model.CustomerOptions)
+                                    {
+                                        <button type="button"
+                                                class="admin-customer-option"
+                                                data-order-customer-option
+                                                data-customer-id="@customer.Value"
+                                                data-customer-name="@customer.Label"
+                                                data-customer-email="@customer.SecondaryLabel"
+                                                data-customer-phone="@customer.DataValue">
+                                            <strong>@customer.Label</strong>
+                                            <span>@customer.SecondaryLabel</span>
+                                        </button>
+                                    }
+                                </div>
+
+                                <small class="admin-customer-selected-copy" data-order-customer-selected>@selectedCustomerCopy</small>
+                            </div>
+                            <span asp-validation-for="AddForm.UserId" class="text-danger small"></span>
+                        </div>
+
+                        <div>
+                            <label asp-for="AddForm.Phone" class="form-label">Phone</label>
+                            <input asp-for="AddForm.Phone" class="form-control bakery-field" data-order-customer-phone />
+                            <span asp-validation-for="AddForm.Phone" class="text-danger small"></span>
+                        </div>
+
+                        <div>
+                            <label asp-for="AddForm.DeliveryFee" class="form-label">Delivery fee</label>
+                            <input asp-for="AddForm.DeliveryFee" class="form-control bakery-field" type="number" min="0" step="0.01" />
+                            <span asp-validation-for="AddForm.DeliveryFee" class="text-danger small"></span>
+                        </div>
+
+                        <div>
+                            <label asp-for="AddForm.PaymentMethod" class="form-label">Payment method</label>
+                            <select asp-for="AddForm.PaymentMethod" class="form-select bakery-field">
+                                @foreach (var method in Model.PaymentMethodOptions)
+                                {
+                                    <option value="@method">@method</option>
+                                }
+                            </select>
+                            <span asp-validation-for="AddForm.PaymentMethod" class="text-danger small"></span>
+                        </div>
+
+                        <div>
+                            <label asp-for="AddForm.PaymentStatus" class="form-label">Payment status</label>
+                            <select asp-for="AddForm.PaymentStatus" class="form-select bakery-field">
+                                @foreach (var status in Model.PaymentStatusOptions)
+                                {
+                                    <option value="@status">@status</option>
+                                }
+                            </select>
+                            <span asp-validation-for="AddForm.PaymentStatus" class="text-danger small"></span>
+                        </div>
+
+                        <div>
+                            <label asp-for="AddForm.OrderStatus" class="form-label">Order status</label>
+                            <select asp-for="AddForm.OrderStatus" class="form-select bakery-field">
+                                @foreach (var status in Model.OrderStatusOptions)
+                                {
+                                    <option value="@status">@status</option>
+                                }
+                            </select>
+                            <span asp-validation-for="AddForm.OrderStatus" class="text-danger small"></span>
+                        </div>
+
+                        <div class="admin-form-span-full">
+                            <label asp-for="AddForm.Address" class="form-label">Address</label>
+                            <textarea asp-for="AddForm.Address" class="form-control bakery-field bakery-field-area admin-field-area"></textarea>
+                            <span asp-validation-for="AddForm.Address" class="text-danger small"></span>
+                        </div>
+
+                        <div class="admin-form-span-full">
+                            <label asp-for="AddForm.Note" class="form-label">Note</label>
+                            <textarea asp-for="AddForm.Note" class="form-control bakery-field bakery-field-area admin-field-area"></textarea>
+                            <span asp-validation-for="AddForm.Note" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div class="admin-order-builder">
+                        <div class="admin-card-head admin-card-head-stack">
+                            <div>
+                                <h3>Order Items</h3>
+                                <p>เลือกสินค้าและจำนวนที่ลูกค้าต้องการ</p>
+                            </div>
+                            <button type="button" class="admin-secondary-button" data-add-order-line>
+                                Add Item
+                            </button>
+                        </div>
+
+                        <div class="admin-order-lines" data-order-lines>
+                            @for (var index = 0; index < Model.AddForm.Items.Count; index++)
+                            {
+                                var line = Model.AddForm.Items[index];
+                                <div class="admin-order-line-row" data-order-line-row>
+                                    <div class="admin-order-line-grid">
+                                        <div>
+                                            <label class="form-label">Product</label>
+                                            <select name="AddForm.Items[@index].ProductId" class="form-select bakery-field" data-order-product-select>
+                                                <option value="">Select product</option>
+                                                @foreach (var product in Model.ProductOptions)
+                                                {
+                                                    if (product.Value == line.ProductId.ToString())
+                                                    {
+                                                        <option value="@product.Value" data-stock="@product.DataValue" selected="selected">
+                                                            @product.Label (@product.SecondaryLabel)
+                                                        </option>
+                                                    }
+                                                    else
+                                                    {
+                                                        <option value="@product.Value" data-stock="@product.DataValue">
+                                                            @product.Label (@product.SecondaryLabel)
+                                                        </option>
+                                                    }
+                                                }
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label class="form-label">Qty</label>
+                                            <input name="AddForm.Items[@index].Quantity"
+                                                   value="@line.Quantity"
+                                                   class="form-control bakery-field"
+                                                   type="number"
+                                                   min="1"
+                                                   step="1" />
+                                        </div>
+                                    </div>
+
+                                    <div class="admin-order-line-footer">
+                                        <small data-order-line-meta></small>
+                                        <button type="button" class="admin-row-action-button is-danger" data-remove-order-line>Remove</button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="admin-form-actions">
+                        <button type="button" class="admin-secondary-button" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="admin-primary-button">Create Order</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<template id="orderLineTemplate">
+    <div class="admin-order-line-row" data-order-line-row>
+        <div class="admin-order-line-grid">
+            <div>
+                <label class="form-label">Product</label>
+                <select class="form-select bakery-field" data-order-product-select>
+                    <option value="">Select product</option>
+                    @foreach (var product in Model.ProductOptions)
+                    {
+                        <option value="@product.Value" data-stock="@product.DataValue">@product.Label (@product.SecondaryLabel)</option>
+                    }
+                </select>
+            </div>
+
+            <div>
+                <label class="form-label">Qty</label>
+                <input class="form-control bakery-field" type="number" min="1" step="1" value="1" />
+            </div>
+        </div>
+
+        <div class="admin-order-line-footer">
+            <small data-order-line-meta></small>
+            <button type="button" class="admin-row-action-button is-danger" data-remove-order-line>Remove</button>
+        </div>
+    </div>
+</template>
+
+<div class="modal fade admin-modal" id="editOrderModal" tabindex="-1" aria-labelledby="editOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <p class="admin-modal-kicker">Manage Order</p>
+                    <h2 class="modal-title" id="editOrderModalLabel">Update Order Status</h2>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <form asp-action="UpdateOrderStatus" method="post" class="admin-item-form">
+                    @Html.AntiForgeryToken()
+                    <input asp-for="EditForm.OrderId" type="hidden" />
+
+                    <div class="admin-form-grid">
+                        <div>
+                            <label asp-for="EditForm.OrderNumber" class="form-label">Order ID</label>
+                            <input asp-for="EditForm.OrderNumber" class="form-control bakery-field admin-readonly-field" readonly />
+                        </div>
+
+                        <div>
+                            <label asp-for="EditForm.CreatedAtLabel" class="form-label">Created at</label>
+                            <input asp-for="EditForm.CreatedAtLabel" class="form-control bakery-field admin-readonly-field" readonly />
+                        </div>
+
+                        <div class="admin-form-span-full">
+                            <label asp-for="EditForm.CustomerName" class="form-label">Customer</label>
+                            <input asp-for="EditForm.CustomerName" class="form-control bakery-field admin-readonly-field" readonly />
+                        </div>
+
+                        <div class="admin-form-span-full">
+                            <label asp-for="EditForm.ItemSummary" class="form-label">Items</label>
+                            <input asp-for="EditForm.ItemSummary" class="form-control bakery-field admin-readonly-field" readonly />
+                        </div>
+
+                        <div>
+                            <label asp-for="EditForm.TotalAmountLabel" class="form-label">Total</label>
+                            <input asp-for="EditForm.TotalAmountLabel" class="form-control bakery-field admin-readonly-field" readonly />
+                        </div>
+
+                        <div>
+                            <label asp-for="EditForm.PaymentMethodLabel" class="form-label">Payment method</label>
+                            <input asp-for="EditForm.PaymentMethodLabel" class="form-control bakery-field admin-readonly-field" readonly />
+                        </div>
+
+                        <div>
+                            <label asp-for="EditForm.OrderStatus" class="form-label">Order status</label>
+                            <select asp-for="EditForm.OrderStatus" class="form-select bakery-field">
+                                @foreach (var status in Model.OrderStatusOptions)
+                                {
+                                    <option value="@status">@status</option>
+                                }
+                            </select>
+                            <span asp-validation-for="EditForm.OrderStatus" class="text-danger small"></span>
+                        </div>
+
+                        <div>
+                            <label asp-for="EditForm.PaymentStatus" class="form-label">Payment status</label>
+                            <select asp-for="EditForm.PaymentStatus" class="form-select bakery-field">
+                                @foreach (var status in Model.PaymentStatusOptions)
+                                {
+                                    <option value="@status">@status</option>
+                                }
+                            </select>
+                            <span asp-validation-for="EditForm.PaymentStatus" class="text-danger small"></span>
+                        </div>
+
+                        <div>
+                            <label asp-for="EditForm.Phone" class="form-label">Phone</label>
+                            <input asp-for="EditForm.Phone" class="form-control bakery-field admin-readonly-field" readonly />
+                        </div>
+
+                        <div>
+                            <label asp-for="EditForm.Note" class="form-label">Note</label>
+                            <input asp-for="EditForm.Note" class="form-control bakery-field admin-readonly-field" readonly />
+                        </div>
+
+                        <div class="admin-form-span-full">
+                            <label asp-for="EditForm.Address" class="form-label">Address</label>
+                            <textarea asp-for="EditForm.Address" class="form-control bakery-field bakery-field-area admin-field-area admin-readonly-field" readonly></textarea>
+                        </div>
+                    </div>
+
+                    <div class="admin-form-actions">
+                        <button type="button" class="admin-secondary-button" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="admin-primary-button">Save Status</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

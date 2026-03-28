@@ -47,7 +47,23 @@ public class AdminOrdersViewModel
 
     public IReadOnlyList<AdminInfoItemViewModel> FulfillmentSummary { get; init; } = [];
 
-    public IReadOnlyList<AdminLatestOrderViewModel> Orders { get; init; } = [];
+    public IReadOnlyList<AdminOrderRecordViewModel> Orders { get; init; } = [];
+
+    public IReadOnlyList<string> OrderStatusOptions { get; init; } = [];
+
+    public IReadOnlyList<string> PaymentStatusOptions { get; init; } = [];
+
+    public IReadOnlyList<string> PaymentMethodOptions { get; init; } = [];
+
+    public IReadOnlyList<AdminSelectOptionViewModel> CustomerOptions { get; init; } = [];
+
+    public IReadOnlyList<AdminSelectOptionViewModel> ProductOptions { get; init; } = [];
+
+    public AdminOrderCreateViewModel AddForm { get; init; } = new();
+
+    public AdminOrderEditorViewModel EditForm { get; init; } = new();
+
+    public string ActiveModal { get; init; } = string.Empty;
 }
 
 public class AdminCustomersViewModel
@@ -163,7 +179,7 @@ public class AdminItemsPageViewModel
 
 public class AdminInventoryItemViewModel
 {
-    public Guid ItemId { get; init; }
+    public int ItemId { get; init; }
 
     public string ItemCode { get; init; } = string.Empty;
 
@@ -196,7 +212,7 @@ public class AdminInventoryItemViewModel
 
 public class AdminItemEditorViewModel
 {
-    public Guid ItemId { get; set; }
+    public int ItemId { get; set; }
 
     public string ItemCode { get; set; } = string.Empty;
 
@@ -377,4 +393,119 @@ public class AdminLatestOrderViewModel
     public string NetProfit { get; init; } = string.Empty;
 
     public string Status { get; init; } = string.Empty;
+}
+
+public class AdminOrderRecordViewModel
+{
+    public int OrderId { get; init; }
+
+    public string OrderNumber { get; init; } = string.Empty;
+
+    public string ProductSummary { get; init; } = string.Empty;
+
+    public string ItemCountLabel { get; init; } = string.Empty;
+
+    public string CreatedAtLabel { get; init; } = string.Empty;
+
+    public string CustomerName { get; init; } = string.Empty;
+
+    public string TotalAmountLabel { get; init; } = string.Empty;
+
+    public string PaymentMethodLabel { get; init; } = string.Empty;
+
+    public string PaymentStatus { get; init; } = string.Empty;
+
+    public string PaymentStatusKey { get; init; } = string.Empty;
+
+    public string OrderStatus { get; init; } = string.Empty;
+
+    public string OrderStatusKey { get; init; } = string.Empty;
+
+    public string Phone { get; init; } = string.Empty;
+
+    public string Address { get; init; } = string.Empty;
+
+    public string Note { get; init; } = string.Empty;
+}
+
+public class AdminOrderEditorViewModel
+{
+    public int OrderId { get; set; }
+
+    public string OrderNumber { get; set; } = string.Empty;
+
+    public string CustomerName { get; set; } = string.Empty;
+
+    public string CreatedAtLabel { get; set; } = string.Empty;
+
+    public string ItemSummary { get; set; } = string.Empty;
+
+    public string TotalAmountLabel { get; set; } = string.Empty;
+
+    public string PaymentMethodLabel { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "กรุณาเลือกสถานะออเดอร์")]
+    public string OrderStatus { get; set; } = "paid";
+
+    [Required(ErrorMessage = "กรุณาเลือกสถานะการชำระเงิน")]
+    public string PaymentStatus { get; set; } = "paid";
+
+    public string Phone { get; set; } = string.Empty;
+
+    public string Address { get; set; } = string.Empty;
+
+    public string Note { get; set; } = string.Empty;
+}
+
+public class AdminOrderCreateViewModel
+{
+    [Range(1, int.MaxValue, ErrorMessage = "กรุณาเลือกลูกค้า")]
+    public int UserId { get; set; }
+
+    [Required(ErrorMessage = "กรุณากรอกเบอร์โทร")]
+    [Phone(ErrorMessage = "รูปแบบเบอร์โทรไม่ถูกต้อง")]
+    public string Phone { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "กรุณากรอกที่อยู่จัดส่ง")]
+    public string Address { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "กรุณาเลือกวิธีชำระเงิน")]
+    public string PaymentMethod { get; set; } = "card";
+
+    [Required(ErrorMessage = "กรุณาเลือกสถานะการชำระเงิน")]
+    public string PaymentStatus { get; set; } = "paid";
+
+    [Required(ErrorMessage = "กรุณาเลือกสถานะออเดอร์")]
+    public string OrderStatus { get; set; } = "paid";
+
+    [Range(typeof(decimal), "0", "9999", ErrorMessage = "ค่าส่งต้องอยู่ระหว่าง 0-9999")]
+    public decimal DeliveryFee { get; set; }
+
+    [StringLength(200, ErrorMessage = "หมายเหตุต้องไม่เกิน 200 ตัวอักษร")]
+    public string Note { get; set; } = string.Empty;
+
+    public List<AdminOrderLineEditorViewModel> Items { get; set; } =
+    [
+        new()
+    ];
+}
+
+public class AdminOrderLineEditorViewModel
+{
+    [Range(1, int.MaxValue, ErrorMessage = "กรุณาเลือกสินค้า")]
+    public int ProductId { get; set; }
+
+    [Range(1, 500, ErrorMessage = "จำนวนสินค้าต้องอย่างน้อย 1")]
+    public int Quantity { get; set; } = 1;
+}
+
+public class AdminSelectOptionViewModel
+{
+    public string Value { get; init; } = string.Empty;
+
+    public string Label { get; init; } = string.Empty;
+
+    public string SecondaryLabel { get; init; } = string.Empty;
+
+    public string DataValue { get; init; } = string.Empty;
 }
