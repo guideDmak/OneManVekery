@@ -8,27 +8,19 @@ public class AdminDashboardViewModel
 
     public IReadOnlyList<AdminMetricCardViewModel> Metrics { get; init; } = [];
 
-    public IReadOnlyList<AdminChartPointViewModel> DashboardBars { get; init; } = [];
+    public string TrendLabel { get; init; } = string.Empty;
 
-    public int CartRecoveryPercent { get; init; }
+    public string TrendValue { get; init; } = string.Empty;
 
-    public int AbandonedCartCount { get; init; }
+    public string TrendDelta { get; init; } = string.Empty;
 
-    public decimal AbandonedRevenue { get; init; }
+    public IReadOnlyList<AdminChartPointViewModel> TrendChart { get; init; } = [];
 
-    public IReadOnlyList<AdminDeviceRevenueViewModel> DeviceRevenue { get; init; } = [];
+    public IReadOnlyList<AdminInfoItemViewModel> SummaryItems { get; init; } = [];
 
-    public int StoreVisits { get; init; }
+    public IReadOnlyList<AdminDashboardTopProductViewModel> TopProducts { get; init; } = [];
 
-    public int Visitors { get; init; }
-
-    public IReadOnlyList<AdminChartPointViewModel> TrafficLine { get; init; } = [];
-
-    public IReadOnlyList<AdminBestsellerViewModel> Bestsellers { get; init; } = [];
-
-    public IReadOnlyList<AdminForecastCardViewModel> ForecastCards { get; init; } = [];
-
-    public IReadOnlyList<AdminLatestOrderViewModel> LatestOrders { get; init; } = [];
+    public IReadOnlyList<AdminOrderRecordViewModel> LatestOrders { get; init; } = [];
 }
 
 public class AdminOrdersViewModel
@@ -72,23 +64,7 @@ public class AdminCustomersViewModel
 
     public IReadOnlyList<AdminMetricCardViewModel> Metrics { get; init; } = [];
 
-    public string CustomerName { get; init; } = string.Empty;
-
-    public string Email { get; init; } = string.Empty;
-
-    public string Segment { get; init; } = string.Empty;
-
-    public IReadOnlyList<AdminInfoItemViewModel> SummaryItems { get; init; } = [];
-
-    public string RevenueLabel { get; init; } = string.Empty;
-
-    public string RevenueValue { get; init; } = string.Empty;
-
-    public string RevenueDelta { get; init; } = string.Empty;
-
-    public IReadOnlyList<AdminChartPointViewModel> RevenueChart { get; init; } = [];
-
-    public IReadOnlyList<AdminLatestOrderViewModel> Orders { get; init; } = [];
+    public IReadOnlyList<AdminCustomerRecordViewModel> Customers { get; init; } = [];
 }
 
 public class AdminProductsViewModel
@@ -100,6 +76,53 @@ public class AdminProductsViewModel
     public IReadOnlyList<AdminInfoItemViewModel> SummaryItems { get; init; } = [];
 
     public IReadOnlyList<AdminProductShowcaseViewModel> Products { get; init; } = [];
+}
+
+public class AdminCodesViewModel
+{
+    public string DateRangeLabel { get; init; } = string.Empty;
+
+    public IReadOnlyList<AdminMetricCardViewModel> Metrics { get; init; } = [];
+
+    public IReadOnlyList<AdminCodeBlueprintViewModel> Blueprints { get; init; } = [];
+
+    public IReadOnlyList<AdminInfoItemViewModel> SummaryItems { get; init; } = [];
+
+    public IReadOnlyList<AdminPromotionRecordViewModel> Promotions { get; init; } = [];
+}
+
+public class AdminCodeBlueprintViewModel
+{
+    public string Kicker { get; init; } = string.Empty;
+
+    public string Title { get; init; } = string.Empty;
+
+    public string Description { get; init; } = string.Empty;
+
+    public IReadOnlyList<string> Tags { get; init; } = [];
+
+    public string AccentKey { get; init; } = string.Empty;
+}
+
+public class AdminPromotionRecordViewModel
+{
+    public string Code { get; init; } = string.Empty;
+
+    public string Title { get; init; } = string.Empty;
+
+    public string DiscountLabel { get; init; } = string.Empty;
+
+    public string RuleLabel { get; init; } = string.Empty;
+
+    public string Status { get; init; } = string.Empty;
+
+    public string StatusKey { get; init; } = string.Empty;
+
+    public string UsageLabel { get; init; } = string.Empty;
+
+    public string ExpiryLabel { get; init; } = string.Empty;
+
+    public string Note { get; init; } = string.Empty;
 }
 
 public class AdminProductShowcaseViewModel
@@ -114,7 +137,11 @@ public class AdminProductShowcaseViewModel
 
     public string Tagline { get; init; } = string.Empty;
 
+    public string Notes { get; init; } = string.Empty;
+
     public string ImagePath { get; init; } = string.Empty;
+
+    public decimal PriceAmount { get; init; }
 
     public string PriceLabel { get; init; } = string.Empty;
 
@@ -143,6 +170,8 @@ public class AdminProductShowcaseViewModel
 
 public class AdminProfileViewModel
 {
+    public string AccountCode { get; init; } = string.Empty;
+
     public string FullName { get; init; } = string.Empty;
 
     public string Role { get; init; } = string.Empty;
@@ -151,11 +180,47 @@ public class AdminProfileViewModel
 
     public string Phone { get; init; } = string.Empty;
 
-    public string Bio { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
+
+    public string LastActiveLabel { get; init; } = string.Empty;
+
+    public string Notes { get; init; } = string.Empty;
 
     public IReadOnlyList<AdminInfoItemViewModel> SummaryItems { get; init; } = [];
+}
 
-    public IReadOnlyList<AdminInfoItemViewModel> PreferenceItems { get; init; } = [];
+public class AdminDashboardTopProductViewModel
+{
+    public string Name { get; init; } = string.Empty;
+
+    public string UnitsSoldLabel { get; init; } = string.Empty;
+
+    public string RevenueLabel { get; init; } = string.Empty;
+}
+
+public class AdminCustomerRecordViewModel
+{
+    public int CustomerId { get; init; }
+
+    public string CustomerCode { get; init; } = string.Empty;
+
+    public string FullName { get; init; } = string.Empty;
+
+    public string Email { get; init; } = string.Empty;
+
+    public string PhoneNumber { get; init; } = string.Empty;
+
+    public string Status { get; init; } = string.Empty;
+
+    public string StatusKey { get; init; } = string.Empty;
+
+    public string OrderCountLabel { get; init; } = string.Empty;
+
+    public string TotalSpendLabel { get; init; } = string.Empty;
+
+    public string LastOrderLabel { get; init; } = string.Empty;
+
+    public string LastActiveLabel { get; init; } = string.Empty;
 }
 
 public class AdminAccountsViewModel
@@ -195,11 +260,24 @@ public class AdminItemsPageViewModel
 
     public IReadOnlyList<string> ImageOptions { get; init; } = [];
 
+    public AdminCategoryEditorViewModel CategoryForm { get; init; } = new();
+
     public AdminItemEditorViewModel AddForm { get; init; } = new();
 
     public AdminItemEditorViewModel EditForm { get; init; } = new();
 
     public string ActiveModal { get; init; } = string.Empty;
+}
+
+public class AdminCategoryEditorViewModel
+{
+    [Required(ErrorMessage = "กรุณากรอกชื่อหมวดสินค้า")]
+    [StringLength(40, ErrorMessage = "หมวดสินค้าต้องไม่เกิน 40 ตัวอักษร")]
+    public string Name { get; set; } = string.Empty;
+
+    public string TargetFieldId { get; set; } = string.Empty;
+
+    public string ReturnModalId { get; set; } = string.Empty;
 }
 
 public class AdminInventoryItemViewModel
@@ -220,6 +298,8 @@ public class AdminInventoryItemViewModel
 
     public string ImagePath { get; init; } = string.Empty;
 
+    public decimal PriceAmount { get; init; }
+
     public string PriceLabel { get; init; } = string.Empty;
 
     public int StockQuantity { get; init; }
@@ -231,6 +311,8 @@ public class AdminInventoryItemViewModel
     public string StatusKey { get; init; } = string.Empty;
 
     public string UpdatedAtLabel { get; init; } = string.Empty;
+
+    public long UpdatedAtSort { get; init; }
 
     public bool IsPublished { get; init; }
 }
@@ -294,6 +376,8 @@ public class AdminAccountRecordViewModel
     public string StatusKey { get; init; } = string.Empty;
 
     public string LastActive { get; init; } = string.Empty;
+
+    public long LastActiveSort { get; init; }
 
     public string Notes { get; init; } = string.Empty;
 }
@@ -362,62 +446,6 @@ public class AdminChartPointViewModel
     public int Value { get; init; }
 
     public bool IsHighlighted { get; init; }
-}
-
-public class AdminDeviceRevenueViewModel
-{
-    public string Label { get; init; } = string.Empty;
-
-    public string Value { get; init; } = string.Empty;
-
-    public string Share { get; init; } = string.Empty;
-
-    public string AccentKey { get; init; } = string.Empty;
-}
-
-public class AdminBestsellerViewModel
-{
-    public string Product { get; init; } = string.Empty;
-
-    public string Price { get; init; } = string.Empty;
-
-    public string Sold { get; init; } = string.Empty;
-
-    public string Profit { get; init; } = string.Empty;
-}
-
-public class AdminForecastCardViewModel
-{
-    public string Label { get; init; } = string.Empty;
-
-    public string Value { get; init; } = string.Empty;
-
-    public string Delta { get; init; } = string.Empty;
-
-    public bool PositiveTrend { get; init; }
-
-    public string AccentKey { get; init; } = string.Empty;
-}
-
-public class AdminLatestOrderViewModel
-{
-    public string OrderId { get; init; } = string.Empty;
-
-    public string Product { get; init; } = string.Empty;
-
-    public string SecondaryText { get; init; } = string.Empty;
-
-    public string Customer { get; init; } = string.Empty;
-
-    public string Quantity { get; init; } = string.Empty;
-
-    public string Date { get; init; } = string.Empty;
-
-    public string Revenue { get; init; } = string.Empty;
-
-    public string NetProfit { get; init; } = string.Empty;
-
-    public string Status { get; init; } = string.Empty;
 }
 
 public class AdminOrderRecordViewModel

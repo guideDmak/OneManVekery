@@ -5,6 +5,12 @@
     ViewData["Title"] = "Account Management";
     ViewData["AdminDateRange"] = Model.DateRangeLabel;
     ViewData["AdminSection"] = "Accounts";
+    var roleOptions = Model.Accounts
+        .Select(account => account.Role)
+        .Where(role => !string.IsNullOrWhiteSpace(role))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(role => role, StringComparer.OrdinalIgnoreCase)
+        .ToList();
 }
 
 <section class="admin-page-banner admin-page-banner-compact">
@@ -39,9 +45,12 @@
                 <h2>Account List</h2>
                 <p>เพิ่มบัญชี แก้ไข role และปิดบัญชีจากลิสต์นี้ได้โดยตรง</p>
             </div>
-            <button type="button" class="admin-primary-button" data-bs-toggle="modal" data-bs-target="#addAccountModal">
-                Add Account
-            </button>
+            <div class="admin-account-toolbar-meta">
+                <span class="admin-items-toolbar-count" data-account-results-label>@Model.Accounts.Count รายการ</span>
+                <button type="button" class="admin-primary-button" data-bs-toggle="modal" data-bs-target="#addAccountModal">
+                    Add Account
+                </button>
+            </div>
         </div>
 
         <form class="admin-account-search-bar" data-account-search-form>
@@ -49,7 +58,27 @@
                    class="form-control bakery-field"
                    placeholder="ค้นหาชื่อ, อีเมล, role, status หรือ Account ID"
                    data-account-search-input />
-            <button type="submit" class="admin-primary-button" data-account-search-button>Search</button>
+            <select class="form-select bakery-field" data-account-role-filter>
+                <option value="all">All Roles</option>
+                @foreach (var role in roleOptions)
+                {
+                    <option value="@role">@role</option>
+                }
+            </select>
+            <select class="form-select bakery-field" data-account-status-filter>
+                <option value="all">All Status</option>
+                @foreach (var status in Model.StatusOptions)
+                {
+                    <option value="@status">@status</option>
+                }
+            </select>
+            <select class="form-select bakery-field" data-account-sort>
+                <option value="last-active-desc">Last Active ล่าสุด</option>
+                <option value="name-asc">Name A-Z</option>
+                <option value="name-desc">Name Z-A</option>
+                <option value="role-asc">Role A-Z</option>
+                <option value="status-asc">Status A-Z</option>
+            </select>
             <button type="button" class="admin-secondary-button" data-account-search-reset>Clear</button>
         </form>
 
@@ -66,11 +95,16 @@
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody data-account-table-body>
                     @foreach (var account in Model.Accounts)
                     {
                         <tr data-account-row
-                            data-account-search="@($"{account.AccountCode} {account.FullName} {account.Email} {account.PhoneNumber} {account.Role} {account.Status} {account.LastActive} {account.Notes}")">
+                            data-account-search="@($"{account.AccountCode} {account.FullName} {account.Email} {account.PhoneNumber} {account.Role} {account.Status} {account.LastActive} {account.Notes}")"
+                            data-account-name="@account.FullName"
+                            data-account-role="@account.Role"
+                            data-account-status="@account.Status"
+                            data-account-last-active="@account.LastActiveSort"
+                            data-account-id="@account.AccountId">
                             <td>
                                 <div class="admin-order-stack">
                                     <small class="admin-account-code">@account.AccountCode</small>

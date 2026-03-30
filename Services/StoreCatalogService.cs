@@ -1,3 +1,7 @@
+using System.Globalization;
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using OneManVekery.Models.Db;
 using OneManVekery.ViewModel;
 
 namespace OneManVekery.Services;
@@ -9,126 +13,177 @@ public interface IStoreCatalogService
     ProductCardViewModel? GetProductById(string productId);
 }
 
-public sealed class InMemoryStoreCatalogService : IStoreCatalogService
+public sealed class DbStoreCatalogService : IStoreCatalogService
 {
-    private readonly IReadOnlyList<ProductCardViewModel> _products =
-    [
-        new ProductCardViewModel
-        {
-            ProductId = "rose-macaron-box",
-            Name = "Rose Macaron Box",
-            Category = "Macaron",
-            Description = "Rose and vanilla macarons for soft pink gift sets",
-            Price = 120,
-            OriginalPrice = 140,
-            Badge = "-15%",
-            ThemeKey = "macaron",
-            ImagePath = "/images/theme-macaron.svg"
-        },
-        new ProductCardViewModel
-        {
-            ProductId = "strawberry-shortcake",
-            Name = "Strawberry Shortcake",
-            Category = "Cake",
-            Description = "Fresh cream cake with soft sponge and strawberry topping",
-            Price = 145,
-            OriginalPrice = 165,
-            Badge = "New",
-            ThemeKey = "cake",
-            ImagePath = "/images/theme-cake.svg"
-        },
-        new ProductCardViewModel
-        {
-            ProductId = "vanilla-choux-cream",
-            Name = "Vanilla Choux Cream",
-            Category = "Choux Cream",
-            Description = "Light pastry shell with smooth vanilla custard filling",
-            Price = 55,
-            ThemeKey = "cream",
-            ImagePath = "/images/theme-cream.svg"
-        },
-        new ProductCardViewModel
-        {
-            ProductId = "butter-croissant",
-            Name = "Butter Croissant",
-            Category = "Bakery",
-            Description = "Flaky layers with rich butter aroma from the morning batch",
-            Price = 69,
-            Badge = "Sold Out",
-            ThemeKey = "gold",
-            ImagePath = "/images/theme-gold.svg",
-            IsSoldOut = true
-        },
-        new ProductCardViewModel
-        {
-            ProductId = "blueberry-cheesecake",
-            Name = "Blueberry Cheesecake",
-            Category = "Cake",
-            Description = "Creamy cheesecake finished with blueberry glaze",
-            Price = 159,
-            Badge = "New",
-            ThemeKey = "berry",
-            ImagePath = "/images/theme-berry.svg"
-        },
-        new ProductCardViewModel
-        {
-            ProductId = "mini-eclair-set",
-            Name = "Mini Eclair Set",
-            Category = "Bakery",
-            Description = "Small eclair box for afternoon sharing and coffee time",
-            Price = 89,
-            OriginalPrice = 110,
-            Badge = "-20%",
-            ThemeKey = "cream",
-            ImagePath = "/images/theme-cream.svg"
-        },
-        new ProductCardViewModel
-        {
-            ProductId = "milk-cloud-roll",
-            Name = "Milk Cloud Roll",
-            Category = "Cake",
-            Description = "Japanese style roll cake with soft milk whipped cream",
-            Price = 135,
-            ThemeKey = "milk",
-            ImagePath = "/images/theme-milk.svg"
-        },
-        new ProductCardViewModel
-        {
-            ProductId = "cherry-tart-slice",
-            Name = "Cherry Tart Slice",
-            Category = "Bakery",
-            Description = "Buttery tart shell with cherry compote and almond cream",
-            Price = 95,
-            ThemeKey = "berry",
-            ImagePath = "/images/theme-berry.svg"
-        }
-    ];
+    private const int DefaultReorderLevel = 10;
+    private readonly OneManVekeryDBContext _dbContext;
+
+    public DbStoreCatalogService(OneManVekeryDBContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
 
     public IReadOnlyList<ProductCardViewModel> GetProducts()
     {
-        return _products.Select(Clone).ToList();
+        return _dbContext.Products
+            .AsNoTracking()
+            .Include(product => product.Category)
+            .Where(product => product.IsActive)
+            .OrderBy(product => product.Name)
+            .ToList()
+            .Select(MapProduct)
+            .ToList();
     }
 
     public ProductCardViewModel? GetProductById(string productId)
     {
-        var product = _products.FirstOrDefault(item => item.ProductId == productId);
-        return product is null ? null : Clone(product);
+        if (!int.TryParse(productId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var productIdValue))
+        {
+            return null;
+        }
+
+        var product = _dbContext.Products
+            .AsNoTracking()
+            .Include(item => item.Category)
+            .FirstOrDefault(item => item.Id == productIdValue && item.IsActive);
+
+        return product is null ? null : MapProduct(product);
     }
 
-    private static ProductCardViewModel Clone(ProductCardViewModel product)
+    private static ProductCardViewModel MapProduct(Product product)
     {
+        var meta = ParseProductMeta(product.Description);
+        var category = string.IsNullOrWhiteSpace(product.Category?.Name) ? "Bakery" : product.Category!.Name;
+        var themeKey = ResolveThemeKey(category, product.Name, product.ImageUrl);
+        var isSoldOut = product.StockQty <= 0;
+
         return new ProductCardViewModel
         {
-            ProductId = product.ProductId,
+            ProductId = product.Id.ToString(CultureInfo.InvariantCulture),
             Name = product.Name,
-            Category = product.Category,
-            Description = product.Description,
+            Category = category,
+            Description = ResolveDescription(product.Description, meta),
             Price = product.Price,
-            OriginalPrice = product.OriginalPrice,
-            Badge = product.Badge,
-            ThemeKey = product.ThemeKey,
-            ImagePath = product.ImagePath,
-            IsSoldOut = product.IsSoldOut
+            Badge = isSoldOut
+                ? "หมดแล้ว"
+                : product.StockQty <= meta.ReorderLevel
+                    ? "ใกล้หมด"
+                    : string.Empty,
+            ThemeKey = themeKey,
+            ImagePath = NormalizeImagePath(product.ImageUrl, themeKey),
+            IsSoldOut = isSoldOut
         };
     }
+
+    private static string ResolveDescription(string? description, ProductMeta meta)
+    {
+        if (!string.IsNullOrWhiteSpace(meta.Tagline))
+        {
+            return meta.Tagline;
+        }
+
+        if (!string.IsNullOrWhiteSpace(meta.Notes))
+        {
+            return meta.Notes;
+        }
+
+        return string.IsNullOrWhiteSpace(description) || LooksLikeJson(description)
+            ? "สดใหม่จากครัวของร้านในทุกออเดอร์"
+            : description.Trim();
+    }
+
+    private static ProductMeta ParseProductMeta(string? description)
+    {
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            return new ProductMeta(string.Empty, string.Empty, DefaultReorderLevel);
+        }
+
+        try
+        {
+            var payload = JsonSerializer.Deserialize<ProductMetaStorage>(description);
+            if (payload is not null)
+            {
+                return new ProductMeta(
+                    payload.Tagline?.Trim() ?? string.Empty,
+                    payload.Notes?.Trim() ?? string.Empty,
+                    payload.ReorderLevel < 0 ? DefaultReorderLevel : payload.ReorderLevel);
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return new ProductMeta(string.Empty, string.Empty, DefaultReorderLevel);
+    }
+
+    private static bool LooksLikeJson(string value)
+    {
+        var trimmed = value.TrimStart();
+        return trimmed.StartsWith("{", StringComparison.Ordinal) || trimmed.StartsWith("[", StringComparison.Ordinal);
+    }
+
+    private static string ResolveThemeKey(string category, string name, string? imagePath)
+    {
+        var source = $"{category} {name} {imagePath}".ToLowerInvariant();
+
+        if (source.Contains("macaron"))
+        {
+            return "macaron";
+        }
+
+        if (source.Contains("berry") || source.Contains("blue") || source.Contains("cherry"))
+        {
+            return "berry";
+        }
+
+        if (source.Contains("milk"))
+        {
+            return "milk";
+        }
+
+        if (source.Contains("cream") || source.Contains("choux") || source.Contains("eclair"))
+        {
+            return "cream";
+        }
+
+        if (source.Contains("cake") || source.Contains("cheese"))
+        {
+            return "cake";
+        }
+
+        return "gold";
+    }
+
+    private static string NormalizeImagePath(string? imagePath, string themeKey)
+    {
+        if (string.IsNullOrWhiteSpace(imagePath))
+        {
+            return themeKey switch
+            {
+                "macaron" => "/images/theme-macaron.svg",
+                "berry" => "/images/theme-berry.svg",
+                "milk" => "/images/theme-milk.svg",
+                "cream" => "/images/theme-cream.svg",
+                "cake" => "/images/theme-cake.svg",
+                _ => "/images/theme-gold.svg"
+            };
+        }
+
+        var normalized = imagePath.Trim();
+        return normalized.StartsWith("~/", StringComparison.Ordinal)
+            ? "/" + normalized[2..]
+            : normalized;
+    }
+
+    private sealed class ProductMetaStorage
+    {
+        public string? Tagline { get; set; }
+
+        public string? Notes { get; set; }
+
+        public int ReorderLevel { get; set; } = DefaultReorderLevel;
+    }
+
+    private sealed record ProductMeta(string Tagline, string Notes, int ReorderLevel);
 }

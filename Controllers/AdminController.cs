@@ -207,27 +207,81 @@ public class AdminController : Controller
         return View(BuildProductsModel());
     }
 
+    [HttpGet]
+    public IActionResult Codes()
+    {
+        return View(BuildCodesModel());
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult SetProductVisibility(int productId, bool isPublished)
+    public IActionResult SetProductVisibility(int productId, string visibilityAction, string? visibilityNote)
     {
         var product = _inventoryCatalogService.GetItem(productId);
         if (product is null)
         {
+            if (IsAjaxRequest())
+            {
+                return NotFound(new { success = false, message = "ไม่พบสินค้าที่ต้องการอัปเดต" });
+            }
+
             TempData["SiteNotice"] = "ไม่พบสินค้าที่ต้องการอัปเดต";
             return RedirectToAction(nameof(Products));
         }
 
-        if (!_inventoryCatalogService.SetPublishedState(productId, isPublished))
+        var normalizedAction = (visibilityAction ?? string.Empty).Trim().ToLowerInvariant();
+        if (normalizedAction is not ("publish" or "hide"))
         {
+            if (IsAjaxRequest())
+            {
+                return BadRequest(new { success = false, message = "รูปแบบคำสั่งเปลี่ยนสถานะสินค้าไม่ถูกต้อง" });
+            }
+
+            TempData["SiteNotice"] = "รูปแบบคำสั่งเปลี่ยนสถานะสินค้าไม่ถูกต้อง";
+            return RedirectToAction(nameof(Products));
+        }
+
+        var isPublished = normalizedAction == "publish";
+        var normalizedNote = string.IsNullOrWhiteSpace(visibilityNote) ? string.Empty : visibilityNote.Trim();
+
+        if (!isPublished && string.IsNullOrWhiteSpace(normalizedNote))
+        {
+            if (IsAjaxRequest())
+            {
+                return BadRequest(new { success = false, message = "กรุณาระบุเหตุผลก่อนซ่อนสินค้าจากหน้าร้าน" });
+            }
+
+            TempData["SiteNotice"] = "กรุณาระบุเหตุผลก่อนซ่อนสินค้าจากหน้าร้าน";
+            return RedirectToAction(nameof(Products));
+        }
+
+        if (!_inventoryCatalogService.SetPublishedState(productId, isPublished, isPublished ? null : normalizedNote))
+        {
+            if (IsAjaxRequest())
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new { success = false, message = "อัปเดตสถานะสินค้าไม่สำเร็จ" });
+            }
+
             TempData["SiteNotice"] = "อัปเดตสถานะสินค้าไม่สำเร็จ";
             return RedirectToAction(nameof(Products));
         }
 
-        TempData["SiteNotice"] = isPublished
+        var updatedProduct = _inventoryCatalogService.GetItem(productId) ?? product;
+        var message = isPublished
             ? $"เปิดขายสินค้า {product.Name} บนหน้าร้านแล้ว"
             : $"ซ่อนสินค้า {product.Name} ออกจากหน้าร้านแล้ว";
 
+        if (IsAjaxRequest())
+        {
+            return Json(new
+            {
+                success = true,
+                message,
+                product = BuildProductVisibilityPayload(updatedProduct)
+            });
+        }
+
+        TempData["SiteNotice"] = message;
         return RedirectToAction(nameof(Products));
     }
 
@@ -235,6 +289,73 @@ public class AdminController : Controller
     public IActionResult Items()
     {
         return View(BuildItemsModel());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult AddCategory([Bind(Prefix = "CategoryForm")] AdminCategoryEditorViewModel form)
+    {
+        form.Name = NormalizeCategoryName(form.Name);
+
+        if (string.IsNullOrWhiteSpace(form.Name))
+        {
+            ModelState.AddModelError("CategoryForm.Name", "กรุณากรอกชื่อหมวดสินค้า");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            var validationMessage = GetFirstModelError() ?? "ไม่สามารถเพิ่มหมวดสินค้าได้";
+            if (IsAjaxRequest())
+            {
+                return BadRequest(new { success = false, message = validationMessage });
+            }
+
+            return View("Items", BuildItemsModel(categoryForm: form, activeModal: "category"));
+        }
+
+        var normalizedName = form.Name.ToUpperInvariant();
+        var existingCategory = _dbContext.Categories
+            .AsNoTracking()
+            .FirstOrDefault(category => category.Name.ToUpper() == normalizedName);
+
+        if (existingCategory is not null)
+        {
+            var existingMessage = $"หมวดสินค้า {existingCategory.Name} มีอยู่แล้ว";
+            if (IsAjaxRequest())
+            {
+                return Json(new
+                {
+                    success = true,
+                    message = existingMessage,
+                    categoryName = existingCategory.Name
+                });
+            }
+
+            TempData["SiteNotice"] = existingMessage;
+            return RedirectToAction(nameof(Items));
+        }
+
+        var category = new Category
+        {
+            Name = form.Name
+        };
+
+        _dbContext.Categories.Add(category);
+        _dbContext.SaveChanges();
+
+        var message = $"เพิ่มหมวดสินค้า {category.Name} เรียบร้อยแล้ว";
+        if (IsAjaxRequest())
+        {
+            return Json(new
+            {
+                success = true,
+                message,
+                categoryName = category.Name
+            });
+        }
+
+        TempData["SiteNotice"] = message;
+        return RedirectToAction(nameof(Items));
     }
 
     [HttpPost]
@@ -420,76 +541,41 @@ public class AdminController : Controller
     }
 
     [HttpGet]
-    public IActionResult Reports()
-    {
-        return RedirectToAction(nameof(Accounts));
-    }
-
-    [HttpGet]
     public IActionResult Profile()
     {
         return View(BuildProfileModel());
     }
 
-    private static AdminDashboardViewModel BuildDashboardModel()
+    private AdminDashboardViewModel BuildDashboardModel()
     {
+        var orders = _dbContext.Orders
+            .AsNoTracking()
+            .Include(order => order.OrderItems)
+            .OrderByDescending(order => order.CreatedAt)
+            .ToList();
+        var products = _dbContext.Products
+            .AsNoTracking()
+            .ToList();
+        var customers = _dbContext.Users
+            .AsNoTracking()
+            .Include(user => user.Role)
+            .Where(user => user.Role.RoleKey == "user")
+            .ToList();
+        var sevenDayRevenue = orders
+            .Where(order => order.CreatedAt.Date >= DateTime.Today.AddDays(-6))
+            .Sum(order => order.TotalAmount);
+
         return new AdminDashboardViewModel
         {
-            DateRangeLabel = "Jan 01 - Jan 28",
-            Metrics = BuildDashboardMetrics(),
-            DashboardBars =
-            [
-                new AdminChartPointViewModel { Label = "20", Value = 48 },
-                new AdminChartPointViewModel { Label = "22", Value = 72 },
-                new AdminChartPointViewModel { Label = "24", Value = 58 },
-                new AdminChartPointViewModel { Label = "26", Value = 64 },
-                new AdminChartPointViewModel { Label = "28", Value = 52 },
-                new AdminChartPointViewModel { Label = "30", Value = 66 },
-                new AdminChartPointViewModel { Label = "02", Value = 44 },
-                new AdminChartPointViewModel { Label = "04", Value = 78, IsHighlighted = true },
-                new AdminChartPointViewModel { Label = "06", Value = 57 },
-                new AdminChartPointViewModel { Label = "08", Value = 39 },
-                new AdminChartPointViewModel { Label = "10", Value = 54 },
-                new AdminChartPointViewModel { Label = "12", Value = 62 }
-            ],
-            CartRecoveryPercent = 38,
-            AbandonedCartCount = 720,
-            AbandonedRevenue = 5900,
-            DeviceRevenue =
-            [
-                new AdminDeviceRevenueViewModel { Label = "Desktop", Value = "$830.03", Share = "64.2%", AccentKey = "orange" },
-                new AdminDeviceRevenueViewModel { Label = "Mobile", Value = "$755.75", Share = "48.6%", AccentKey = "blue" },
-                new AdminDeviceRevenueViewModel { Label = "Tablet", Value = "$550.81", Share = "15.3%", AccentKey = "red" },
-                new AdminDeviceRevenueViewModel { Label = "Unknown", Value = "$150.84", Share = "8.6%", AccentKey = "purple" }
-            ],
-            StoreVisits = 8950,
-            Visitors = 1520,
-            TrafficLine =
-            [
-                new AdminChartPointViewModel { Label = "16", Value = 34 },
-                new AdminChartPointViewModel { Label = "18", Value = 26 },
-                new AdminChartPointViewModel { Label = "20", Value = 24 },
-                new AdminChartPointViewModel { Label = "22", Value = 40 },
-                new AdminChartPointViewModel { Label = "24", Value = 76, IsHighlighted = true },
-                new AdminChartPointViewModel { Label = "26", Value = 52 },
-                new AdminChartPointViewModel { Label = "28", Value = 30 },
-                new AdminChartPointViewModel { Label = "30", Value = 58 }
-            ],
-            Bestsellers =
-            [
-                new AdminBestsellerViewModel { Product = "Deco accessory", Price = "$21.19", Sold = "409", Profit = "$1822.87" },
-                new AdminBestsellerViewModel { Product = "Pottery Vase", Price = "$14.18", Sold = "396", Profit = "$8545.25" },
-                new AdminBestsellerViewModel { Product = "Rose Holdback", Price = "$18.15", Sold = "243", Profit = "$7287.01" },
-                new AdminBestsellerViewModel { Product = "Flowering Cactus", Price = "$74.16", Sold = "636", Profit = "$9325.47" }
-            ],
-            ForecastCards =
-            [
-                new AdminForecastCardViewModel { Label = "Revenue", Value = "+24.2%", Delta = "vs last period", PositiveTrend = true, AccentKey = "orange" },
-                new AdminForecastCardViewModel { Label = "Net Profit", Value = "-2.5%", Delta = "vs last period", PositiveTrend = false, AccentKey = "red" },
-                new AdminForecastCardViewModel { Label = "Orders", Value = "+32.8%", Delta = "vs last period", PositiveTrend = true, AccentKey = "green" },
-                new AdminForecastCardViewModel { Label = "Visitors", Value = "+60%", Delta = "vs last period", PositiveTrend = true, AccentKey = "gold" }
-            ],
-            LatestOrders = BuildDashboardOrders()
+            DateRangeLabel = $"Dashboard sync {DateTime.Now:dd MMM yyyy}",
+            Metrics = BuildDashboardMetrics(orders, products, customers),
+            TrendLabel = "Revenue (7 days)",
+            TrendValue = $"{sevenDayRevenue:0.##} ฿",
+            TrendDelta = $"{orders.Count(order => order.CreatedAt.Date >= DateTime.Today.AddDays(-6))} orders",
+            TrendChart = BuildDashboardTrendChart(orders),
+            SummaryItems = BuildOrderFulfillmentSummary(orders),
+            TopProducts = BuildDashboardTopProducts(orders),
+            LatestOrders = orders.Take(8).Select(MapOrder).ToList()
         };
     }
 
@@ -768,35 +854,22 @@ public class AdminController : Controller
         return orderNumber;
     }
 
-    private static AdminCustomersViewModel BuildCustomersModel()
+    private AdminCustomersViewModel BuildCustomersModel()
     {
+        var customers = _dbContext.Users
+            .AsNoTracking()
+            .Include(user => user.Role)
+            .Include(user => user.Orders)
+            .Where(user => user.Role.RoleKey == "user")
+            .OrderByDescending(user => user.LastActiveAt ?? user.CreatedAt)
+            .ThenBy(user => user.FullName)
+            .ToList();
+
         return new AdminCustomersViewModel
         {
-            DateRangeLabel = "Jan 01 - Jan 28",
-            Metrics = BuildDetailMetrics(),
-            CustomerName = "Connie Robertson",
-            Email = "victoriasimmmons@2020.com",
-            Segment = "VIP Customer",
-            SummaryItems =
-            [
-                new AdminInfoItemViewModel { Label = "Group", Value = "9,520", Detail = "Loyalty score" },
-                new AdminInfoItemViewModel { Label = "Location", Value = "Undefined, Minnesota 40 United States.", Detail = "Last seen online" },
-                new AdminInfoItemViewModel { Label = "First Order", Value = "September 30, 2019 1:49 PM", Detail = "Acquired from campaign" },
-                new AdminInfoItemViewModel { Label = "Latest Orders", Value = "February 14, 2020 7:52 AM", Detail = "High-value checkout" }
-            ],
-            RevenueLabel = "Revenue",
-            RevenueValue = "$2.5M",
-            RevenueDelta = "+12%",
-            RevenueChart = BuildRevenueChart(),
-            Orders =
-            [
-                new AdminLatestOrderViewModel { OrderId = "#32000200", Product = "Basket with handles", Quantity = "2", Date = "Jan 10, 2020", Revenue = "$253.82", NetProfit = "$60.76", Status = "Completed" },
-                new AdminLatestOrderViewModel { OrderId = "#32000201", Product = "Analog Table Clock", Quantity = "1", Date = "Sep 4, 2020", Revenue = "$556.24", NetProfit = "$66.41", Status = "Completed" },
-                new AdminLatestOrderViewModel { OrderId = "#32000202", Product = "Flower vase", Quantity = "3", Date = "Aug 30, 2020", Revenue = "$115.26", NetProfit = "$95.66", Status = "Completed" },
-                new AdminLatestOrderViewModel { OrderId = "#32000203", Product = "Deco accessory", Quantity = "3", Date = "Aug 29, 2020", Revenue = "$675.51", NetProfit = "$84.80", Status = "Completed" },
-                new AdminLatestOrderViewModel { OrderId = "#32000204", Product = "Pottery Vase", Quantity = "4", Date = "Dec 26, 2020", Revenue = "$910.71", NetProfit = "$46.52", Status = "Shipping" },
-                new AdminLatestOrderViewModel { OrderId = "#32000205", Product = "Rose Holdback", Quantity = "2", Date = "Apr 27, 2020", Revenue = "$897.90", NetProfit = "$81.54", Status = "Completed" }
-            ]
+            DateRangeLabel = $"Customer sync {DateTime.Now:dd MMM yyyy}",
+            Metrics = BuildCustomerMetrics(customers),
+            Customers = customers.Select(MapCustomer).ToList()
         };
     }
 
@@ -842,7 +915,7 @@ public class AdminController : Controller
         var accounts = _accountDirectoryService.GetAllAccounts();
         var statusOptions = _accountDirectoryService.GetStatuses();
         var addRoleOptions = BuildAddRoleOptions(currentRoleKey);
-        var editRoleOptions = BuildEditRoleOptions(currentRoleKey);
+        var editRoleOptions = addRoleOptions;
         var defaultRole = addRoleOptions.FirstOrDefault() ?? "User";
 
         return new AdminAccountsViewModel
@@ -870,12 +943,21 @@ public class AdminController : Controller
     }
 
     private AdminItemsPageViewModel BuildItemsModel(
+        AdminCategoryEditorViewModel? categoryForm = null,
         AdminItemEditorViewModel? addForm = null,
         AdminItemEditorViewModel? editForm = null,
         string activeModal = "")
     {
         var items = _inventoryCatalogService.GetAllItems();
-        var categories = BuildCategories(items, addForm?.Category, editForm?.Category);
+        var persistedCategories = _dbContext.Categories
+            .AsNoTracking()
+            .Select(category => category.Name)
+            .ToArray();
+        var categories = BuildCategories(
+            items,
+            persistedCategories
+                .Concat(new[] { addForm?.Category, editForm?.Category, categoryForm?.Name })
+                .ToArray());
         var imageOptions = BuildImageOptions(items, addForm?.ImagePath, editForm?.ImagePath);
 
         return new AdminItemsPageViewModel
@@ -885,6 +967,7 @@ public class AdminController : Controller
             Items = items.Select(MapInventoryItem).ToList(),
             Categories = categories,
             ImageOptions = imageOptions,
+            CategoryForm = categoryForm ?? new AdminCategoryEditorViewModel(),
             AddForm = addForm ?? new AdminItemEditorViewModel
             {
                 ReorderLevel = 10,
@@ -900,85 +983,220 @@ public class AdminController : Controller
         };
     }
 
-    private static AdminProfileViewModel BuildProfileModel()
+    private static AdminCodesViewModel BuildCodesModel()
     {
-        return new AdminProfileViewModel
+        IReadOnlyList<AdminPromotionRecordViewModel> promotions = [];
+
+        return new AdminCodesViewModel
         {
-            FullName = "Mad Bakery",
-            Role = "Store Administrator",
-            Email = "hello@madbakery.com",
-            Phone = "+66 98 765 4321",
-            Bio = "Oversees bakery storefront, order flow, customer care, and seasonal campaigns in one place.",
+            DateRangeLabel = $"แผนโปรโมชัน {DateTime.Now:dd MMM yyyy}",
+            Metrics =
+            [
+                new AdminMetricCardViewModel { Label = "รูปแบบโปร", Value = "5", Delta = "แถม, ลดราคา, ค่าส่ง, ช่วงเวลา, แต้มสะสม", PositiveTrend = true, AccentKey = "gold" },
+                new AdminMetricCardViewModel { Label = "กฎอัตโนมัติ", Value = "4", Delta = "ไม่ต้องกรอกโค้ดก็ทำงานได้", PositiveTrend = true, AccentKey = "green" },
+                new AdminMetricCardViewModel { Label = "ชุดแต้มสะสม", Value = "2", Delta = "รับแต้มและแลกของรางวัล", PositiveTrend = true, AccentKey = "blue" },
+                new AdminMetricCardViewModel { Label = "การผูกกับออเดอร์", Value = "พร้อม", Delta = "รองรับหลายโปรในออเดอร์เดียว", PositiveTrend = true, AccentKey = "orange" }
+            ],
+            Blueprints =
+            [
+                new AdminCodeBlueprintViewModel
+                {
+                    Kicker = "โปรรายสัปดาห์",
+                    Title = "ซื้อ 1 แถม 1 ทุกวันอังคาร",
+                    Description = "ใช้กฎ buy x get y และกำหนด weekday mask เฉพาะวันอังคารได้",
+                    Tags = ["ซื้อ 1 แถม 1", "วันอังคาร", "อัตโนมัติ"],
+                    AccentKey = "gold"
+                },
+                new AdminCodeBlueprintViewModel
+                {
+                    Kicker = "โปรตามจำนวนชิ้น",
+                    Title = "ซื้อครบ 3 ชิ้น ลด 15%",
+                    Description = "ตั้ง min item quantity และ percent discount เพื่อทำโปรตามจำนวนชิ้นได้",
+                    Tags = ["3 ชิ้น", "15%", "ตามเงื่อนไขตะกร้า"],
+                    AccentKey = "pink"
+                },
+                new AdminCodeBlueprintViewModel
+                {
+                    Kicker = "โปรค่าส่ง",
+                    Title = "ซื้อครบ 100 ฿ ส่งฟรี",
+                    Description = "กำหนดขั้นต่ำของออเดอร์แล้วให้ลดค่าส่งทั้งก้อนได้โดยอัตโนมัติ",
+                    Tags = ["100 ฿", "ส่งฟรี", "ยอดรวมออเดอร์"],
+                    AccentKey = "blue"
+                },
+                new AdminCodeBlueprintViewModel
+                {
+                    Kicker = "โปรตามเวลา",
+                    Title = "ลดทั้งร้าน 50% เวลา 19:00-20:00",
+                    Description = "รองรับโปรรายวันแบบ time window ด้วย daily start/end time และ storewide scope",
+                    Tags = ["50%", "19:00-20:00", "ช่วงเวลารายวัน"],
+                    AccentKey = "gold"
+                },
+                new AdminCodeBlueprintViewModel
+                {
+                    Kicker = "แต้มสะสม",
+                    Title = "ซื้อครบ 20 ฿ ได้ 10 แต้ม แลกฟรี 1 ชิ้นเมื่อครบ 100 แต้ม",
+                    Description = "ใช้ wallet + points ledger แยกกับ promotion rules เพื่อคิดแต้มและแลกรางวัลได้",
+                    Tags = ["10 แต้ม", "แลก 100 แต้ม", "ขนมฟรี 1 ชิ้น"],
+                    AccentKey = "blue"
+                }
+            ],
             SummaryItems =
             [
-                new AdminInfoItemViewModel { Label = "Managed Orders", Value = "920", Detail = "This month" },
-                new AdminInfoItemViewModel { Label = "Products Live", Value = "48", Detail = "Across all categories" },
-                new AdminInfoItemViewModel { Label = "Campaigns", Value = "12", Detail = "Currently active" },
-                new AdminInfoItemViewModel { Label = "Response Rate", Value = "98%", Detail = "Customer messages handled" }
+                new AdminInfoItemViewModel { Label = "ตัวกระตุ้น", Value = "5", Detail = "ขั้นต่ำ, จำนวนชิ้น, วัน, เวลา, แต้มสะสม", AccentKey = "gold" },
+                new AdminInfoItemViewModel { Label = "รูปแบบรางวัล", Value = "5", Detail = "เปอร์เซ็นต์, จำนวนเงิน, ค่าส่ง, ของแถม, แต้ม", AccentKey = "blue" },
+                new AdminInfoItemViewModel { Label = "บันทึกต่อออเดอร์", Value = "พร้อม", Detail = "แยก order_promotions สำหรับหลายโปรในบิลเดียว", AccentKey = "green" },
+                new AdminInfoItemViewModel { Label = "กระเป๋าแต้มและ ledger", Value = "พร้อม", Detail = "เก็บยอดแต้มปัจจุบันและประวัติการเคลื่อนไหวแยกกัน", AccentKey = "orange" }
             ],
-            PreferenceItems =
+            Promotions = promotions
+        };
+    }
+
+    private AdminProfileViewModel BuildProfileModel()
+    {
+        var currentAdminId = GetCurrentAdminAccountId();
+        var adminAccount = currentAdminId <= 0
+            ? null
+            : _dbContext.Users
+                .AsNoTracking()
+                .Include(user => user.Role)
+                .FirstOrDefault(user => user.Id == currentAdminId);
+        var customerCount = _dbContext.Users
+            .AsNoTracking()
+            .Include(user => user.Role)
+            .Count(user => user.Role.RoleKey == "user");
+
+        return new AdminProfileViewModel
+        {
+            AccountCode = adminAccount is null ? "-" : $"ACC-{adminAccount.Id:0000}",
+            FullName = adminAccount?.FullName
+                ?? (HttpContext.Session.GetString(AdminPortalAuth.SessionAccountNameKey) ?? "Bakery Team"),
+            Role = FormatRoleLabel(
+                adminAccount?.Role?.RoleName,
+                adminAccount?.Role?.RoleKey,
+                HttpContext.Session.GetString(AdminPortalAuth.SessionAccountRoleLabelKey)),
+            Email = adminAccount?.Email ?? "-",
+            Phone = string.IsNullOrWhiteSpace(adminAccount?.Phone) ? "-" : adminAccount!.Phone!,
+            Status = adminAccount is null ? "Unknown" : FormatStatusLabel(adminAccount.Status),
+            LastActiveLabel = adminAccount is null
+                ? "-"
+                : FormatLastActive(adminAccount.LastActiveAt ?? adminAccount.CreatedAt),
+            Notes = string.IsNullOrWhiteSpace(adminAccount?.Notes) ? "ไม่มีหมายเหตุในระบบ" : adminAccount!.Notes!,
+            SummaryItems =
             [
-                new AdminInfoItemViewModel { Label = "Theme", Value = "Pink & Cream", Detail = "Bakery brand palette" },
-                new AdminInfoItemViewModel { Label = "Primary Role", Value = "Owner access", Detail = "Full dashboard visibility" },
-                new AdminInfoItemViewModel { Label = "Notifications", Value = "Orders, stock, campaigns", Detail = "Realtime summary" },
-                new AdminInfoItemViewModel { Label = "Last Session", Value = "Today, 09:15 AM", Detail = "Bangkok timezone" }
+                new AdminInfoItemViewModel { Label = "Orders in system", Value = _dbContext.Orders.AsNoTracking().Count().ToString(), Detail = "ทุกออเดอร์ที่อยู่ในฐานข้อมูล", AccentKey = "orange" },
+                new AdminInfoItemViewModel { Label = "Products live", Value = _dbContext.Products.AsNoTracking().Count(product => product.IsActive).ToString(), Detail = "สินค้าที่เปิดขายบนหน้าร้าน", AccentKey = "green" },
+                new AdminInfoItemViewModel { Label = "Registered users", Value = customerCount.ToString(), Detail = "บัญชีลูกค้าที่สมัครแล้ว", AccentKey = "blue" },
+                new AdminInfoItemViewModel { Label = "Contact messages", Value = _dbContext.ContactMessages.AsNoTracking().Count().ToString(), Detail = "ข้อความที่เข้ามาจากหน้าเว็บไซต์", AccentKey = "gold" }
             ]
         };
     }
 
-    private static IReadOnlyList<AdminMetricCardViewModel> BuildDashboardMetrics()
+    private static IReadOnlyList<AdminMetricCardViewModel> BuildDashboardMetrics(
+        IReadOnlyList<Order> orders,
+        IReadOnlyList<Product> products,
+        IReadOnlyList<User> customers)
     {
+        var totalRevenue = orders.Sum(order => order.TotalAmount);
+        var deliveredOrders = orders.Count(order => NormalizeOrderStatus(order.OrderStatus) == "delivered");
+        var activeCustomers = customers.Count(customer => NormalizeStatusKey(customer.Status) == "active");
+        var liveProducts = products.Count(product => product.IsActive);
+        var lowStockCount = products.Count(product => product.IsActive && product.StockQty > 0 && product.StockQty <= 10);
+
         return
         [
-            new AdminMetricCardViewModel { Label = "Revenue", Value = "$7,825", Delta = "+22%", PositiveTrend = true, AccentKey = "orange" },
-            new AdminMetricCardViewModel { Label = "Orders", Value = "920", Delta = "-25%", PositiveTrend = false, AccentKey = "red" },
-            new AdminMetricCardViewModel { Label = "Visitors", Value = "15.5K", Delta = "+49%", PositiveTrend = true, AccentKey = "green" },
-            new AdminMetricCardViewModel { Label = "Conversion", Value = "28%", Delta = "+1.9%", PositiveTrend = true, AccentKey = "gold" }
+            new AdminMetricCardViewModel { Label = "Revenue", Value = $"{totalRevenue:0.##} ฿", Delta = $"{orders.Count} orders total", PositiveTrend = totalRevenue > 0, AccentKey = "orange" },
+            new AdminMetricCardViewModel { Label = "Delivered", Value = deliveredOrders.ToString(), Delta = $"{orders.Count - deliveredOrders} still open", PositiveTrend = deliveredOrders > 0, AccentKey = "green" },
+            new AdminMetricCardViewModel { Label = "Customers", Value = customers.Count.ToString(), Delta = $"{activeCustomers} active accounts", PositiveTrend = activeCustomers > 0, AccentKey = "blue" },
+            new AdminMetricCardViewModel { Label = "Live Products", Value = liveProducts.ToString(), Delta = $"{lowStockCount} low stock", PositiveTrend = liveProducts > 0, AccentKey = "gold" }
         ];
     }
 
-    private static IReadOnlyList<AdminMetricCardViewModel> BuildDetailMetrics()
+    private static IReadOnlyList<AdminChartPointViewModel> BuildDashboardTrendChart(IReadOnlyList<Order> orders)
     {
+        var startDate = DateTime.Today.AddDays(-6);
+        var days = Enumerable.Range(0, 7)
+            .Select(offset => startDate.AddDays(offset))
+            .ToList();
+        var revenues = days
+            .Select(day => orders
+                .Where(order => order.CreatedAt.Date == day.Date)
+                .Sum(order => order.TotalAmount))
+            .ToList();
+        var maxRevenue = revenues.DefaultIfEmpty(0).Max();
+
+        return days
+            .Select((day, index) => new AdminChartPointViewModel
+            {
+                Label = day.ToString("dd"),
+                Value = maxRevenue == 0
+                    ? 12
+                    : Math.Max(12, (int)Math.Round((double)(revenues[index] / maxRevenue) * 100)),
+                IsHighlighted = day.Date == DateTime.Today
+            })
+            .ToList();
+    }
+
+    private static IReadOnlyList<AdminDashboardTopProductViewModel> BuildDashboardTopProducts(IReadOnlyList<Order> orders)
+    {
+        return orders
+            .SelectMany(order => order.OrderItems)
+            .GroupBy(item => item.ProductName)
+            .Select(group => new
+            {
+                Name = group.Key,
+                UnitsSold = group.Sum(item => item.Qty),
+                Revenue = group.Sum(item => item.LineTotal)
+            })
+            .OrderByDescending(item => item.Revenue)
+            .ThenByDescending(item => item.UnitsSold)
+            .Take(5)
+            .Select(item => new AdminDashboardTopProductViewModel
+            {
+                Name = item.Name,
+                UnitsSoldLabel = $"{item.UnitsSold:N0} sold",
+                RevenueLabel = $"{item.Revenue:0.##} ฿"
+            })
+            .ToList();
+    }
+
+    private static IReadOnlyList<AdminMetricCardViewModel> BuildCustomerMetrics(IReadOnlyList<User> customers)
+    {
+        var activeCount = customers.Count(customer => NormalizeStatusKey(customer.Status) == "active");
+        var orderingCustomers = customers.Count(customer => customer.Orders.Count > 0);
+        var totalRevenue = customers.Sum(customer => customer.Orders.Sum(order => order.TotalAmount));
+
         return
         [
-            new AdminMetricCardViewModel { Label = "Revenue", Value = "$75,620", Delta = "+22%", PositiveTrend = true, AccentKey = "orange" },
-            new AdminMetricCardViewModel { Label = "Orders Paid", Value = "520", Delta = "+5.7%", PositiveTrend = true, AccentKey = "green" },
-            new AdminMetricCardViewModel { Label = "Refunds", Value = "7,283", Delta = "18%", PositiveTrend = false, AccentKey = "red" },
-            new AdminMetricCardViewModel { Label = "Net Profit", Value = "28%", Delta = "+12%", PositiveTrend = true, AccentKey = "gold" }
+            new AdminMetricCardViewModel { Label = "Customers", Value = customers.Count.ToString(), Delta = $"{orderingCustomers} with orders", PositiveTrend = customers.Count > 0, AccentKey = "orange" },
+            new AdminMetricCardViewModel { Label = "Active", Value = activeCount.ToString(), Delta = $"{customers.Count - activeCount} need review", PositiveTrend = activeCount > 0, AccentKey = "green" },
+            new AdminMetricCardViewModel { Label = "Revenue", Value = $"{totalRevenue:0.##} ฿", Delta = "รวมยอดซื้อจากลูกค้าทั้งหมด", PositiveTrend = totalRevenue > 0, AccentKey = "gold" },
+            new AdminMetricCardViewModel { Label = "No Orders Yet", Value = (customers.Count - orderingCustomers).ToString(), Delta = "กลุ่มที่ยังไม่เคยสั่งซื้อ", PositiveTrend = orderingCustomers == customers.Count, AccentKey = "blue" }
         ];
     }
 
-    private static IReadOnlyList<AdminChartPointViewModel> BuildRevenueChart()
+    private static AdminCustomerRecordViewModel MapCustomer(User customer)
     {
-        return
-        [
-            new AdminChartPointViewModel { Label = "16", Value = 36 },
-            new AdminChartPointViewModel { Label = "18", Value = 42 },
-            new AdminChartPointViewModel { Label = "20", Value = 48 },
-            new AdminChartPointViewModel { Label = "22", Value = 54 },
-            new AdminChartPointViewModel { Label = "24", Value = 77, IsHighlighted = true },
-            new AdminChartPointViewModel { Label = "26", Value = 68 },
-            new AdminChartPointViewModel { Label = "28", Value = 58 },
-            new AdminChartPointViewModel { Label = "30", Value = 66 },
-            new AdminChartPointViewModel { Label = "02", Value = 49 }
-        ];
-    }
+        var orderCount = customer.Orders.Count;
+        var totalSpend = customer.Orders.Sum(order => order.TotalAmount);
+        var lastOrderAt = customer.Orders
+            .OrderByDescending(order => order.CreatedAt)
+            .Select(order => (DateTime?)order.CreatedAt)
+            .FirstOrDefault();
 
-    private static IReadOnlyList<AdminLatestOrderViewModel> BuildDashboardOrders()
-    {
-        return
-        [
-            new AdminLatestOrderViewModel { Product = "Analog Table Clock", Quantity = "x2", Date = "Feb 5, 2020", Revenue = "$253.82", NetProfit = "$60.76", Status = "Pending" },
-            new AdminLatestOrderViewModel { Product = "Basket with handles", Quantity = "x3", Date = "Sep 8, 2020", Revenue = "$556.24", NetProfit = "$66.41", Status = "Shipping" },
-            new AdminLatestOrderViewModel { Product = "Flower vase", Quantity = "x3", Date = "Dec 21, 2020", Revenue = "$115.26", NetProfit = "$95.66", Status = "Refund" },
-            new AdminLatestOrderViewModel { Product = "Deco accessory", Quantity = "x2", Date = "Aug 13, 2020", Revenue = "$675.51", NetProfit = "$84.80", Status = "Completed" },
-            new AdminLatestOrderViewModel { Product = "Pottery Vase", Quantity = "x2", Date = "May 8, 2020", Revenue = "$910.71", NetProfit = "$46.52", Status = "Shipping" },
-            new AdminLatestOrderViewModel { Product = "Rose Holdback", Quantity = "x4", Date = "Nov 15, 2020", Revenue = "$897.90", NetProfit = "$81.54", Status = "Completed" },
-            new AdminLatestOrderViewModel { Product = "Table Lamp", Quantity = "x4", Date = "Sep 14, 2020", Revenue = "$563.43", NetProfit = "$17.46", Status = "Pending" },
-            new AdminLatestOrderViewModel { Product = "Wall Clock", Quantity = "x3", Date = "May 15, 2020", Revenue = "$883.96", NetProfit = "$43.08", Status = "Refund" },
-            new AdminLatestOrderViewModel { Product = "Flowering Cactus", Quantity = "x2", Date = "Sep 2, 2020", Revenue = "$162.15", NetProfit = "$86.65", Status = "Completed" },
-            new AdminLatestOrderViewModel { Product = "Shell Collection", Quantity = "x4", Date = "Sep 20, 2020", Revenue = "$378.34", NetProfit = "$49.08", Status = "Completed" }
-        ];
+        return new AdminCustomerRecordViewModel
+        {
+            CustomerId = customer.Id,
+            CustomerCode = $"CUS-{customer.Id:0000}",
+            FullName = customer.FullName,
+            Email = customer.Email,
+            PhoneNumber = string.IsNullOrWhiteSpace(customer.Phone) ? "-" : customer.Phone,
+            Status = FormatStatusLabel(customer.Status),
+            StatusKey = NormalizeStatusKey(customer.Status),
+            OrderCountLabel = orderCount == 1 ? "1 order" : $"{orderCount} orders",
+            TotalSpendLabel = $"{totalSpend:0.##} ฿",
+            LastOrderLabel = lastOrderAt.HasValue ? lastOrderAt.Value.ToString("dd MMM yyyy") : "ยังไม่มีออเดอร์",
+            LastActiveLabel = FormatLastActive(customer.LastActiveAt ?? customer.CreatedAt)
+        };
     }
 
     private static InventoryItemInput CreateInventoryInput(AdminItemEditorViewModel form)
@@ -1040,6 +1258,53 @@ public class AdminController : Controller
         return HttpContext.Session.GetString(AdminPortalAuth.SessionAccountRoleKey)?.Trim().ToLowerInvariant() ?? string.Empty;
     }
 
+    private int GetCurrentAdminAccountId()
+    {
+        return int.TryParse(HttpContext.Session.GetString(AdminPortalAuth.SessionAccountIdKey), out var accountId)
+            ? accountId
+            : 0;
+    }
+
+    private static string NormalizeStatusKey(string? status)
+    {
+        return (status ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "suspended" => "suspended",
+            "closed" => "closed",
+            _ => "active"
+        };
+    }
+
+    private static string FormatStatusLabel(string? status)
+    {
+        return NormalizeStatusKey(status) switch
+        {
+            "suspended" => "Suspended",
+            "closed" => "Closed",
+            _ => "Active"
+        };
+    }
+
+    private static string FormatRoleLabel(string? roleName, string? roleKey, string? fallbackLabel = null)
+    {
+        var source = !string.IsNullOrWhiteSpace(roleName)
+            ? roleName
+            : !string.IsNullOrWhiteSpace(fallbackLabel)
+                ? fallbackLabel
+                : roleKey;
+
+        return (source ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "owner" => "Owner",
+            "admin" => "Admin",
+            "manager" => "Manager",
+            "support" => "Support",
+            "staff" => "Staff",
+            "user" => "User",
+            _ => string.IsNullOrWhiteSpace(source) ? "Staff" : source!.Trim()
+        };
+    }
+
     private static IReadOnlyList<AdminMetricCardViewModel> BuildProductMetrics(IReadOnlyList<AdminProductShowcaseViewModel> products)
     {
         var publishedCount = products.Count(product => product.IsPublished);
@@ -1093,6 +1358,7 @@ public class AdminController : Controller
             Name = item.Name,
             Category = item.Category,
             Tagline = item.Tagline,
+            Notes = item.Notes,
             ImagePath = item.ImagePath,
             PriceLabel = $"{item.Price:0.##} ฿",
             StockLabel = $"Stock {item.StockQuantity:N0}",
@@ -1115,16 +1381,28 @@ public class AdminController : Controller
                string.Equals(requestedWith.ToString(), "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static object BuildProductVisibilityPayload(InventoryItemRecord item)
+    {
+        var isPublished = item.IsPublished;
+
+        return new
+        {
+            productId = item.ItemId,
+            isPublished,
+            visibilityLabel = isPublished ? "Live" : "Hidden",
+            visibilityKey = isPublished ? "green" : "gold",
+            publishedCopy = isPublished ? "แสดงบนหน้าร้านและเลือกขายได้" : "ซ่อนจากหน้าร้านชั่วคราว",
+            notes = item.Notes,
+            buttonLabel = isPublished ? "Hide From Store" : "Publish To Store",
+            nextAction = isPublished ? "hide" : "publish"
+        };
+    }
+
     private static IReadOnlyList<string> BuildAddRoleOptions(string currentRoleKey)
     {
         return AdminPortalAuth.CanCreateStaffAccounts(currentRoleKey)
             ? ["User", "Staff"]
             : ["User"];
-    }
-
-    private static IReadOnlyList<string> BuildEditRoleOptions(string currentRoleKey)
-    {
-        return BuildAddRoleOptions(currentRoleKey);
     }
 
     private static bool CanAssignRole(string currentRoleKey, string requestedRole)
@@ -1167,6 +1445,7 @@ public class AdminController : Controller
             Status = account.Status,
             StatusKey = account.Status.ToLowerInvariant(),
             LastActive = FormatLastActive(account.LastActiveAt),
+            LastActiveSort = account.LastActiveAt.Ticks,
             Notes = account.Notes
         };
     }
@@ -1208,12 +1487,14 @@ public class AdminController : Controller
             Tagline = item.Tagline,
             Notes = item.Notes,
             ImagePath = item.ImagePath,
+            PriceAmount = item.Price,
             PriceLabel = $"{item.Price:0.##} ฿",
             StockQuantity = item.StockQuantity,
             ReorderLevel = item.ReorderLevel,
             StatusLabel = status.Label,
             StatusKey = status.Key,
             UpdatedAtLabel = item.UpdatedAt.ToString("dd MMM yyyy, HH:mm"),
+            UpdatedAtSort = item.UpdatedAt.Ticks,
             IsPublished = item.IsPublished
         };
     }
@@ -1241,6 +1522,21 @@ public class AdminController : Controller
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(category => category, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static string NormalizeCategoryName(string? categoryName)
+    {
+        return string.IsNullOrWhiteSpace(categoryName)
+            ? string.Empty
+            : string.Join(" ", categoryName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    private string? GetFirstModelError()
+    {
+        return ModelState.Values
+            .SelectMany(entry => entry.Errors)
+            .Select(error => error.ErrorMessage)
+            .FirstOrDefault(message => !string.IsNullOrWhiteSpace(message));
     }
 
     private static IReadOnlyList<string> BuildImageOptions(IReadOnlyList<InventoryItemRecord> items, params string?[] extraImagePaths)

@@ -2,6 +2,7 @@
 
 @{
     ViewData["Title"] = "หน้าแรก";
+    var heroProducts = Model.Products.Take(3).ToList();
 }
 
 <section class="store-hero">
@@ -13,18 +14,13 @@
                     <img src="@Url.Content("~/images/hero-bakery.svg")" alt="Bakery collection" class="hero-main-image" />
 
                     <div class="hero-sweet-board">
-                        <article class="hero-sweet-card theme-cake">
-                            <strong>Strawberry Cake</strong>
-                            <span>ครีมนุ่มละมุน</span>
-                        </article>
-                        <article class="hero-sweet-card theme-macaron">
-                            <strong>Rose Macaron</strong>
-                            <span>เหมาะกับกล่องของขวัญ</span>
-                        </article>
-                        <article class="hero-sweet-card theme-gold">
-                            <strong>Butter Croissant</strong>
-                            <span>อบใหม่ทุกเช้า</span>
-                        </article>
+                        @foreach (var heroProduct in heroProducts)
+                        {
+                            <article class="hero-sweet-card theme-@heroProduct.ThemeKey">
+                                <strong>@heroProduct.Name</strong>
+                                <span>@heroProduct.Category</span>
+                            </article>
+                        }
                     </div>
                 </div>
             </div>
@@ -34,8 +30,8 @@
                 <p class="store-brand-label">One Man Vekery</p>
                 <h1>รวมขนมหวานของร้านไว้ในที่เดียว</h1>
                 <p>
-                    เค้ก มาการอง ชูครีม และขนมอบสดในโทนชมพู-ขาว
-                    ปรับ layout ให้ใกล้กับดีไซน์ใน PDF แต่เปลี่ยนเนื้อหาให้เป็นร้านเบเกอรี่ของเรา
+                    รวมสินค้าที่เปิดขายจริงจากระบบไว้ในหน้าเดียว
+                    เลือกดูหมวดที่พร้อมขาย เพิ่มลงตะกร้า และสั่งซื้อได้ทันทีจากหน้าร้าน
                 </p>
                 <a class="btn store-primary-btn" asp-action="Shop">สั่งซื้อเลย</a>
             </div>
@@ -119,8 +115,8 @@
     <div class="container bakery-container">
         <div class="inspiration-layout">
             <div class="inspiration-copy">
-                <h2>ไอเดียจัดโต๊ะขนมมากกว่า 50 แบบ</h2>
-                <p>จัดโต๊ะขนมให้ดูละมุนขึ้นด้วยชุดมาการอง เค้กผลไม้ และขนมอบสดในโทนชมพู-ครีมแบบร้านของเรา</p>
+                <h2>เมนูที่กำลังถูกหยิบดูบนหน้าร้าน</h2>
+                <p>บล็อกนี้ดึงจากสินค้าที่เปิดขายจริงในระบบ เพื่อให้เห็นเมนูเด่นของร้านในตอนนี้</p>
                 <a class="btn store-primary-btn" asp-action="About">ดูเพิ่มเติม</a>
             </div>
 

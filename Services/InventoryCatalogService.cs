@@ -16,7 +16,7 @@ public interface IInventoryCatalogService
 
     bool UpdateItem(int itemId, InventoryItemInput input);
 
-    bool SetPublishedState(int itemId, bool isPublished);
+    bool SetPublishedState(int itemId, bool isPublished, string? visibilityNote = null);
 
     bool AdjustStock(int itemId, int quantityDelta);
 }
@@ -165,7 +165,7 @@ public sealed class DbInventoryCatalogService : IInventoryCatalogService
         return true;
     }
 
-    public bool SetPublishedState(int itemId, bool isPublished)
+    public bool SetPublishedState(int itemId, bool isPublished, string? visibilityNote = null)
     {
         var product = _dbContext.Products.FirstOrDefault(item => item.Id == itemId);
         if (product is null)
@@ -174,6 +174,13 @@ public sealed class DbInventoryCatalogService : IInventoryCatalogService
         }
 
         product.IsActive = isPublished;
+
+        if (visibilityNote is not null)
+        {
+            var meta = ParseInventoryMeta(product.Description);
+            product.Description = SerializeInventoryMeta(new InventoryMeta(meta.Tagline, NormalizeText(visibilityNote), meta.ReorderLevel));
+        }
+
         _dbContext.SaveChanges();
         return true;
     }
@@ -245,6 +252,18 @@ public sealed class DbInventoryCatalogService : IInventoryCatalogService
     }
 
     private static string SerializeInventoryMeta(InventoryItemInput input)
+    {
+        var payload = new InventoryMetaStorage
+        {
+            Tagline = NormalizeText(input.Tagline),
+            Notes = NormalizeText(input.Notes),
+            ReorderLevel = Math.Max(0, input.ReorderLevel)
+        };
+
+        return JsonSerializer.Serialize(payload);
+    }
+
+    private static string SerializeInventoryMeta(InventoryMeta input)
     {
         var payload = new InventoryMetaStorage
         {

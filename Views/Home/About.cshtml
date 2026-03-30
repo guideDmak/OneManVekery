@@ -23,19 +23,16 @@
         <div class="about-story-grid">
             <div class="about-story-copy">
                 <p class="section-overline">เรื่องราวของเรา</p>
-                <h2>อบขนมในบรรยากาศชมพูละมุน</h2>
-                <p>
-                    One Man Vekery เป็นร้านขนมที่อยากให้ทุกหน้าของเว็บรู้สึกละมุนแบบเดียวกับกล่องขนมของร้าน
-                    เราเลยใช้เส้นสายเรียบ ๆ แบบดีไซน์ใน PDF แล้วแปลงให้กลายเป็นแบรนด์เบเกอรี่โทนชมพู-ขาว
-                </p>
-                <p>
-                    ตั้งใจให้ลูกค้าเข้ามาเลือกขนมง่าย เห็นเมนูชัด ราคาอ่านง่าย และรู้สึกถึงความอบอุ่นของร้านตั้งแต่หน้าแรกจนถึงการติดต่อกลับ
-                </p>
+                <h2>@Model.StoryTitle</h2>
+                @foreach (var paragraph in Model.StoryParagraphs)
+                {
+                    <p>@paragraph</p>
+                }
             </div>
 
             <div class="about-story-card">
-                <p>“ขนมเรียบง่าย แต่พิเศษได้ในทุกกล่อง”</p>
-                <span>แนวคิดหลักของเค้ก มาการอง และชุดเบเกอรี่ประจำวันของร้าน</span>
+                <p>@Model.Quote</p>
+                <span>@Model.QuoteCaption</span>
             </div>
         </div>
     </div>

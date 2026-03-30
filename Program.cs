@@ -6,11 +6,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.Configure<StorefrontContentOptions>(builder.Configuration.GetSection("Storefront"));
 builder.Services.AddDbContext<OneManVekeryDBContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("OneManVekeryDb")));
 builder.Services.AddScoped<IInventoryCatalogService, DbInventoryCatalogService>();
 builder.Services.AddScoped<IAccountDirectoryService, DbAccountDirectoryService>();
-builder.Services.AddSingleton<IStoreCatalogService, InMemoryStoreCatalogService>();
+builder.Services.AddScoped<IStoreCatalogService, DbStoreCatalogService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>

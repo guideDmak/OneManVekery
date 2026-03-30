@@ -14,15 +14,6 @@
     var topProduct = topProducts.FirstOrDefault();
 }
 
-<section class="admin-page-banner admin-page-banner-compact">
-    <div>
-        <p class="admin-page-kicker">Products</p>
-        <h2>Storefront products</h2>
-        <span>Products = สิ่งที่เปิดขายบนหน้าร้าน ส่วน Items = ฝั่งสต็อกและข้อมูลหลังบ้าน</span>
-    </div>
-    <a class="admin-product-link-button" asp-action="Items">Open Items</a>
-</section>
-
 <section class="admin-metrics-grid">
     @foreach (var metric in Model.Metrics)
     {
@@ -50,7 +41,7 @@
                 <div class="admin-card-head admin-card-head-stack">
                     <div>
                         <p class="admin-page-kicker">Top Product</p>
-                        <h3>No sales data yet</h3>
+                        <h3>ยังไม่มีข้อมูลยอดขาย</h3>
                         <span>เมื่อมีคำสั่งซื้อจริง สินค้าขายดีจะขึ้นในส่วนนี้อัตโนมัติ</span>
                     </div>
                 </div>
@@ -64,18 +55,16 @@
                 <div class="admin-product-spotlight-head">
                     <div>
                         <p class="admin-page-kicker">Top Product</p>
-                        <h3>@topProduct.Name</h3>
-                        <span>@topProduct.Category</span>
                     </div>
                     <span class="admin-status-badge @($"is-{topProduct.VisibilityKey}")">@topProduct.VisibilityLabel</span>
                 </div>
 
-                @if (!string.IsNullOrWhiteSpace(topProduct.Tagline))
-                {
-                    <p class="admin-product-spotlight-caption">@topProduct.Tagline</p>
-                }
-
-                <div class="admin-product-spotlight-stats">
+                <div class="admin-product-spotlight-stats admin-product-spotlight-stats-wide">
+                    <div class="admin-summary-row">
+                        <small>Price</small>
+                        <strong>@topProduct.PriceLabel</strong>
+                        <span>ราคาปัจจุบันบนหน้าร้าน</span>
+                    </div>
                     <div class="admin-summary-row">
                         <small>Revenue</small>
                         <strong>@topProduct.RevenueLabel</strong>
@@ -86,6 +75,11 @@
                         <strong>@topProduct.SalesLabel</strong>
                         <span>@topProduct.PublishedCopy</span>
                     </div>
+                </div>
+
+                <div class="admin-product-chart-head">
+                    <h4>Sales Ranking</h4>
+                    <span>อันดับตามรายได้รวมของออเดอร์จริง</span>
                 </div>
 
                 <div class="admin-product-top-chart">
@@ -119,34 +113,34 @@
         </div>
     </article>
 
-    <article class="admin-card admin-product-guide-card">
+    <article class="admin-card admin-product-status-card">
         <div class="admin-card-head admin-card-head-stack">
             <div>
-                <h2>Products vs Items</h2>
-                <p>Products ใช้คุมการแสดงผลและการเปิดขายบนหน้าร้าน ส่วน Items ใช้คุม stock, SKU, และข้อมูลหลังบ้าน</p>
+                <p class="admin-page-kicker">Catalog Status</p>
+                <h2>Storefront Health</h2>
+                <p>ภาพรวมสินค้าที่แสดงบนหน้าร้านในตอนนี้</p>
             </div>
         </div>
 
-        <div class="admin-summary-list">
+        <div class="admin-product-health-grid">
             @foreach (var item in Model.SummaryItems)
             {
-                <div class="admin-summary-row">
-                    <div>
-                        <small>@item.Label</small>
-                        <strong>@item.Value</strong>
-                    </div>
+                <article class="admin-product-health-item @($"is-{item.AccentKey}")">
+                    <small>@item.Label</small>
+                    <strong>@item.Value</strong>
                     <span>@item.Detail</span>
-                </div>
+                </article>
             }
         </div>
 
-        <div class="admin-readonly-note admin-product-guide-note">
-            ถ้าต้องแก้ stock, SKU หรือข้อมูลสินค้าเชิงลึก ให้ไปที่หน้า <strong>Items</strong> แต่ถ้าจะเปิดขายหรือซ่อนจากหน้าร้าน ให้ทำจากหน้านี้
+        <div class="admin-product-status-actions">
+            <a class="admin-product-link-button" asp-action="Items">Open Items</a>
+            <p>แก้ stock, SKU, ราคา และรูปสินค้าได้ที่หน้า Items</p>
         </div>
     </article>
 </section>
 
-<section class="admin-orders-section">
+<section class="admin-orders-section" data-admin-products>
     <article class="admin-card">
         <div class="admin-card-head admin-card-head-stack">
             <div>
@@ -167,7 +161,11 @@
             <div class="admin-products-grid">
                 @foreach (var product in Model.Products)
                 {
-                    <article class="admin-card admin-product-showcase-card">
+                    <article class="admin-card admin-product-showcase-card"
+                             data-product-card
+                             data-product-id="@product.ProductId"
+                             data-product-name="@product.Name"
+                             data-product-notes="@product.Notes">
                         <div class="admin-product-showcase-media">
                             <img src="@Url.Content(product.ImagePath)"
                                  alt="@product.Name"
@@ -181,13 +179,10 @@
                                     <p class="admin-item-card-code">@product.ProductCode</p>
                                     <h3>@product.Name</h3>
                                 </div>
-                                <span class="admin-status-badge @($"is-{product.VisibilityKey}")">@product.VisibilityLabel</span>
+                                <span class="admin-status-badge @($"is-{product.VisibilityKey}")" data-product-visibility-badge>@product.VisibilityLabel</span>
                             </div>
 
-                            @if (!string.IsNullOrWhiteSpace(product.Tagline))
-                            {
-                                <p class="admin-product-showcase-caption">@product.Tagline</p>
-                            }
+                            <p class="admin-product-showcase-caption">@(string.IsNullOrWhiteSpace(product.Tagline) ? "\u00A0" : product.Tagline)</p>
 
                             <div class="admin-item-meta-row">
                                 <span class="admin-item-meta-chip">@product.Category</span>
@@ -204,16 +199,19 @@
                                 <div class="admin-summary-row">
                                     <small>Units Sold</small>
                                     <strong>@product.SalesLabel</strong>
-                                    <span>@product.PublishedCopy</span>
+                                    <span data-product-published-copy>@product.PublishedCopy</span>
                                 </div>
                             </div>
 
                             <div class="admin-product-showcase-footer">
-                                <form asp-action="SetProductVisibility" method="post" class="admin-product-visibility-form">
+                                <form asp-action="SetProductVisibility" method="post" class="admin-product-visibility-form" data-product-visibility-form>
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="productId" value="@product.ProductId" />
-                                    <input type="hidden" name="isPublished" value="@(!product.IsPublished).ToString().ToLowerInvariant()" />
-                                    <button type="submit" class="@(product.IsPublished ? "admin-secondary-button" : "admin-primary-button")">
+                                    <input type="hidden" name="visibilityAction" value="@(product.IsPublished ? "hide" : "publish")" data-visibility-action-input />
+                                    <input type="hidden" name="visibilityNote" value="@product.Notes" data-visibility-note-input />
+                                    <button type="submit"
+                                            class="@(product.IsPublished ? "admin-secondary-button" : "admin-primary-button")"
+                                            data-visibility-submit>
                                         @(product.IsPublished ? "Hide From Store" : "Publish To Store")
                                     </button>
                                 </form>
@@ -227,3 +225,41 @@
         }
     </article>
 </section>
+
+<div class="modal fade admin-modal" id="productHideReasonModal" tabindex="-1" aria-labelledby="productHideReasonModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <p class="admin-modal-kicker">Hide Product</p>
+                    <h2 class="modal-title" id="productHideReasonModalLabel">Reason For Hiding</h2>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <form class="admin-item-form" data-product-hide-reason-form>
+                    <div class="admin-readonly-note" data-product-hide-target>
+                        ระบุเหตุผลก่อนซ่อนสินค้านี้จากหน้าร้าน
+                    </div>
+
+                    <div class="admin-form-grid">
+                        <div class="admin-form-span-full">
+                            <label for="ProductHideReasonInput" class="form-label">Hide reason</label>
+                            <textarea id="ProductHideReasonInput"
+                                      class="form-control bakery-field bakery-field-area admin-field-area"
+                                      placeholder="เช่น ปรับสูตรใหม่, สินค้าหมดชั่วคราว, หยุดขายช่วงนี้"
+                                      data-product-hide-reason-input></textarea>
+                            <span class="text-danger small" data-product-hide-validation></span>
+                        </div>
+                    </div>
+
+                    <div class="admin-form-actions">
+                        <button type="button" class="admin-secondary-button" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="admin-primary-button" data-product-hide-confirm>Hide From Store</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

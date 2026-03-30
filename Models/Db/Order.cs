@@ -33,7 +33,25 @@ public partial class Order
 
     public DateTime CreatedAt { get; set; }
 
+    public int? PromoCodeId { get; set; }
+
+    public string? DiscountCode { get; set; }
+
+    public decimal DiscountAmount { get; set; }
+
+    public decimal ShippingDiscountAmount { get; set; }
+
+    public int PointsEarned { get; set; }
+
+    public int PointsRedeemed { get; set; }
+
+    public virtual ICollection<LoyaltyPointsLedger> LoyaltyPointsLedgers { get; set; } = new List<LoyaltyPointsLedger>();
+
     public virtual ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+
+    public virtual ICollection<OrderPromotion> OrderPromotions { get; set; } = new List<OrderPromotion>();
+
+    public virtual PromoCode? PromoCode { get; set; }
 
     public virtual User? User { get; set; }
 }

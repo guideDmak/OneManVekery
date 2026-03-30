@@ -12,8 +12,6 @@ public interface IStoreCartService
 
     bool AddItem(string productId, int quantity = 1);
 
-    bool UpdateQuantity(string productId, int quantity);
-
     bool ChangeQuantity(string productId, int delta);
 
     bool RemoveItem(string productId);
@@ -120,7 +118,7 @@ public sealed class SessionStoreCartService : IStoreCartService
         return true;
     }
 
-    public bool UpdateQuantity(string productId, int quantity)
+    private bool UpdateQuantity(string productId, int quantity)
     {
         var items = ReadItems();
         var index = items.FindIndex(item => string.Equals(item.ProductId, productId, StringComparison.OrdinalIgnoreCase));

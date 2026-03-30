@@ -37,7 +37,20 @@ const adminItemsRoot = document.querySelector("[data-admin-items]");
 if (adminItemsRoot && window.bootstrap) {
   const addModalElement = document.getElementById("addItemModal");
   const editModalElement = document.getElementById("editItemModal");
+  const categoryModalElement = document.getElementById("addCategoryModal");
+  const categoryListElement = document.getElementById("adminItemCategories");
   const adminMainWrap = document.querySelector(".admin-main-wrap");
+  const itemsGridElement = adminItemsRoot.querySelector("[data-items-grid]");
+  const itemCards = [...adminItemsRoot.querySelectorAll("[data-item-card]")];
+  const itemsSearchInput = adminItemsRoot.querySelector("[data-items-search]");
+  const itemsCategoryFilter = adminItemsRoot.querySelector("[data-items-category-filter]");
+  const itemsSortSelect = adminItemsRoot.querySelector("[data-items-sort]");
+  const itemsEmptyState = adminItemsRoot.querySelector("[data-items-empty-state]");
+  const itemsResultsLabel = adminItemsRoot.querySelector("[data-items-results-label]");
+  const totalItemCount = itemCards.length;
+  let pendingReturnModalId = "";
+  let shouldRestoreReturnModal = false;
+  let applyItemFiltersAndSort = () => {};
 
   const setFieldValue = (id, value) => {
     const field = document.getElementById(id);
@@ -87,6 +100,94 @@ if (adminItemsRoot && window.bootstrap) {
     notice.classList.toggle("is-error", isError);
   };
 
+  const setCategoryValidation = (message = "") => {
+    const validationElement = categoryModalElement?.querySelector("[data-category-validation]");
+    if (!validationElement) {
+      return;
+    }
+
+    validationElement.textContent = message;
+  };
+
+  const appendCategoryOption = (categoryName) => {
+    if (!categoryListElement || !categoryName) {
+      return;
+    }
+
+    const hasExistingOption = [...categoryListElement.querySelectorAll("option")]
+      .some((option) => (option.value || "").trim().toLowerCase() === categoryName.trim().toLowerCase());
+
+    if (hasExistingOption) {
+      return;
+    }
+
+    const option = document.createElement("option");
+    option.value = categoryName;
+    categoryListElement.append(option);
+
+    if (itemsCategoryFilter instanceof HTMLSelectElement) {
+      const hasExistingSelectOption = [...itemsCategoryFilter.options]
+        .some((selectOption) => (selectOption.value || "").trim().toLowerCase() === categoryName.trim().toLowerCase());
+
+      if (!hasExistingSelectOption) {
+        const selectOption = document.createElement("option");
+        selectOption.value = categoryName;
+        selectOption.textContent = categoryName;
+        itemsCategoryFilter.append(selectOption);
+      }
+    }
+  };
+
+  const restorePreviousModal = () => {
+    if (!shouldRestoreReturnModal || !pendingReturnModalId) {
+      pendingReturnModalId = "";
+      shouldRestoreReturnModal = false;
+      return;
+    }
+
+    const returnModalElement = document.getElementById(pendingReturnModalId);
+    pendingReturnModalId = "";
+    shouldRestoreReturnModal = false;
+
+    if (returnModalElement) {
+      window.bootstrap.Modal.getOrCreateInstance(returnModalElement).show();
+    }
+  };
+
+  const openCategoryModal = (trigger) => {
+    if (!(categoryModalElement instanceof HTMLElement)) {
+      return;
+    }
+
+    const targetFieldId = trigger?.dataset.categoryTarget || "";
+    const returnModalId = trigger?.dataset.returnModalId || "";
+    const targetField = targetFieldId ? document.getElementById(targetFieldId) : null;
+
+    setFieldValue("CategoryForm_TargetFieldId", targetFieldId);
+    setFieldValue("CategoryForm_ReturnModalId", returnModalId);
+    setFieldValue("CategoryForm_Name", targetField instanceof HTMLInputElement ? targetField.value : "");
+    setCategoryValidation("");
+
+    pendingReturnModalId = returnModalId;
+    shouldRestoreReturnModal = !!returnModalId;
+
+    if (returnModalId) {
+      const returnModalElement = document.getElementById(returnModalId);
+      if (returnModalElement) {
+        const showCategoryAfterHide = () => {
+          returnModalElement.removeEventListener("hidden.bs.modal", showCategoryAfterHide);
+          window.bootstrap.Modal.getOrCreateInstance(categoryModalElement).show();
+        };
+
+        returnModalElement.addEventListener("hidden.bs.modal", showCategoryAfterHide);
+        window.bootstrap.Modal.getOrCreateInstance(returnModalElement).hide();
+        return;
+      }
+    }
+
+    window.bootstrap.Modal.getOrCreateInstance(categoryModalElement).show();
+  };
+
   const updateStockCard = (card, item) => {
     if (!(card instanceof HTMLElement) || !item) {
       return;
@@ -101,6 +202,9 @@ if (adminItemsRoot && window.bootstrap) {
     if (stockCount) {
       stockCount.textContent = item.stockQuantity ?? 0;
     }
+
+    card.dataset.stock = String(item.stockQuantity ?? 0);
+    card.dataset.updatedAt = String(Date.now());
 
     if (statusBadge) {
       statusBadge.textContent = item.statusLabel ?? "";
@@ -119,6 +223,81 @@ if (adminItemsRoot && window.bootstrap) {
       editButton.dataset.stockQuantity = String(item.stockQuantity ?? 0);
     }
   };
+
+  const getSortableNumber = (value) => {
+    const parsedValue = Number.parseFloat(value || "0");
+    return Number.isFinite(parsedValue) ? parsedValue : 0;
+  };
+
+  const compareText = (leftValue, rightValue) => leftValue.localeCompare(rightValue, "th", { sensitivity: "base" });
+
+  applyItemFiltersAndSort = () => {
+    if (!itemsGridElement) {
+      return;
+    }
+
+    const searchTerm = (itemsSearchInput?.value || "").trim().toLowerCase();
+    const selectedCategory = (itemsCategoryFilter?.value || "all").trim().toLowerCase();
+    const sortKey = itemsSortSelect?.value || "name-asc";
+
+    const visibleCards = [];
+    const hiddenCards = [];
+
+    itemCards.forEach((card) => {
+      const name = (card.dataset.name || "").trim();
+      const category = (card.dataset.category || "").trim();
+      const sku = (card.dataset.sku || "").trim();
+      const searchableText = `${name} ${category} ${sku}`.toLowerCase();
+      const matchesSearch = !searchTerm || searchableText.includes(searchTerm);
+      const matchesCategory = selectedCategory === "all" || category.toLowerCase() === selectedCategory;
+      const isVisible = matchesSearch && matchesCategory;
+
+      card.classList.toggle("is-hidden", !isVisible);
+
+      if (isVisible) {
+        visibleCards.push(card);
+      } else {
+        hiddenCards.push(card);
+      }
+    });
+
+    visibleCards.sort((leftCard, rightCard) => {
+      switch (sortKey) {
+        case "name-desc":
+          return compareText(rightCard.dataset.name || "", leftCard.dataset.name || "");
+        case "price-desc":
+          return getSortableNumber(rightCard.dataset.price) - getSortableNumber(leftCard.dataset.price);
+        case "price-asc":
+          return getSortableNumber(leftCard.dataset.price) - getSortableNumber(rightCard.dataset.price);
+        case "stock-desc":
+          return getSortableNumber(rightCard.dataset.stock) - getSortableNumber(leftCard.dataset.stock);
+        case "stock-asc":
+          return getSortableNumber(leftCard.dataset.stock) - getSortableNumber(rightCard.dataset.stock);
+        case "updated-desc":
+          return getSortableNumber(rightCard.dataset.updatedAt) - getSortableNumber(leftCard.dataset.updatedAt);
+        default:
+          return compareText(leftCard.dataset.name || "", rightCard.dataset.name || "");
+      }
+    });
+
+    [...visibleCards, ...hiddenCards].forEach((card) => {
+      itemsGridElement.append(card);
+    });
+
+    if (itemsEmptyState) {
+      itemsEmptyState.classList.toggle("d-none", visibleCards.length > 0);
+    }
+
+    if (itemsResultsLabel) {
+      itemsResultsLabel.textContent = visibleCards.length === totalItemCount
+        ? `${totalItemCount} รายการ`
+        : `แสดง ${visibleCards.length} จาก ${totalItemCount} รายการ`;
+    }
+  };
+
+  itemsSearchInput?.addEventListener("input", applyItemFiltersAndSort);
+  itemsCategoryFilter?.addEventListener("change", applyItemFiltersAndSort);
+  itemsSortSelect?.addEventListener("change", applyItemFiltersAndSort);
 
   const submitStockAdjustment = async (formElement, submitter) => {
     const quantityInput = formElement.querySelector("[data-stock-amount]");
@@ -184,6 +363,7 @@ if (adminItemsRoot && window.bootstrap) {
       }
 
       updateStockCard(formElement.closest("[data-item-card]"), payload.item);
+      applyItemFiltersAndSort();
       showAdminNotice(payload.message || "อัปเดตสต็อกแล้ว");
     } catch {
       controls.forEach((control) => {
@@ -219,6 +399,80 @@ if (adminItemsRoot && window.bootstrap) {
     });
   });
 
+  document.querySelectorAll("[data-open-category-modal]").forEach((buttonElement) => {
+    if (!(buttonElement instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    buttonElement.addEventListener("click", () => {
+      openCategoryModal(buttonElement);
+    });
+  });
+
+  const categoryFormElement = categoryModalElement?.querySelector("[data-add-category-form]");
+  categoryFormElement?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    if (!(categoryFormElement instanceof HTMLFormElement)) {
+      return;
+    }
+
+    const submitButton = categoryFormElement.querySelector("[data-category-submit]");
+    if (!(submitButton instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    setCategoryValidation("");
+
+    const formData = new FormData(categoryFormElement);
+    submitButton.disabled = true;
+
+    try {
+      const response = await fetch(categoryFormElement.action, {
+        method: categoryFormElement.method || "post",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          Accept: "application/json"
+        },
+        body: formData
+      });
+
+      const payload = await response.json().catch(() => null);
+      submitButton.disabled = false;
+
+      if (!response.ok || !payload?.success) {
+        const message = payload?.message || "ไม่สามารถเพิ่มหมวดสินค้าได้";
+        setCategoryValidation(message);
+        showAdminNotice(message, true);
+        return;
+      }
+
+      appendCategoryOption(payload.categoryName);
+
+      const targetFieldId = (categoryFormElement.querySelector("#CategoryForm_TargetFieldId")?.value || "").trim();
+      const targetField = targetFieldId ? document.getElementById(targetFieldId) : null;
+      if (targetField instanceof HTMLInputElement && payload.categoryName) {
+        targetField.value = payload.categoryName;
+        targetField.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+
+      showAdminNotice(payload.message || "เพิ่มหมวดสินค้าแล้ว");
+      window.bootstrap.Modal.getOrCreateInstance(categoryModalElement).hide();
+    } catch {
+      submitButton.disabled = false;
+      setCategoryValidation("เพิ่มหมวดสินค้าไม่สำเร็จ ลองใหม่อีกครั้ง");
+      showAdminNotice("เพิ่มหมวดสินค้าไม่สำเร็จ ลองใหม่อีกครั้ง", true);
+    }
+  });
+
+  categoryModalElement?.addEventListener("hidden.bs.modal", () => {
+    setCategoryValidation("");
+    setFieldValue("CategoryForm_Name", "");
+    setFieldValue("CategoryForm_TargetFieldId", "");
+    setFieldValue("CategoryForm_ReturnModalId", "");
+    restorePreviousModal();
+  });
+
   editModalElement?.addEventListener("show.bs.modal", (event) => {
     const trigger = event.relatedTarget;
     if (!(trigger instanceof HTMLElement) || !trigger.dataset.itemId) {
@@ -248,6 +502,218 @@ if (adminItemsRoot && window.bootstrap) {
   if (activeModal === "edit" && editModalElement) {
     window.bootstrap.Modal.getOrCreateInstance(editModalElement).show();
   }
+
+  if (activeModal === "category" && categoryModalElement) {
+    window.bootstrap.Modal.getOrCreateInstance(categoryModalElement).show();
+  }
+
+  applyItemFiltersAndSort();
+}
+
+const adminProductsRoot = document.querySelector("[data-admin-products]");
+
+if (adminProductsRoot) {
+  const adminMainWrap = document.querySelector(".admin-main-wrap");
+  const hideReasonModalElement = document.getElementById("productHideReasonModal");
+  const hideReasonFormElement = hideReasonModalElement?.querySelector("[data-product-hide-reason-form]");
+  const hideReasonInput = hideReasonModalElement?.querySelector("[data-product-hide-reason-input]");
+  const hideReasonValidation = hideReasonModalElement?.querySelector("[data-product-hide-validation]");
+  const hideReasonTarget = hideReasonModalElement?.querySelector("[data-product-hide-target]");
+  let pendingHideForm = null;
+
+  const getOrCreateProductsNotice = () => {
+    let notice = document.querySelector(".admin-site-notice");
+    if (notice) {
+      return notice;
+    }
+
+    notice = document.createElement("div");
+    notice.className = "site-notice admin-site-notice";
+    notice.setAttribute("role", "status");
+
+    const topbar = adminMainWrap?.querySelector(".admin-topbar");
+    if (adminMainWrap && topbar) {
+      adminMainWrap.insertBefore(notice, topbar);
+      return notice;
+    }
+
+    adminProductsRoot.prepend(notice);
+    return notice;
+  };
+
+  const showProductsNotice = (message, isError = false) => {
+    if (!message) {
+      return;
+    }
+
+    const notice = getOrCreateProductsNotice();
+    notice.textContent = message;
+    notice.classList.toggle("is-error", isError);
+  };
+
+  const setHideReasonValidation = (message = "") => {
+    if (hideReasonValidation) {
+      hideReasonValidation.textContent = message;
+    }
+  };
+
+  const submitVisibilityForm = async (formElement) => {
+    const submitButton = formElement.querySelector("[data-visibility-submit]");
+    if (!(submitButton instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    const originalDisabled = submitButton.disabled;
+    const formData = new FormData(formElement);
+    submitButton.disabled = true;
+
+    try {
+      const response = await fetch(formElement.action, {
+        method: formElement.method || "post",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          Accept: "application/json"
+        },
+        body: formData
+      });
+
+      const payload = await response.json().catch(() => null);
+      submitButton.disabled = originalDisabled;
+
+      if (!response.ok || !payload?.success) {
+        return {
+          success: false,
+          message: payload?.message || "อัปเดตสถานะสินค้าไม่สำเร็จ"
+        };
+      }
+
+      updateProductCard(formElement.closest("[data-product-card]"), payload.product);
+      return {
+        success: true,
+        message: payload.message || "อัปเดตสถานะสินค้าแล้ว"
+      };
+    } catch {
+      submitButton.disabled = originalDisabled;
+      return {
+        success: false,
+        message: "อัปเดตสถานะสินค้าไม่สำเร็จ ลองใหม่อีกครั้ง"
+      };
+    }
+  };
+
+  const updateProductCard = (card, product) => {
+    if (!(card instanceof HTMLElement) || !product) {
+      return;
+    }
+
+    const badge = card.querySelector("[data-product-visibility-badge]");
+    const publishedCopy = card.querySelector("[data-product-published-copy]");
+    const actionInput = card.querySelector("[data-visibility-action-input]");
+    const noteInput = card.querySelector("[data-visibility-note-input]");
+    const submitButton = card.querySelector("[data-visibility-submit]");
+
+    if (badge) {
+      badge.textContent = product.visibilityLabel ?? "";
+      badge.className = `admin-status-badge is-${product.visibilityKey || "gold"}`;
+    }
+
+    if (publishedCopy) {
+      publishedCopy.textContent = product.publishedCopy ?? "";
+    }
+
+    if (actionInput instanceof HTMLInputElement) {
+      actionInput.value = product.nextAction ?? "publish";
+    }
+
+    if (noteInput instanceof HTMLInputElement) {
+      noteInput.value = product.notes ?? "";
+    }
+
+    card.dataset.productNotes = product.notes ?? "";
+
+    if (submitButton instanceof HTMLButtonElement) {
+      submitButton.textContent = product.buttonLabel ?? "Update Visibility";
+      submitButton.classList.toggle("admin-primary-button", !product.isPublished);
+      submitButton.classList.toggle("admin-secondary-button", !!product.isPublished);
+    }
+  };
+
+  adminProductsRoot.querySelectorAll("[data-product-visibility-form]").forEach((formElement) => {
+    if (!(formElement instanceof HTMLFormElement)) {
+      return;
+    }
+
+    formElement.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const actionInput = formElement.querySelector("[data-visibility-action-input]");
+      const nextAction = actionInput instanceof HTMLInputElement ? (actionInput.value || "").trim().toLowerCase() : "";
+
+      if (nextAction === "hide" && hideReasonModalElement && hideReasonInput instanceof HTMLTextAreaElement) {
+        pendingHideForm = formElement;
+        const productCard = formElement.closest("[data-product-card]");
+        const productName = productCard?.dataset.productName || "สินค้านี้";
+        const existingNote = productCard?.dataset.productNotes || "";
+        hideReasonInput.value = existingNote;
+        setHideReasonValidation("");
+
+        if (hideReasonTarget) {
+          hideReasonTarget.innerHTML = `ระบุเหตุผลก่อนซ่อน <strong>${productName}</strong> จากหน้าร้าน`;
+        }
+
+        window.bootstrap.Modal.getOrCreateInstance(hideReasonModalElement).show();
+        return;
+      }
+
+      const result = await submitVisibilityForm(formElement);
+      showProductsNotice(result.message, !result.success);
+    });
+  });
+
+  hideReasonFormElement?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    if (!(pendingHideForm instanceof HTMLFormElement) || !(hideReasonInput instanceof HTMLTextAreaElement) || !hideReasonModalElement) {
+      return;
+    }
+
+    const reason = (hideReasonInput.value || "").trim();
+    if (!reason) {
+      setHideReasonValidation("กรุณาระบุเหตุผลก่อนซ่อนสินค้าจากหน้าร้าน");
+      hideReasonInput.focus();
+      return;
+    }
+
+    const noteInput = pendingHideForm.querySelector("[data-visibility-note-input]");
+    if (noteInput instanceof HTMLInputElement) {
+      noteInput.value = reason;
+    }
+
+    setHideReasonValidation("");
+    const result = await submitVisibilityForm(pendingHideForm);
+
+    if (!result.success) {
+      setHideReasonValidation(result.message);
+      showProductsNotice(result.message, true);
+      return;
+    }
+
+    showProductsNotice(result.message);
+    window.bootstrap.Modal.getOrCreateInstance(hideReasonModalElement).hide();
+  });
+
+  hideReasonModalElement?.addEventListener("hidden.bs.modal", () => {
+    pendingHideForm = null;
+    if (hideReasonInput instanceof HTMLTextAreaElement) {
+      hideReasonInput.value = "";
+    }
+
+    setHideReasonValidation("");
+
+    if (hideReasonTarget) {
+      hideReasonTarget.textContent = "ระบุเหตุผลก่อนซ่อนสินค้านี้จากหน้าร้าน";
+    }
+  });
 }
 
 const adminAccountsRoot = document.querySelector("[data-admin-accounts]");
@@ -258,9 +724,15 @@ if (adminAccountsRoot && window.bootstrap) {
   const canChangeRoles = adminAccountsRoot.dataset.canChangeRoles === "true";
   const searchForm = adminAccountsRoot.querySelector("[data-account-search-form]");
   const searchInput = adminAccountsRoot.querySelector("[data-account-search-input]");
+  const roleFilter = adminAccountsRoot.querySelector("[data-account-role-filter]");
+  const statusFilter = adminAccountsRoot.querySelector("[data-account-status-filter]");
+  const sortSelect = adminAccountsRoot.querySelector("[data-account-sort]");
   const searchResetButton = adminAccountsRoot.querySelector("[data-account-search-reset]");
   const searchRows = [...adminAccountsRoot.querySelectorAll("[data-account-row]")];
+  const tableBody = adminAccountsRoot.querySelector("[data-account-table-body]");
   const searchEmptyState = adminAccountsRoot.querySelector("[data-account-search-empty]");
+  const resultsLabel = adminAccountsRoot.querySelector("[data-account-results-label]");
+  const totalAccountCount = searchRows.length;
 
   const setAccountFieldValue = (id, value) => {
     const field = document.getElementById(id);
@@ -295,24 +767,71 @@ if (adminAccountsRoot && window.bootstrap) {
       return;
     }
 
-    field.value = value ?? "";
+      field.value = value ?? "";
+  };
+
+  const compareAccountText = (leftValue, rightValue) =>
+    leftValue.localeCompare(rightValue, "th", { sensitivity: "base" });
+
+  const getAccountNumber = (value) => {
+    const parsedValue = Number.parseInt(value || "0", 10);
+    return Number.isFinite(parsedValue) ? parsedValue : 0;
   };
 
   const filterAccountRows = () => {
     const keyword = (searchInput?.value || "").trim().toLowerCase();
-    let visibleCount = 0;
+    const selectedRole = (roleFilter?.value || "all").trim().toLowerCase();
+    const selectedStatus = (statusFilter?.value || "all").trim().toLowerCase();
+    const sortKey = sortSelect?.value || "last-active-desc";
+    const visibleRows = [];
+    const hiddenRows = [];
 
     searchRows.forEach((row) => {
       const haystack = (row.dataset.accountSearch || "").toLowerCase();
-      const isVisible = !keyword || haystack.includes(keyword);
+      const rowRole = (row.dataset.accountRole || "").trim().toLowerCase();
+      const rowStatus = (row.dataset.accountStatus || "").trim().toLowerCase();
+      const matchesKeyword = !keyword || haystack.includes(keyword);
+      const matchesRole = selectedRole === "all" || rowRole === selectedRole;
+      const matchesStatus = selectedStatus === "all" || rowStatus === selectedStatus;
+      const isVisible = matchesKeyword && matchesRole && matchesStatus;
 
       row.classList.toggle("d-none", !isVisible);
       if (isVisible) {
-        visibleCount += 1;
+        visibleRows.push(row);
+      } else {
+        hiddenRows.push(row);
       }
     });
 
-    searchEmptyState?.classList.toggle("d-none", visibleCount > 0);
+    visibleRows.sort((leftRow, rightRow) => {
+      switch (sortKey) {
+        case "name-asc":
+          return compareAccountText(leftRow.dataset.accountName || "", rightRow.dataset.accountName || "");
+        case "name-desc":
+          return compareAccountText(rightRow.dataset.accountName || "", leftRow.dataset.accountName || "");
+        case "role-asc":
+          return compareAccountText(leftRow.dataset.accountRole || "", rightRow.dataset.accountRole || "");
+        case "status-asc":
+          return compareAccountText(leftRow.dataset.accountStatus || "", rightRow.dataset.accountStatus || "");
+        case "last-active-desc":
+        default:
+          return getAccountNumber(rightRow.dataset.accountLastActive) - getAccountNumber(leftRow.dataset.accountLastActive);
+      }
+    });
+
+    if (tableBody) {
+      [...visibleRows, ...hiddenRows].forEach((row) => {
+        tableBody.append(row);
+      });
+    }
+
+    searchEmptyState?.classList.toggle("d-none", visibleRows.length > 0);
+
+    if (resultsLabel) {
+      resultsLabel.textContent = visibleRows.length === totalAccountCount
+        ? `${totalAccountCount} รายการ`
+        : `แสดง ${visibleRows.length} จาก ${totalAccountCount} รายการ`;
+    }
   };
 
   searchForm?.addEventListener("submit", (event) => {
@@ -321,11 +840,26 @@ if (adminAccountsRoot && window.bootstrap) {
   });
 
   searchInput?.addEventListener("input", filterAccountRows);
+  roleFilter?.addEventListener("change", filterAccountRows);
+  statusFilter?.addEventListener("change", filterAccountRows);
+  sortSelect?.addEventListener("change", filterAccountRows);
 
   searchResetButton?.addEventListener("click", () => {
     if (searchInput instanceof HTMLInputElement) {
       searchInput.value = "";
       searchInput.focus();
+    }
+
+    if (roleFilter instanceof HTMLSelectElement) {
+      roleFilter.value = "all";
+    }
+
+    if (statusFilter instanceof HTMLSelectElement) {
+      statusFilter.value = "all";
+    }
+
+    if (sortSelect instanceof HTMLSelectElement) {
+      sortSelect.value = "last-active-desc";
     }
 
     filterAccountRows();
@@ -357,6 +891,8 @@ if (adminAccountsRoot && window.bootstrap) {
   if (activeModal === "account-edit" && editAccountModalElement) {
     window.bootstrap.Modal.getOrCreateInstance(editAccountModalElement).show();
   }
+
+  filterAccountRows();
 }
 
 const adminOrdersRoot = document.querySelector("[data-admin-orders]");

@@ -1,9 +1,11 @@
 ﻿@inject OneManVekery.Services.IStoreCartService CartService
+@inject Microsoft.Extensions.Options.IOptions<OneManVekery.Services.StorefrontContentOptions> StorefrontContentOptionsAccessor
 
 @{
     var hideChrome = ViewData["HideChrome"] is bool value && value;
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
     var cartCount = hideChrome ? 0 : CartService.GetItemCount();
+    var layoutContent = StorefrontContentOptionsAccessor.Value.Layout ?? new OneManVekery.Services.StorefrontLayoutOptions();
 }
 
 <!DOCTYPE html>
@@ -30,7 +32,7 @@
                         <span class="bakery-brand-mark">OV</span>
                         <span>
                             One Man Vekery
-                            <small>ร้านขนมโทนชมพูละมุน</small>
+                            <small>@layoutContent.BrandTagline</small>
                         </span>
                     </a>
                     <button class="navbar-toggler bakery-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#bakeryNav" aria-controls="bakeryNav"
@@ -88,7 +90,7 @@
                 <div class="site-footer-grid">
                     <div class="site-footer-brand">
                         <p class="site-footer-title">One Man Vekery.</p>
-                        <p>123 Pink Bakery Lane, Bangkok 10200, Thailand</p>
+                        <p>@layoutContent.FooterAddress</p>
                     </div>
 
                     <div>
@@ -102,13 +104,14 @@
 
                     <div>
                         <p class="site-footer-label">ช่วยเหลือ</p>
-                        <span>วิธีชำระเงิน</span>
-                        <span>การคืนสินค้า</span>
-                        <span>นโยบายความเป็นส่วนตัว</span>
+                        @foreach (var helpItem in layoutContent.HelpItems)
+                        {
+                            <span>@helpItem</span>
+                        }
                     </div>
 
                     <div>
-                        <p class="site-footer-label">ข่าวสารร้าน</p>
+                        <p class="site-footer-label">@layoutContent.NewsletterTitle</p>
                         <form class="site-footer-newsletter">
                             <input type="email" class="form-control bakery-field" placeholder="กรอกอีเมลของคุณ" />
                             <button type="button" class="btn store-inline-btn">ติดตาม</button>

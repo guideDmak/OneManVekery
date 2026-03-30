@@ -26,19 +26,24 @@
     }
 </section>
 
-<section class="admin-overview-grid">
-    <article class="admin-card admin-chart-card">
+<section class="admin-orders-page-grid">
+    <article class="admin-card admin-large-chart-card">
         <div class="admin-card-head">
-            <h2>Dashboard</h2>
-            <a href="#">Advanced Report</a>
+            <div>
+                <h2>@Model.TrendLabel</h2>
+                <div class="admin-chart-value">
+                    <strong>@Model.TrendValue</strong>
+                    <span class="is-positive">@Model.TrendDelta</span>
+                </div>
+            </div>
         </div>
 
-        <div class="admin-bar-chart">
-            @foreach (var point in Model.DashboardBars)
+        <div class="admin-orders-chart">
+            @foreach (var point in Model.TrendChart)
             {
-                <div class="admin-bar-column">
-                    <div class="admin-bar-track">
-                        <span class="admin-bar @(point.IsHighlighted ? "is-highlighted" : string.Empty)" style="height:@($"{point.Value}%")"></span>
+                <div class="admin-orders-chart-column">
+                    <div class="admin-orders-chart-track">
+                        <span class="admin-orders-chart-bar @(point.IsHighlighted ? "is-highlighted" : string.Empty)" style="height:@($"{point.Value}%")"></span>
                     </div>
                     <small>@point.Label</small>
                 </div>
@@ -46,93 +51,19 @@
         </div>
     </article>
 
-    <article class="admin-card admin-side-stat-card">
+    <article class="admin-card admin-status-summary-card">
         <div class="admin-card-head">
-            <h2>Cart</h2>
-            <button type="button">i</button>
+            <h2>Order Status</h2>
         </div>
 
-        <div class="admin-donut-shell">
-            <div class="admin-donut-chart" style="--admin-donut:@Model.CartRecoveryPercent">
-                <span>@Model.CartRecoveryPercent%</span>
-            </div>
-        </div>
-
-        <div class="admin-mini-stats">
-            <div>
-                <p>Adandoned Cart</p>
-                <strong>@Model.AbandonedCartCount</strong>
-            </div>
-            <div>
-                <p>Adandoned Revenue</p>
-                <strong>$@Model.AbandonedRevenue.ToString("0")</strong>
-            </div>
-        </div>
-    </article>
-</section>
-
-<section class="admin-insights-grid">
-    <article class="admin-card">
-        <div class="admin-card-head">
-            <h2>Revenue by device</h2>
-            <a href="#">More</a>
-        </div>
-
-        <div class="admin-device-shell">
-            <div class="admin-device-donut"></div>
-
-            <div class="admin-device-list">
-                @foreach (var device in Model.DeviceRevenue)
-                {
-                    <div class="admin-device-row">
-                        <span class="admin-dot @($"is-{device.AccentKey}")"></span>
-                        <p>@device.Label</p>
-                        <strong>@device.Value</strong>
-                        <span>@device.Share</span>
-                    </div>
-                }
-            </div>
-        </div>
-    </article>
-
-    <article class="admin-card">
-        <div class="admin-card-head">
-            <h2>Traffic</h2>
-            <a href="#">More</a>
-        </div>
-
-        <div class="admin-traffic-top">
-            <div class="admin-traffic-stat">
-                <p>Store Visits</p>
-                <strong>@Model.StoreVisits</strong>
-                <span class="is-positive">+22%</span>
-            </div>
-            <div class="admin-traffic-stat">
-                <p>Visitors</p>
-                <strong>@Model.Visitors</strong>
-                <span class="is-negative">-24%</span>
-            </div>
-        </div>
-
-        <div class="admin-line-chart">
-            @for (var i = 0; i < Model.TrafficLine.Count; i++)
+        <div class="admin-status-summary-grid">
+            @foreach (var item in Model.SummaryItems)
             {
-                var point = Model.TrafficLine[i];
-
-                <div class="admin-line-node @(point.IsHighlighted ? "is-highlighted" : string.Empty)"
-                     style="left:@($"{(100.0 / (Model.TrafficLine.Count - 1)) * i}%"); top:@($"{100 - point.Value}%")">
-                    @if (point.IsHighlighted)
-                    {
-                        <span class="admin-line-badge">24.8</span>
-                    }
-                </div>
-            }
-        </div>
-
-        <div class="admin-line-labels">
-            @foreach (var point in Model.TrafficLine)
-            {
-                <small>@point.Label</small>
+                <article class="admin-status-summary-item @($"is-{item.AccentKey}")">
+                    <p>@item.Label</p>
+                    <strong>@item.Value</strong>
+                    <span>@item.Detail</span>
+                </article>
             }
         </div>
     </article>
@@ -141,106 +72,94 @@
 <section class="admin-bottom-grid">
     <article class="admin-card">
         <div class="admin-card-head">
-            <h2>Bestsellers</h2>
-            <a href="#">More</a>
+            <div>
+                <h2>Top Products</h2>
+                <p>จัดอันดับจากยอดขายจริงในระบบ</p>
+            </div>
         </div>
 
-        <div class="admin-table-wrap">
-            <table class="admin-table admin-table-compact">
-                <thead>
-                    <tr>
-                        <th>Product</th>
-                        <th>Price</th>
-                        <th>Sold</th>
-                        <th>Profit</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in Model.Bestsellers)
-                    {
+        @if (Model.TopProducts.Count == 0)
+        {
+            <div class="admin-empty-state">ยังไม่มีข้อมูลยอดขายจริงสำหรับจัดอันดับสินค้า</div>
+        }
+        else
+        {
+            <div class="admin-table-wrap">
+                <table class="admin-table admin-table-compact">
+                    <thead>
                         <tr>
-                            <td>@item.Product</td>
-                            <td>@item.Price</td>
-                            <td>@item.Sold</td>
-                            <td>@item.Profit</td>
+                            <th>Product</th>
+                            <th>Sold</th>
+                            <th>Revenue</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.TopProducts)
+                        {
+                            <tr>
+                                <td>@item.Name</td>
+                                <td>@item.UnitsSoldLabel</td>
+                                <td>@item.RevenueLabel</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </article>
 
     <article class="admin-card">
         <div class="admin-card-head">
-            <h2>Sales forecast</h2>
-            <a href="#">More</a>
+            <div>
+                <h2>Latest Orders</h2>
+                <p>แสดงออเดอร์ล่าสุดจากฐานข้อมูล</p>
+            </div>
         </div>
 
-        <div class="admin-forecast-grid">
-            @foreach (var forecast in Model.ForecastCards)
-            {
-                <article class="admin-forecast-card">
-                    <p>@forecast.Label</p>
-                    <strong>@forecast.Value</strong>
-                    <div class="admin-sparkline @($"is-{forecast.AccentKey}")">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
-                </article>
-            }
-        </div>
-    </article>
-</section>
-
-<section class="admin-orders-section">
-    <article class="admin-card">
-        <div class="admin-card-head">
-            <h2>Latest Orders</h2>
-            <a href="#">More</a>
-        </div>
-
-        <div class="admin-table-wrap">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Products</th>
-                        <th>QTY</th>
-                        <th>Date</th>
-                        <th>Revenue</th>
-                        <th>Net Profit</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var order in Model.LatestOrders)
-                    {
+        @if (Model.LatestOrders.Count == 0)
+        {
+            <div class="admin-empty-state">ยังไม่มีออเดอร์ในระบบ</div>
+        }
+        else
+        {
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead>
                         <tr>
-                            <td>
-                                <div class="admin-order-product">
-                                    <span>@order.Product[..1]</span>
-                                    <strong>@order.Product</strong>
-                                </div>
-                            </td>
-                            <td>@order.Quantity</td>
-                            <td>@order.Date</td>
-                            <td>@order.Revenue</td>
-                            <td>@order.NetProfit</td>
-                            <td>
-                                <span class="admin-status-badge @($"is-{order.Status.ToLowerInvariant()}")">@order.Status</span>
-                            </td>
-                            <td>
-                                <div class="admin-actions">
-                                    <button type="button">View</button>
-                                    <button type="button">Edit</button>
-                                </div>
-                            </td>
+                            <th>Order ID</th>
+                            <th>Products</th>
+                            <th>Customer</th>
+                            <th>Date</th>
+                            <th>Total</th>
+                            <th>Payment</th>
+                            <th>Status</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        @foreach (var order in Model.LatestOrders)
+                        {
+                            <tr>
+                                <td>@order.OrderNumber</td>
+                                <td>
+                                    <div class="admin-order-stack">
+                                        <strong>@order.ProductSummary</strong>
+                                        <span>@order.ItemCountLabel</span>
+                                    </div>
+                                </td>
+                                <td>@order.CustomerName</td>
+                                <td>@order.CreatedAtLabel</td>
+                                <td>@order.TotalAmountLabel</td>
+                                <td>
+                                    <span class="admin-status-badge @($"is-{order.PaymentStatusKey}")">@order.PaymentStatus</span>
+                                </td>
+                                <td>
+                                    <span class="admin-status-badge @($"is-{order.OrderStatusKey}")">@order.OrderStatus</span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </article>
 </section>

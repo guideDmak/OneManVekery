@@ -1,6 +1,9 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using OneManVekery.Models;
+using OneManVekery.Models.Db;
 using OneManVekery.Services;
 using OneManVekery.ViewModel;
 
@@ -11,35 +14,51 @@ public class HomeController : Controller
     private readonly IStoreCatalogService _storeCatalogService;
     private readonly IStoreCartService _storeCartService;
     private readonly IStoreOrderService _storeOrderService;
+    private readonly OneManVekeryDBContext _dbContext;
+    private readonly StorefrontContentOptions _storefrontContent;
 
     public HomeController(
         IStoreCatalogService storeCatalogService,
         IStoreCartService storeCartService,
-        IStoreOrderService storeOrderService)
+        IStoreOrderService storeOrderService,
+        OneManVekeryDBContext dbContext,
+        IOptions<StorefrontContentOptions> storefrontContentOptions)
     {
         _storeCatalogService = storeCatalogService;
         _storeCartService = storeCartService;
         _storeOrderService = storeOrderService;
+        _dbContext = dbContext;
+        _storefrontContent = storefrontContentOptions.Value;
     }
 
     public IActionResult Index()
     {
+        var products = _storeCatalogService.GetProducts();
+
         return View(new HomeIndexViewModel
         {
-            Categories = GetCategories(),
-            Products = _storeCatalogService.GetProducts(),
-            Inspirations = GetInspirations(),
-            Features = GetStoreFeatures()
+            Categories = BuildCategoryCards(products),
+            Products = products,
+            Inspirations = BuildInspirationCards(products),
+            Features = BuildStoreFeatures()
         });
     }
 
     [HttpGet]
     public IActionResult Shop()
     {
+        var products = _storeCatalogService.GetProducts();
+
         return View(new ShopPageViewModel
         {
-            Products = _storeCatalogService.GetProducts(),
-            Features = GetStoreFeatures()
+            Products = products,
+            Categories = products
+                .Select(product => product.Category)
+                .Where(category => !string.IsNullOrWhiteSpace(category))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(category => category)
+                .ToList(),
+            Features = BuildStoreFeatures()
         });
     }
 
@@ -145,56 +164,42 @@ public class HomeController : Controller
     [HttpGet]
     public IActionResult About()
     {
+        var aboutContent = _storefrontContent.About ?? new StorefrontAboutOptions();
+        var activeProducts = _dbContext.Products.AsNoTracking().Count(product => product.IsActive);
+        var totalOrders = _dbContext.Orders.AsNoTracking().Count();
+        var totalCustomers = _dbContext.Users
+            .AsNoTracking()
+            .Include(user => user.Role)
+            .Count(user => user.Role.RoleKey == "user");
+
         return View(new AboutPageViewModel
         {
+            StoryTitle = aboutContent.StoryTitle,
+            StoryParagraphs = aboutContent.StoryParagraphs,
+            Quote = aboutContent.Quote,
+            QuoteCaption = aboutContent.QuoteCaption,
             Stats =
             [
-                new AboutStatViewModel { Value = "500+", Label = "ออเดอร์ที่แพ็กอย่างตั้งใจ" },
-                new AboutStatViewModel { Value = "12", Label = "เมนูซิกเนเจอร์ของร้าน" },
-                new AboutStatViewModel { Value = "7 วัน", Label = "อบสดใหม่ทุกสัปดาห์" }
+                new AboutStatViewModel { Value = totalOrders.ToString("N0"), Label = "ออเดอร์ในระบบ" },
+                new AboutStatViewModel { Value = activeProducts.ToString("N0"), Label = "สินค้าที่เปิดขายอยู่" },
+                new AboutStatViewModel { Value = totalCustomers.ToString("N0"), Label = "บัญชีลูกค้าที่สมัครแล้ว" }
             ],
-            Values =
-            [
-                new ServiceFeatureViewModel
+            Values = aboutContent.Values
+                .Select(item => new ServiceFeatureViewModel
                 {
-                    IconText = "01",
-                    Title = "อบสดทุกวัน",
-                    Description = "อบขนมใหม่ทุกวันเพื่อให้รสชาติและเนื้อสัมผัสดีที่สุดก่อนถึงมือลูกค้า"
-                },
-                new ServiceFeatureViewModel
+                    IconText = item.IconText,
+                    Title = item.Title,
+                    Description = item.Description
+                })
+                .ToList(),
+            Steps = aboutContent.Steps
+                .Select(item => new ProcessStepViewModel
                 {
-                    IconText = "02",
-                    Title = "ภาพลักษณ์ชมพูละมุน",
-                    Description = "แบรนด์และแพ็กเกจเน้นโทนชมพู-ขาวให้รู้สึกอบอุ่นและน่าหยิบเป็นของฝาก"
-                },
-                new ServiceFeatureViewModel
-                {
-                    IconText = "03",
-                    Title = "เหมาะกับทุกโอกาสพิเศษ",
-                    Description = "ออกแบบเมนูให้เหมาะทั้งวันเกิด เบรกออฟฟิศ หรือของขวัญเล็ก ๆ"
-                }
-            ],
-            Steps =
-            [
-                new ProcessStepViewModel
-                {
-                    Number = "01",
-                    Title = "ผสม",
-                    Description = "คัดวัตถุดิบและผสมสูตรให้ได้กลิ่นและความนุ่มตามมาตรฐานร้าน"
-                },
-                new ProcessStepViewModel
-                {
-                    Number = "02",
-                    Title = "อบ",
-                    Description = "อบเป็นรอบ ๆ ตลอดวันเพื่อคุมคุณภาพและให้ขนมออกจากเตาอย่างสดที่สุด"
-                },
-                new ProcessStepViewModel
-                {
-                    Number = "03",
-                    Title = "ตกแต่งและจัดส่ง",
-                    Description = "ตกแต่ง แพ็ก และจัดส่งด้วยโทนภาพลักษณ์เดียวกับหน้าร้านและหน้าเว็บ"
-                }
-            ]
+                    Number = item.Number,
+                    Title = item.Title,
+                    Description = item.Description
+                })
+                .ToList()
         });
     }
 
@@ -213,7 +218,19 @@ public class HomeController : Controller
             return View(BuildContactPageModel(form));
         }
 
-        TempData["SiteNotice"] = "ส่งข้อความตัวอย่างเรียบร้อยแล้ว";
+        _dbContext.ContactMessages.Add(new ContactMessage
+        {
+            Name = form.Name.Trim(),
+            Email = form.Email.Trim(),
+            Phone = string.IsNullOrWhiteSpace(form.PhoneNumber) ? null : form.PhoneNumber.Trim(),
+            Subject = string.IsNullOrWhiteSpace(form.Subject) ? null : form.Subject.Trim(),
+            Message = form.Message.Trim(),
+            Status = "new",
+            CreatedAt = DateTime.UtcNow
+        });
+        _dbContext.SaveChanges();
+
+        TempData["SiteNotice"] = "ส่งข้อความเรียบร้อยแล้ว";
         return RedirectToAction(nameof(Contact));
     }
 
@@ -228,36 +245,25 @@ public class HomeController : Controller
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
     }
 
-    private static ContactPageViewModel BuildContactPageModel(ContactFormViewModel? form = null)
+    private ContactPageViewModel BuildContactPageModel(ContactFormViewModel? form = null)
     {
+        var contactContent = _storefrontContent.Contact ?? new StorefrontContactOptions();
+
         return new ContactPageViewModel
         {
             Form = form ?? new ContactFormViewModel(),
-            ContactCards =
-            [
-                new ContactInfoCardViewModel
+            HeadingTitle = contactContent.HeadingTitle,
+            HeadingDescription = contactContent.HeadingDescription,
+            ContactCards = contactContent.Cards
+                .Select(card => new ContactInfoCardViewModel
                 {
-                    IconText = "A",
-                    Title = "ที่อยู่",
-                    LineOne = "123 Pink Bakery Lane",
-                    LineTwo = "Bangkok, Thailand 10200"
-                },
-                new ContactInfoCardViewModel
-                {
-                    IconText = "P",
-                    Title = "ช่องทางติดต่อ",
-                    LineOne = "โทร: 089-000-1122",
-                    LineTwo = "Line: @onemanvekery"
-                },
-                new ContactInfoCardViewModel
-                {
-                    IconText = "T",
-                    Title = "เวลาทำการ",
-                    LineOne = "จันทร์-ศุกร์: 09:00 - 20:00",
-                    LineTwo = "เสาร์-อาทิตย์: 09:00 - 21:00"
-                }
-            ],
-            Features = GetStoreFeatures()
+                    IconText = card.IconText,
+                    Title = card.Title,
+                    LineOne = card.LineOne,
+                    LineTwo = card.LineTwo
+                })
+                .ToList(),
+            Features = BuildStoreFeatures()
         };
     }
 
@@ -293,7 +299,7 @@ public class HomeController : Controller
         };
     }
 
-    private static OrderStatusPageViewModel BuildOrderStatusPageModel(OrderReceiptRecord order)
+    private OrderStatusPageViewModel BuildOrderStatusPageModel(OrderReceiptRecord order)
     {
         var currentStatus = ResolveOrderStatus(order.CurrentStatusCode);
 
@@ -322,38 +328,19 @@ public class HomeController : Controller
         };
     }
 
-    private static IReadOnlyList<PaymentOptionViewModel> BuildPaymentOptions()
+    private IReadOnlyList<PaymentOptionViewModel> BuildPaymentOptions()
     {
-        return
-        [
-            new PaymentOptionViewModel
+        return _storefrontContent.PaymentOptions
+            .Select(option => new PaymentOptionViewModel
             {
-                Code = "promptpay",
-                Label = "PromptPay",
-                Description = "ชำระเร็วผ่าน QR พร้อมเพย์หลังยืนยันคำสั่งซื้อ"
-            },
-            new PaymentOptionViewModel
-            {
-                Code = "card",
-                Label = "บัตรเครดิต / เดบิต",
-                Description = "จ่ายด้วยบัตรเพื่อสรุปยอดทันที"
-            },
-            new PaymentOptionViewModel
-            {
-                Code = "bank-transfer",
-                Label = "โอนผ่านธนาคาร",
-                Description = "แนบสลิปหลังโอนเงินเข้าบัญชีร้าน"
-            },
-            new PaymentOptionViewModel
-            {
-                Code = "cash-on-delivery",
-                Label = "เก็บเงินปลายทาง",
-                Description = "ชำระเงินปลายทางเมื่อรับสินค้า"
-            }
-        ];
+                Code = option.Code,
+                Label = option.Label,
+                Description = option.Description
+            })
+            .ToList();
     }
 
-    private static string ResolvePaymentLabel(string paymentMethod)
+    private string ResolvePaymentLabel(string paymentMethod)
     {
         return BuildPaymentOptions()
             .FirstOrDefault(option => option.Code == paymentMethod)?.Label
@@ -371,14 +358,11 @@ public class HomeController : Controller
         return subtotal >= 300 ? 0 : 45;
     }
 
-    private static IReadOnlyList<OrderProgressStepViewModel> BuildOrderProgressSteps(string currentStatusCode)
+    private IReadOnlyList<OrderProgressStepViewModel> BuildOrderProgressSteps(string currentStatusCode)
     {
-        var steps = new[]
-        {
-            ("paid", "จ่ายเสร็จ", "ร้านยืนยันคำสั่งซื้อและรับชำระเงินเรียบร้อยแล้ว", "01"),
-            ("shipping", "กำลังส่ง", "ออเดอร์กำลังถูกแพ็กและส่งออกไปยังปลายทาง", "02"),
-            ("delivered", "ส่งเสร็จสิ้น", "ออเดอร์ส่งถึงผู้รับเรียบร้อยและปิดงานสมบูรณ์", "03")
-        };
+        var steps = _storefrontContent.OrderStatusSteps
+            .Select(step => (step.Code, step.Title, step.Description, step.Marker))
+            .ToArray();
 
         var currentIndex = Array.FindIndex(steps, step => step.Item1 == currentStatusCode);
         if (currentIndex < 0)
@@ -399,95 +383,63 @@ public class HomeController : Controller
         }).ToList();
     }
 
-    private static (string Title, string Description) ResolveOrderStatus(string currentStatusCode)
+    private (string Title, string Description) ResolveOrderStatus(string currentStatusCode)
     {
-        return currentStatusCode switch
-        {
-            "shipping" => ("กำลังส่ง", "คนส่งกำลังนำขนมออกจากร้านและมุ่งหน้าไปยังปลายทาง"),
-            "delivered" => ("ส่งเสร็จสิ้น", "ออเดอร์นี้ส่งถึงผู้รับเรียบร้อยแล้ว"),
-            _ => ("จ่ายเสร็จ", "ระบบยืนยันการชำระเงินแล้วและกำลังเตรียมออเดอร์ให้คุณ")
-        };
+        var status = _storefrontContent.OrderStatusSteps
+            .FirstOrDefault(step => string.Equals(step.Code, currentStatusCode, StringComparison.OrdinalIgnoreCase))
+            ?? _storefrontContent.OrderStatusSteps.FirstOrDefault();
+
+        return status is null
+            ? ("สถานะคำสั่งซื้อ", "ระบบกำลังอัปเดตสถานะล่าสุดของออเดอร์นี้")
+            : (status.Title, status.CurrentDescription);
     }
 
-    private static IReadOnlyList<CategoryCardViewModel> GetCategories()
+    private static IReadOnlyList<CategoryCardViewModel> BuildCategoryCards(IReadOnlyList<ProductCardViewModel> products)
     {
-        return
-        [
-            new CategoryCardViewModel
+        return products
+            .Where(product => !string.IsNullOrWhiteSpace(product.Category))
+            .GroupBy(product => product.Category, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key)
+            .Select(group =>
             {
-                Title = "มาการอง",
-                Subtitle = "เปลือกบาง ไส้นุ่ม เหมาะกับการจัดเป็นกล่องของขวัญ",
-                ThemeKey = "macaron",
-                ImagePath = "/images/theme-macaron.svg"
-            },
-            new CategoryCardViewModel
-            {
-                Title = "เค้ก",
-                Subtitle = "เค้กสำหรับวันพิเศษ พร้อมครีมสดและผลไม้",
-                ThemeKey = "cake",
-                ImagePath = "/images/theme-cake.svg"
-            },
-            new CategoryCardViewModel
-            {
-                Title = "เบเกอรี่อบสด",
-                Subtitle = "ครัวซองต์ ชูครีม และขนมอบประจำวันจากเตาร้อน ๆ",
-                ThemeKey = "bakery",
-                ImagePath = "/images/theme-gold.svg"
-            }
-        ];
+                var preview = group.FirstOrDefault(product => !string.IsNullOrWhiteSpace(product.ImagePath)) ?? group.First();
+
+                return new CategoryCardViewModel
+                {
+                    Title = group.First().Category,
+                    Subtitle = $"{group.Count()} รายการที่พร้อมแสดงบนหน้าร้าน",
+                    ThemeKey = preview.ThemeKey,
+                    ImagePath = preview.ImagePath
+                };
+            })
+            .ToList();
     }
 
-    private static IReadOnlyList<InspirationCardViewModel> GetInspirations()
+    private static IReadOnlyList<InspirationCardViewModel> BuildInspirationCards(IReadOnlyList<ProductCardViewModel> products)
     {
-        return
-        [
-            new InspirationCardViewModel
+        return products
+            .Take(2)
+            .Select((product, index) => new InspirationCardViewModel
             {
-                Number = "01",
-                Title = "โต๊ะขนมจิบน้ำชา",
-                Subtitle = "โทนมาการองละมุน",
-                ThemeKey = "macaron",
-                ImagePath = "/images/inspiration-tea.svg"
-            },
-            new InspirationCardViewModel
-            {
-                Number = "02",
-                Title = "เซตวันเกิด",
-                Subtitle = "บรรยากาศเค้กฉลอง",
-                ThemeKey = "cake",
-                ImagePath = "/images/inspiration-birthday.svg"
-            }
-        ];
+                Number = (index + 1).ToString("00"),
+                Title = product.Name,
+                Subtitle = product.Category,
+                ThemeKey = product.ThemeKey,
+                ImagePath = product.ImagePath
+            })
+            .ToList();
     }
 
-    private static IReadOnlyList<ServiceFeatureViewModel> GetStoreFeatures()
+    private IReadOnlyList<ServiceFeatureViewModel> BuildStoreFeatures()
     {
-        return
-        [
-            new ServiceFeatureViewModel
+        return _storefrontContent.Features
+            .Select(feature => new ServiceFeatureViewModel
             {
-                IconText = "F",
-                Title = "อบสดทุกวัน",
-                Description = "ทำใหม่ทุกวันจากรอบอบของร้าน"
-            },
-            new ServiceFeatureViewModel
-            {
-                IconText = "P",
-                Title = "วัตถุดิบพรีเมียม",
-                Description = "ครีม เนย และไส้คุณภาพดีในทุกเมนู"
-            },
-            new ServiceFeatureViewModel
-            {
-                IconText = "S",
-                Title = "ส่งฟรีตามเงื่อนไข",
-                Description = "ส่งฟรีเมื่อยอดสั่งซื้อถึงขั้นต่ำที่กำหนด"
-            },
-            new ServiceFeatureViewModel
-            {
-                IconText = "H",
-                Title = "ดูแลทุกออเดอร์",
-                Description = "ตอบคำถามและช่วยดูแลตลอดการสั่งซื้อ"
-            }
-        ];
+                IconText = feature.IconText,
+                Title = feature.Title,
+                Description = feature.Description
+            })
+            .ToList();
     }
 }

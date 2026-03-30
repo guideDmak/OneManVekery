@@ -25,7 +25,7 @@
                         <p>Control Center</p>
                     </div>
 
-                    <span class="admin-sidebar-badge">06</span>
+                    <span class="admin-sidebar-badge">07</span>
                 </div>
 
                 <nav class="admin-nav">
@@ -44,6 +44,10 @@
                     <a class="admin-nav-item @(adminSection == "Products" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Products" aria-label="Products" title="Products">
                         <span class="admin-nav-glyph is-products" aria-hidden="true"></span>
                         <span>Products</span>
+                    </a>
+                    <a class="admin-nav-item @(adminSection == "Codes" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Codes" aria-label="Promotions" title="โปรโมชัน">
+                        <span class="admin-nav-glyph is-codes" aria-hidden="true"></span>
+                        <span>โปรโมชัน</span>
                     </a>
                     <a class="admin-nav-item @(adminSection == "Items" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Items" aria-label="Items" title="Items">
                         <span class="admin-nav-glyph is-items" aria-hidden="true"></span>
@@ -94,7 +98,7 @@
             </main>
 
             <footer class="admin-footer">
-                eCommerce Platform 2020. All rights reserved
+                One Man Vekery admin workspace
             </footer>
         </div>
     </div>

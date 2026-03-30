@@ -9,8 +9,6 @@ public interface IAccountDirectoryService
 
     AccountRecord? GetAccount(int accountId);
 
-    IReadOnlyList<string> GetRoles();
-
     IReadOnlyList<string> GetStatuses();
 
     bool EmailExists(string email, int? excludingAccountId = null);
@@ -93,15 +91,6 @@ public sealed class DbAccountDirectoryService : IAccountDirectoryService
             .FirstOrDefault(entry => entry.Id == accountId);
 
         return user is null ? null : MapAccount(user);
-    }
-
-    public IReadOnlyList<string> GetRoles()
-    {
-        return _dbContext.Roles
-            .AsNoTracking()
-            .OrderBy(role => role.Id)
-            .Select(role => NormalizeRoleLabel(role.RoleName, role.RoleKey))
-            .ToList();
     }
 
     public IReadOnlyList<string> GetStatuses()

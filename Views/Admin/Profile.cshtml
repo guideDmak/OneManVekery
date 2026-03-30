@@ -4,6 +4,12 @@
     Layout = "_AdminLayout";
     ViewData["Title"] = "Profile";
     ViewData["AdminSection"] = "Profile";
+    var profileBadge = string.IsNullOrWhiteSpace(Model.FullName)
+        ? "BK"
+        : string.Concat(Model.FullName
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Take(2)
+            .Select(part => char.ToUpperInvariant(part[0])));
 }
 
 <section class="admin-page-banner">
@@ -12,16 +18,23 @@
         <h2>@Model.FullName</h2>
         <span>@Model.Role</span>
     </div>
-    <span class="admin-pill-tag">Bakery Team</span>
+    <span class="admin-pill-tag">@Model.Status</span>
 </section>
 
 <section class="admin-detail-grid">
     <article class="admin-card admin-profile-card">
-        <div class="admin-profile-badge">MB</div>
+        <div class="admin-profile-badge">@profileBadge</div>
         <h3>@Model.FullName</h3>
-        <p>@Model.Bio</p>
+        <p>@Model.Role</p>
 
         <div class="admin-summary-list">
+            <div class="admin-summary-row">
+                <div>
+                    <small>Account ID</small>
+                    <strong>@Model.AccountCode</strong>
+                </div>
+                <span>บัญชีที่กำลังใช้งานอยู่</span>
+            </div>
             <div class="admin-summary-row">
                 <div>
                     <small>Email</small>
@@ -36,27 +49,30 @@
                 </div>
                 <span>Direct line</span>
             </div>
-
-            @foreach (var item in Model.SummaryItems)
-            {
-                <div class="admin-summary-row">
-                    <div>
-                        <small>@item.Label</small>
-                        <strong>@item.Value</strong>
-                    </div>
-                    <span>@item.Detail</span>
+            <div class="admin-summary-row">
+                <div>
+                    <small>Last active</small>
+                    <strong>@Model.LastActiveLabel</strong>
                 </div>
-            }
+                <span>อ้างอิงจากข้อมูลจริงในระบบ</span>
+            </div>
+            <div class="admin-summary-row">
+                <div>
+                    <small>Notes</small>
+                    <strong>@Model.Notes</strong>
+                </div>
+                <span>หมายเหตุของบัญชีนี้</span>
+            </div>
         </div>
     </article>
 
     <article class="admin-card">
         <div class="admin-card-head">
-            <h2>Preferences</h2>
+            <h2>System Summary</h2>
         </div>
 
         <div class="admin-summary-list">
-            @foreach (var item in Model.PreferenceItems)
+            @foreach (var item in Model.SummaryItems)
             {
                 <div class="admin-summary-row">
                     <div>

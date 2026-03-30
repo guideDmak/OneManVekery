@@ -17,6 +17,8 @@ public class ShopPageViewModel
 {
     public IReadOnlyList<ProductCardViewModel> Products { get; init; } = [];
 
+    public IReadOnlyList<string> Categories { get; init; } = [];
+
     public IReadOnlyList<ServiceFeatureViewModel> Features { get; init; } = [];
 }
 
@@ -72,6 +74,14 @@ public class OrderStatusPageViewModel
 
 public class AboutPageViewModel
 {
+    public string StoryTitle { get; init; } = string.Empty;
+
+    public IReadOnlyList<string> StoryParagraphs { get; init; } = [];
+
+    public string Quote { get; init; } = string.Empty;
+
+    public string QuoteCaption { get; init; } = string.Empty;
+
     public IReadOnlyList<AboutStatViewModel> Stats { get; init; } = [];
 
     public IReadOnlyList<ServiceFeatureViewModel> Values { get; init; } = [];
@@ -82,6 +92,10 @@ public class AboutPageViewModel
 public class ContactPageViewModel
 {
     public ContactFormViewModel Form { get; init; } = new();
+
+    public string HeadingTitle { get; init; } = string.Empty;
+
+    public string HeadingDescription { get; init; } = string.Empty;
 
     public IReadOnlyList<ContactInfoCardViewModel> ContactCards { get; init; } = [];
 
