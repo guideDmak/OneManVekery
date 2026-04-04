@@ -112,6 +112,7 @@ public partial class OneManVekeryDBContext : DbContext
         modelBuilder.Entity<LoyaltyWallet>(entity =>
         {
             entity.ToTable("loyalty_wallets");
+            entity.HasKey(e => e.UserId);
 
             entity.Property(e => e.UserId)
                 .ValueGeneratedNever()

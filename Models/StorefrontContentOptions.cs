@@ -1,4 +1,4 @@
-namespace OneManVekery.Services;
+namespace OneManVekery.Models;
 
 public sealed class StorefrontContentOptions
 {

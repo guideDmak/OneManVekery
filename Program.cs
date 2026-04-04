@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using OneManVekery.Models;
 using OneManVekery.Models.Db;
-using OneManVekery.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,10 +9,6 @@ builder.Services.AddControllersWithViews();
 builder.Services.Configure<StorefrontContentOptions>(builder.Configuration.GetSection("Storefront"));
 builder.Services.AddDbContext<OneManVekeryDBContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("OneManVekeryDb")));
-builder.Services.AddScoped<IInventoryCatalogService, DbInventoryCatalogService>();
-builder.Services.AddScoped<IAccountDirectoryService, DbAccountDirectoryService>();
-builder.Services.AddScoped<IStoreCatalogService, DbStoreCatalogService>();
-builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -21,8 +17,6 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
     options.IdleTimeout = TimeSpan.FromHours(8);
 });
-builder.Services.AddScoped<IStoreCartService, SessionStoreCartService>();
-builder.Services.AddScoped<IStoreOrderService, SessionStoreOrderService>();
 
 var app = builder.Build();
 

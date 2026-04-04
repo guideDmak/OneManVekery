@@ -2,8 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using OneManVekery.Models.Db;
-using OneManVekery.Services;
+using OneManVekery.Models;
 using OneManVekery.ViewModel;
 using System.Globalization;
 
@@ -11,17 +12,11 @@ namespace OneManVekery.Controllers;
 
 public class AdminController : Controller
 {
-    private readonly IAccountDirectoryService _accountDirectoryService;
-    private readonly IInventoryCatalogService _inventoryCatalogService;
+    private const int DefaultReorderLevel = 10;
     private readonly OneManVekeryDBContext _dbContext;
 
-    public AdminController(
-        IAccountDirectoryService accountDirectoryService,
-        IInventoryCatalogService inventoryCatalogService,
-        OneManVekeryDBContext dbContext)
+    public AdminController(OneManVekeryDBContext dbContext)
     {
-        _accountDirectoryService = accountDirectoryService;
-        _inventoryCatalogService = inventoryCatalogService;
         _dbContext = dbContext;
     }
 
@@ -217,7 +212,7 @@ public class AdminController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult SetProductVisibility(int productId, string visibilityAction, string? visibilityNote)
     {
-        var product = _inventoryCatalogService.GetItem(productId);
+        var product = GetInventoryItem(productId);
         if (product is null)
         {
             if (IsAjaxRequest())
@@ -255,7 +250,7 @@ public class AdminController : Controller
             return RedirectToAction(nameof(Products));
         }
 
-        if (!_inventoryCatalogService.SetPublishedState(productId, isPublished, isPublished ? null : normalizedNote))
+        if (!SetPublishedState(productId, isPublished, isPublished ? null : normalizedNote))
         {
             if (IsAjaxRequest())
             {
@@ -266,7 +261,7 @@ public class AdminController : Controller
             return RedirectToAction(nameof(Products));
         }
 
-        var updatedProduct = _inventoryCatalogService.GetItem(productId) ?? product;
+        var updatedProduct = GetInventoryItem(productId) ?? product;
         var message = isPublished
             ? $"เปิดขายสินค้า {product.Name} บนหน้าร้านแล้ว"
             : $"ซ่อนสินค้า {product.Name} ออกจากหน้าร้านแล้ว";
@@ -362,7 +357,7 @@ public class AdminController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult AddItem([Bind(Prefix = "AddForm")] AdminItemEditorViewModel form)
     {
-        if (_inventoryCatalogService.SkuExists(form.Sku))
+        if (SkuExists(form.Sku))
         {
             ModelState.AddModelError("AddForm.Sku", "SKU นี้ถูกใช้งานแล้ว");
         }
@@ -372,7 +367,7 @@ public class AdminController : Controller
             return View("Items", BuildItemsModel(addForm: form, activeModal: "add"));
         }
 
-        var createdItem = _inventoryCatalogService.AddItem(CreateInventoryInput(form));
+        var createdItem = AddInventoryItem(CreateInventoryInput(form));
         TempData["SiteNotice"] = $"เพิ่มสินค้า {createdItem.Name} เรียบร้อยแล้ว";
 
         return RedirectToAction(nameof(Items));
@@ -382,13 +377,13 @@ public class AdminController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult UpdateItem([Bind(Prefix = "EditForm")] AdminItemEditorViewModel form)
     {
-        if (form.ItemId <= 0 || _inventoryCatalogService.GetItem(form.ItemId) is null)
+        if (form.ItemId <= 0 || GetInventoryItem(form.ItemId) is null)
         {
             TempData["SiteNotice"] = "ไม่พบสินค้าที่ต้องการแก้ไข";
             return RedirectToAction(nameof(Items));
         }
 
-        if (_inventoryCatalogService.SkuExists(form.Sku, form.ItemId))
+        if (SkuExists(form.Sku, form.ItemId))
         {
             ModelState.AddModelError("EditForm.Sku", "SKU นี้ถูกใช้งานแล้ว");
         }
@@ -398,7 +393,7 @@ public class AdminController : Controller
             return View("Items", BuildItemsModel(editForm: form, activeModal: "edit"));
         }
 
-        _inventoryCatalogService.UpdateItem(form.ItemId, CreateInventoryInput(form));
+        UpdateInventoryItem(form.ItemId, CreateInventoryInput(form));
         TempData["SiteNotice"] = $"อัปเดตสินค้า {form.Name} แล้ว";
 
         return RedirectToAction(nameof(Items));
@@ -408,7 +403,7 @@ public class AdminController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult AdjustItemStock(int itemId, int quantityAmount = 1, int quantityDirection = 1)
     {
-        var existingItem = _inventoryCatalogService.GetItem(itemId);
+        var existingItem = GetInventoryItem(itemId);
         if (itemId <= 0 || existingItem is null)
         {
             return HandleItemStockResult("ไม่พบสินค้าที่ต้องการปรับสต็อก", null, isSuccess: false, statusCode: StatusCodes.Status404NotFound);
@@ -427,12 +422,12 @@ public class AdminController : Controller
             return HandleItemStockResult("จำนวนที่ลดต้องไม่เกินสต็อกคงเหลือ", existingItem, isSuccess: false, statusCode: StatusCodes.Status400BadRequest);
         }
 
-        if (!_inventoryCatalogService.AdjustStock(itemId, quantityDelta))
+        if (!AdjustInventoryStock(itemId, quantityDelta))
         {
             return HandleItemStockResult($"สต็อกของ {existingItem.Name} ลดต่ำกว่า 0 ไม่ได้", existingItem, isSuccess: false, statusCode: StatusCodes.Status400BadRequest);
         }
 
-        var updatedItem = _inventoryCatalogService.GetItem(itemId) ?? existingItem;
+        var updatedItem = GetInventoryItem(itemId) ?? existingItem;
         var actionLabel = normalizedDirection > 0
             ? $"เพิ่มสต็อก {quantityAmount}"
             : $"ลดสต็อก {quantityAmount}";
@@ -465,7 +460,7 @@ public class AdminController : Controller
                 : "บัญชี Staff สร้างบัญชีใหม่ได้เฉพาะ User เท่านั้น");
         }
 
-        if (_accountDirectoryService.EmailExists(form.Email))
+        if (EmailExists(form.Email))
         {
             ModelState.AddModelError("AddForm.Email", "อีเมลนี้ถูกใช้งานแล้ว");
         }
@@ -475,7 +470,7 @@ public class AdminController : Controller
             return View("Accounts", BuildAccountsModel(addForm: form, activeModal: "account-add"));
         }
 
-        var createdAccount = _accountDirectoryService.AddAccount(CreateAccountInput(form));
+        var createdAccount = AddAccount(CreateAccountInput(form));
         TempData["SiteNotice"] = $"เพิ่มบัญชี {createdAccount.FullName} เรียบร้อยแล้ว";
 
         return RedirectToAction(nameof(Accounts));
@@ -486,7 +481,7 @@ public class AdminController : Controller
     public IActionResult UpdateAccount([Bind(Prefix = "EditForm")] AdminAccountEditorViewModel form)
     {
         var currentRoleKey = GetCurrentAdminRoleKey();
-        var existingAccount = form.AccountId <= 0 ? null : _accountDirectoryService.GetAccount(form.AccountId);
+        var existingAccount = form.AccountId <= 0 ? null : GetAccount(form.AccountId);
 
         if (existingAccount is null)
         {
@@ -503,7 +498,7 @@ public class AdminController : Controller
             ModelState.AddModelError("EditForm.Role", "บัญชีนี้เปลี่ยน role ได้เฉพาะ User หรือ Staff");
         }
 
-        if (_accountDirectoryService.EmailExists(form.Email, form.AccountId))
+        if (EmailExists(form.Email, form.AccountId))
         {
             ModelState.AddModelError("EditForm.Email", "อีเมลนี้ถูกใช้งานแล้ว");
         }
@@ -513,7 +508,7 @@ public class AdminController : Controller
             return View("Accounts", BuildAccountsModel(editForm: form, activeModal: "account-edit"));
         }
 
-        _accountDirectoryService.UpdateAccount(form.AccountId, CreateAccountInput(form));
+        UpdateAccount(form.AccountId, CreateAccountInput(form));
         TempData["SiteNotice"] = $"อัปเดตบัญชี {form.FullName} แล้ว";
 
         return RedirectToAction(nameof(Accounts));
@@ -523,14 +518,14 @@ public class AdminController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult CloseAccount(int accountId)
     {
-        var existingAccount = _accountDirectoryService.GetAccount(accountId);
+        var existingAccount = GetAccount(accountId);
         if (accountId <= 0 || existingAccount is null)
         {
             TempData["SiteNotice"] = "ไม่พบบัญชีที่ต้องการปิด";
             return RedirectToAction(nameof(Accounts));
         }
 
-        if (!_accountDirectoryService.CloseAccount(accountId))
+        if (!CloseAccountRecord(accountId))
         {
             TempData["SiteNotice"] = "ไม่สามารถปิดบัญชีนี้ได้";
             return RedirectToAction(nameof(Accounts));
@@ -730,6 +725,458 @@ public class AdminController : Controller
             .ToList();
     }
 
+    private IReadOnlyList<InventoryItemRecord> GetAllInventoryItems()
+    {
+        return _dbContext.Products
+            .AsNoTracking()
+            .Include(product => product.Category)
+            .OrderBy(product => product.Name)
+            .ToList()
+            .Select(MapInventoryProduct)
+            .ToList();
+    }
+
+    private InventoryItemRecord? GetInventoryItem(int itemId)
+    {
+        if (itemId <= 0)
+        {
+            return null;
+        }
+
+        var product = _dbContext.Products
+            .AsNoTracking()
+            .Include(item => item.Category)
+            .FirstOrDefault(item => item.Id == itemId);
+
+        return product is null ? null : MapInventoryProduct(product);
+    }
+
+    private bool SkuExists(string sku, int? excludingItemId = null)
+    {
+        var normalizedSku = NormalizeInventorySku(sku);
+
+        return _dbContext.Products
+            .AsNoTracking()
+            .Any(item => item.Sku.ToUpper() == normalizedSku && item.Id != excludingItemId);
+    }
+
+    private InventoryItemRecord AddInventoryItem(InventoryItemInput input)
+    {
+        var category = ResolveOrCreateCategory(input.Category);
+        var product = new Product
+        {
+            CategoryId = category.Id,
+            Sku = NormalizeInventorySku(input.Sku),
+            Name = NormalizeInventoryText(input.Name),
+            Description = SerializeInventoryMeta(input),
+            Price = NormalizeInventoryPrice(input.Price),
+            StockQty = Math.Max(0, input.StockQuantity),
+            ImageUrl = NormalizeInventoryImagePath(input.ImagePath),
+            IsActive = input.IsPublished,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.Products.Add(product);
+        _dbContext.SaveChanges();
+        product.Category = category;
+
+        return MapInventoryProduct(product);
+    }
+
+    private bool UpdateInventoryItem(int itemId, InventoryItemInput input)
+    {
+        var product = _dbContext.Products.FirstOrDefault(item => item.Id == itemId);
+        if (product is null)
+        {
+            return false;
+        }
+
+        var category = ResolveOrCreateCategory(input.Category);
+        product.CategoryId = category.Id;
+        product.Category = category;
+        product.Sku = NormalizeInventorySku(input.Sku);
+        product.Name = NormalizeInventoryText(input.Name);
+        product.Description = SerializeInventoryMeta(input);
+        product.Price = NormalizeInventoryPrice(input.Price);
+        product.StockQty = Math.Max(0, input.StockQuantity);
+        product.ImageUrl = NormalizeInventoryImagePath(input.ImagePath);
+        product.IsActive = input.IsPublished;
+
+        _dbContext.SaveChanges();
+        return true;
+    }
+
+    private bool SetPublishedState(int itemId, bool isPublished, string? visibilityNote = null)
+    {
+        var product = _dbContext.Products.FirstOrDefault(item => item.Id == itemId);
+        if (product is null)
+        {
+            return false;
+        }
+
+        product.IsActive = isPublished;
+
+        if (visibilityNote is not null)
+        {
+            var meta = ParseInventoryMeta(product.Description);
+            product.Description = SerializeInventoryMeta(new InventoryMeta(meta.Tagline, NormalizeInventoryText(visibilityNote), meta.ReorderLevel));
+        }
+
+        _dbContext.SaveChanges();
+        return true;
+    }
+
+    private bool AdjustInventoryStock(int itemId, int quantityDelta)
+    {
+        var product = _dbContext.Products.FirstOrDefault(item => item.Id == itemId);
+        if (product is null)
+        {
+            return false;
+        }
+
+        var nextStock = product.StockQty + quantityDelta;
+        if (nextStock < 0)
+        {
+            return false;
+        }
+
+        product.StockQty = nextStock;
+        _dbContext.SaveChanges();
+        return true;
+    }
+
+    private Category ResolveOrCreateCategory(string categoryName)
+    {
+        var normalizedCategoryName = string.IsNullOrWhiteSpace(categoryName)
+            ? "Bakery"
+            : NormalizeInventoryText(categoryName);
+        var comparisonName = normalizedCategoryName.ToUpperInvariant();
+
+        var existingCategory = _dbContext.Categories
+            .FirstOrDefault(category => category.Name.ToUpper() == comparisonName);
+
+        if (existingCategory is not null)
+        {
+            return existingCategory;
+        }
+
+        var newCategory = new Category
+        {
+            Name = normalizedCategoryName
+        };
+
+        _dbContext.Categories.Add(newCategory);
+        _dbContext.SaveChanges();
+        return newCategory;
+    }
+
+    private static InventoryItemRecord MapInventoryProduct(Product product)
+    {
+        var meta = ParseInventoryMeta(product.Description);
+
+        return new InventoryItemRecord
+        {
+            ItemId = product.Id,
+            ItemCode = $"ITM-{product.Id:0000}",
+            Name = product.Name,
+            Category = product.Category?.Name ?? "Bakery",
+            Sku = product.Sku,
+            Price = product.Price,
+            StockQuantity = product.StockQty,
+            ReorderLevel = meta.ReorderLevel,
+            Tagline = meta.Tagline,
+            Notes = meta.Notes,
+            ImagePath = NormalizeInventoryImagePath(product.ImageUrl),
+            IsPublished = product.IsActive,
+            UpdatedAt = product.CreatedAt
+        };
+    }
+
+    private static string SerializeInventoryMeta(InventoryItemInput input)
+    {
+        var payload = new InventoryMetaStorage
+        {
+            Tagline = NormalizeInventoryText(input.Tagline),
+            Notes = NormalizeInventoryText(input.Notes),
+            ReorderLevel = Math.Max(0, input.ReorderLevel)
+        };
+
+        return JsonSerializer.Serialize(payload);
+    }
+
+    private static string SerializeInventoryMeta(InventoryMeta input)
+    {
+        var payload = new InventoryMetaStorage
+        {
+            Tagline = NormalizeInventoryText(input.Tagline),
+            Notes = NormalizeInventoryText(input.Notes),
+            ReorderLevel = Math.Max(0, input.ReorderLevel)
+        };
+
+        return JsonSerializer.Serialize(payload);
+    }
+
+    private static InventoryMeta ParseInventoryMeta(string? description)
+    {
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            return new InventoryMeta(string.Empty, string.Empty, DefaultReorderLevel);
+        }
+
+        try
+        {
+            var payload = JsonSerializer.Deserialize<InventoryMetaStorage>(description);
+            if (payload is not null)
+            {
+                return new InventoryMeta(
+                    NormalizeInventoryText(payload.Tagline),
+                    NormalizeInventoryText(payload.Notes),
+                    payload.ReorderLevel < 0 ? DefaultReorderLevel : payload.ReorderLevel);
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return new InventoryMeta(NormalizeInventoryText(description), string.Empty, DefaultReorderLevel);
+    }
+
+    private static decimal NormalizeInventoryPrice(decimal price)
+    {
+        return Math.Round(Math.Max(0, price), 2);
+    }
+
+    private static string NormalizeInventoryText(string? value)
+    {
+        return value?.Trim() ?? string.Empty;
+    }
+
+    private static string NormalizeInventorySku(string value)
+    {
+        return NormalizeInventoryText(value).ToUpperInvariant();
+    }
+
+    private static string NormalizeInventoryImagePath(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "/images/theme-cake.svg";
+        }
+
+        var normalized = value.Trim();
+        return normalized.StartsWith("~/", StringComparison.Ordinal)
+            ? "/" + normalized[2..]
+            : normalized;
+    }
+
+    private IReadOnlyList<AccountRecord> GetAllAccounts()
+    {
+        return _dbContext.Users
+            .AsNoTracking()
+            .Include(user => user.Role)
+            .OrderBy(user => user.Status)
+            .ThenBy(user => user.FullName)
+            .Select(MapAccountRecord)
+            .ToList();
+    }
+
+    private AccountRecord? GetAccount(int accountId)
+    {
+        var user = _dbContext.Users
+            .AsNoTracking()
+            .Include(entry => entry.Role)
+            .FirstOrDefault(entry => entry.Id == accountId);
+
+        return user is null ? null : MapAccountRecord(user);
+    }
+
+    private static IReadOnlyList<string> GetAccountStatuses()
+    {
+        return ["Active", "Suspended", "Closed"];
+    }
+
+    private bool EmailExists(string email, int? excludingAccountId = null)
+    {
+        var normalizedEmail = NormalizeAccountEmail(email);
+
+        return _dbContext.Users.Any(user =>
+            user.Email == normalizedEmail &&
+            user.Id != excludingAccountId);
+    }
+
+    private AccountRecord AddAccount(AccountInput input)
+    {
+        var role = ResolveRole(input.Role);
+        var user = new User
+        {
+            FullName = NormalizeAccountText(input.FullName),
+            Email = NormalizeAccountEmail(input.Email),
+            PasswordHash = NormalizeAccountPassword(input.Password),
+            Phone = NormalizeOptionalAccountText(input.PhoneNumber),
+            RoleId = role.Id,
+            Status = NormalizeAccountStatusValue(input.Status),
+            Notes = NormalizeOptionalAccountText(input.Notes),
+            CreatedAt = DateTime.UtcNow,
+            LastActiveAt = DateTime.UtcNow
+        };
+
+        _dbContext.Users.Add(user);
+        _dbContext.SaveChanges();
+        _dbContext.Entry(user).Reference(entry => entry.Role).Load();
+
+        return MapAccountRecord(user);
+    }
+
+    private bool UpdateAccount(int accountId, AccountInput input)
+    {
+        var user = _dbContext.Users.FirstOrDefault(entry => entry.Id == accountId);
+        if (user is null)
+        {
+            return false;
+        }
+
+        var role = ResolveRole(input.Role);
+
+        user.FullName = NormalizeAccountText(input.FullName);
+        user.Email = NormalizeAccountEmail(input.Email);
+        user.Phone = NormalizeOptionalAccountText(input.PhoneNumber);
+        user.RoleId = role.Id;
+        user.Status = NormalizeAccountStatusValue(input.Status);
+        user.Notes = NormalizeOptionalAccountText(input.Notes);
+
+        if (!string.IsNullOrWhiteSpace(input.Password))
+        {
+            user.PasswordHash = NormalizeAccountPassword(input.Password);
+        }
+
+        _dbContext.SaveChanges();
+        return true;
+    }
+
+    private bool CloseAccountRecord(int accountId)
+    {
+        var user = _dbContext.Users.FirstOrDefault(entry => entry.Id == accountId);
+        if (user is null)
+        {
+            return false;
+        }
+
+        user.Status = "closed";
+        _dbContext.SaveChanges();
+        return true;
+    }
+
+    private Role ResolveRole(string roleValue)
+    {
+        var normalized = roleValue.Trim();
+        var role = _dbContext.Roles
+            .AsNoTracking()
+            .ToList()
+            .FirstOrDefault(entry =>
+                string.Equals(entry.RoleName, normalized, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(entry.RoleKey, normalized, StringComparison.OrdinalIgnoreCase));
+
+        if (role is null)
+        {
+            throw new InvalidOperationException($"Role '{roleValue}' was not found in the database.");
+        }
+
+        return role;
+    }
+
+    private static AccountRecord MapAccountRecord(User user)
+    {
+        var roleKey = user.Role?.RoleKey?.Trim().ToLowerInvariant() ?? "user";
+        var roleLabel = NormalizeAccountRoleLabel(user.Role?.RoleName, roleKey);
+
+        return new AccountRecord
+        {
+            AccountId = user.Id,
+            AccountCode = $"ACC-{user.Id:0000}",
+            FullName = user.FullName,
+            Email = user.Email,
+            PhoneNumber = user.Phone ?? string.Empty,
+            Role = roleLabel,
+            RoleKey = roleKey,
+            Status = NormalizeAccountStatusLabel(user.Status),
+            LastActiveAt = user.LastActiveAt ?? user.CreatedAt,
+            Notes = user.Notes ?? string.Empty
+        };
+    }
+
+    private static string NormalizeAccountEmail(string value)
+    {
+        return value.Trim().ToLowerInvariant();
+    }
+
+    private static string NormalizeAccountText(string value)
+    {
+        return value.Trim();
+    }
+
+    private static string NormalizeAccountPassword(string value)
+    {
+        return value.Trim();
+    }
+
+    private static string? NormalizeOptionalAccountText(string value)
+    {
+        var trimmed = value.Trim();
+        return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
+    }
+
+    private static string NormalizeAccountStatusValue(string value)
+    {
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "active" => "active",
+            "suspended" => "suspended",
+            "closed" => "closed",
+            _ => "active"
+        };
+    }
+
+    private static string NormalizeAccountStatusLabel(string value)
+    {
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "active" => "Active",
+            "suspended" => "Suspended",
+            "closed" => "Closed",
+            _ => "Active"
+        };
+    }
+
+    private static string NormalizeAccountRoleLabel(string? roleName, string? roleKey)
+    {
+        var source = string.IsNullOrWhiteSpace(roleName) ? roleKey : roleName;
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return "User";
+        }
+
+        return source.Trim().ToLowerInvariant() switch
+        {
+            "owner" => "Owner",
+            "admin" => "Admin",
+            "manager" => "Manager",
+            "staff" => "Staff",
+            "support" => "Support",
+            _ => "User"
+        };
+    }
+
+    private sealed class InventoryMetaStorage
+    {
+        public string Tagline { get; set; } = string.Empty;
+
+        public string Notes { get; set; } = string.Empty;
+
+        public int ReorderLevel { get; set; } = DefaultReorderLevel;
+    }
+
+    private sealed record InventoryMeta(string Tagline, string Notes, int ReorderLevel);
+
     private static AdminOrderRecordViewModel MapOrder(Order order)
     {
         var firstItem = order.OrderItems
@@ -875,7 +1322,7 @@ public class AdminController : Controller
 
     private AdminProductsViewModel BuildProductsModel()
     {
-        var items = _inventoryCatalogService.GetAllItems();
+        var items = GetAllInventoryItems();
         var salesLookup = _dbContext.OrderItems
             .AsNoTracking()
             .Where(orderItem => orderItem.ProductId.HasValue)
@@ -912,8 +1359,8 @@ public class AdminController : Controller
         string activeModal = "")
     {
         var currentRoleKey = GetCurrentAdminRoleKey();
-        var accounts = _accountDirectoryService.GetAllAccounts();
-        var statusOptions = _accountDirectoryService.GetStatuses();
+        var accounts = GetAllAccounts();
+        var statusOptions = GetAccountStatuses();
         var addRoleOptions = BuildAddRoleOptions(currentRoleKey);
         var editRoleOptions = addRoleOptions;
         var defaultRole = addRoleOptions.FirstOrDefault() ?? "User";
@@ -948,7 +1395,7 @@ public class AdminController : Controller
         AdminItemEditorViewModel? editForm = null,
         string activeModal = "")
     {
-        var items = _inventoryCatalogService.GetAllItems();
+        var items = GetAllInventoryItems();
         var persistedCategories = _dbContext.Categories
             .AsNoTracking()
             .Select(category => category.Name)

@@ -1,11 +1,16 @@
-﻿@inject OneManVekery.Services.IStoreCartService CartService
-@inject Microsoft.Extensions.Options.IOptions<OneManVekery.Services.StorefrontContentOptions> StorefrontContentOptionsAccessor
+﻿@using System.Text.Json
+@using Microsoft.AspNetCore.Http
+@inject Microsoft.Extensions.Options.IOptions<OneManVekery.Models.StorefrontContentOptions> StorefrontContentOptionsAccessor
 
 @{
     var hideChrome = ViewData["HideChrome"] is bool value && value;
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
-    var cartCount = hideChrome ? 0 : CartService.GetItemCount();
-    var layoutContent = StorefrontContentOptionsAccessor.Value.Layout ?? new OneManVekery.Services.StorefrontLayoutOptions();
+    var rawCartItems = hideChrome ? null : Context.Session.GetString("one-man-vekery-cart");
+    var cartItems = string.IsNullOrWhiteSpace(rawCartItems)
+        ? []
+        : JsonSerializer.Deserialize<List<CartSessionItem>>(rawCartItems) ?? [];
+    var cartCount = cartItems.Sum(item => item.Quantity);
+    var layoutContent = StorefrontContentOptionsAccessor.Value.Layout ?? new StorefrontLayoutOptions();
 }
 
 <!DOCTYPE html>
