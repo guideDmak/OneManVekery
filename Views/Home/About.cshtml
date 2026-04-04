@@ -29,25 +29,6 @@
                     <p>@paragraph</p>
                 }
             </div>
-
-            <div class="about-story-card">
-                <p>@Model.Quote</p>
-                <span>@Model.QuoteCaption</span>
-            </div>
-        </div>
-    </div>
-</section>
-
-<section class="about-stats-section">
-    <div class="container bakery-container">
-        <div class="about-stats-grid">
-            @foreach (var stat in Model.Stats)
-            {
-                <article class="about-stat-card">
-                    <strong>@stat.Value</strong>
-                    <span>@stat.Label</span>
-                </article>
-            }
         </div>
     </div>
 </section>
@@ -65,25 +46,6 @@
                     <span>@value.IconText</span>
                     <h3>@value.Title</h3>
                     <p>@value.Description</p>
-                </article>
-            }
-        </div>
-    </div>
-</section>
-
-<section class="about-process-section">
-    <div class="container bakery-container">
-        <div class="section-heading section-heading-center">
-            <h2>ขั้นตอนเตรียมขนมในแต่ละรอบ</h2>
-        </div>
-
-        <div class="about-process-grid">
-            @foreach (var step in Model.Steps)
-            {
-                <article class="about-process-card">
-                    <span>@step.Number</span>
-                    <h3>@step.Title</h3>
-                    <p>@step.Description</p>
                 </article>
             }
         </div>

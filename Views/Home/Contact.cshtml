@@ -22,7 +22,6 @@
     <div class="container bakery-container">
         <div class="section-heading section-heading-center contact-heading">
             <h2>@Model.HeadingTitle</h2>
-            <p>@Model.HeadingDescription</p>
         </div>
 
         <div class="contact-page-grid">
@@ -77,23 +76,6 @@
                     <button type="submit" class="btn store-primary-btn form-span-full contact-submit-btn">ส่งข้อความ</button>
                 </form>
             </div>
-        </div>
-    </div>
-</section>
-
-<section class="feature-strip feature-strip-soft">
-    <div class="container bakery-container">
-        <div class="feature-strip-grid">
-            @foreach (var feature in Model.Features)
-            {
-                <article class="feature-strip-item">
-                    <span>@feature.IconText</span>
-                    <div>
-                        <h3>@feature.Title</h3>
-                        <p>@feature.Description</p>
-                    </div>
-                </article>
-            }
         </div>
     </div>
 </section>

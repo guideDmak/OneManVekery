@@ -33,9 +33,7 @@ public class HomeController : Controller
         return View(new HomeIndexViewModel
         {
             Categories = BuildCategoryCards(products),
-            Products = products,
-            Inspirations = BuildInspirationCards(products),
-            Features = BuildStoreFeatures()
+            Products = products
         });
     }
 
@@ -52,8 +50,7 @@ public class HomeController : Controller
                 .Where(category => !string.IsNullOrWhiteSpace(category))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(category => category)
-                .ToList(),
-            Features = BuildStoreFeatures()
+                .ToList()
         });
     }
 
@@ -160,37 +157,15 @@ public class HomeController : Controller
     public IActionResult About()
     {
         var aboutContent = _storefrontContent.About ?? new StorefrontAboutOptions();
-        var activeProducts = _dbContext.Products.AsNoTracking().Count(product => product.IsActive);
-        var totalOrders = _dbContext.Orders.AsNoTracking().Count();
-        var totalCustomers = _dbContext.Users
-            .AsNoTracking()
-            .Include(user => user.Role)
-            .Count(user => user.Role.RoleKey == "user");
 
         return View(new AboutPageViewModel
         {
             StoryTitle = aboutContent.StoryTitle,
             StoryParagraphs = aboutContent.StoryParagraphs,
-            Quote = aboutContent.Quote,
-            QuoteCaption = aboutContent.QuoteCaption,
-            Stats =
-            [
-                new AboutStatViewModel { Value = totalOrders.ToString("N0"), Label = "ออเดอร์ในระบบ" },
-                new AboutStatViewModel { Value = activeProducts.ToString("N0"), Label = "สินค้าที่เปิดขายอยู่" },
-                new AboutStatViewModel { Value = totalCustomers.ToString("N0"), Label = "บัญชีลูกค้าที่สมัครแล้ว" }
-            ],
             Values = aboutContent.Values
                 .Select(item => new ServiceFeatureViewModel
                 {
                     IconText = item.IconText,
-                    Title = item.Title,
-                    Description = item.Description
-                })
-                .ToList(),
-            Steps = aboutContent.Steps
-                .Select(item => new ProcessStepViewModel
-                {
-                    Number = item.Number,
                     Title = item.Title,
                     Description = item.Description
                 })
@@ -248,7 +223,6 @@ public class HomeController : Controller
         {
             Form = form ?? new ContactFormViewModel(),
             HeadingTitle = contactContent.HeadingTitle,
-            HeadingDescription = contactContent.HeadingDescription,
             ContactCards = contactContent.Cards
                 .Select(card => new ContactInfoCardViewModel
                 {
@@ -257,8 +231,7 @@ public class HomeController : Controller
                     LineOne = card.LineOne,
                     LineTwo = card.LineTwo
                 })
-                .ToList(),
-            Features = BuildStoreFeatures()
+                .ToList()
         };
     }
 
@@ -762,30 +735,4 @@ public class HomeController : Controller
             .ToList();
     }
 
-    private static IReadOnlyList<InspirationCardViewModel> BuildInspirationCards(IReadOnlyList<ProductCardViewModel> products)
-    {
-        return products
-            .Take(2)
-            .Select((product, index) => new InspirationCardViewModel
-            {
-                Number = (index + 1).ToString("00"),
-                Title = product.Name,
-                Subtitle = product.Category,
-                ThemeKey = product.ThemeKey,
-                ImagePath = product.ImagePath
-            })
-            .ToList();
-    }
-
-    private IReadOnlyList<ServiceFeatureViewModel> BuildStoreFeatures()
-    {
-        return _storefrontContent.Features
-            .Select(feature => new ServiceFeatureViewModel
-            {
-                IconText = feature.IconText,
-                Title = feature.Title,
-                Description = feature.Description
-            })
-            .ToList();
-    }
 }

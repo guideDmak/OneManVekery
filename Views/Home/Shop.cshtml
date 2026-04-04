@@ -9,6 +9,7 @@
         <div class="page-banner-card">
             <p class="page-banner-brand">One Man Vekery</p>
             <h1>สินค้า</h1>
+            <p class="page-banner-summary">เลือกจากรายการที่เปิดขายจริงของร้านได้ทันที</p>
             <p class="page-banner-crumb">
                 <a asp-action="Index">หน้าแรก</a>
                 <span>&gt;</span>
@@ -22,19 +23,8 @@
     <div class="container bakery-container">
         <div class="shop-toolbar-shell">
             <div class="shop-toolbar-left">
-                <span class="shop-toolbar-tag">ตัวกรอง</span>
-                <p>แสดง 1-@Model.Products.Count จากทั้งหมด @Model.Products.Count รายการ</p>
-            </div>
-
-            <div class="shop-toolbar-right">
-                <div class="shop-toolbar-box">
-                    <span>แสดง</span>
-                    <strong>@Model.Products.Count</strong>
-                </div>
-                <div class="shop-toolbar-box">
-                    <span>เรียงตาม</span>
-                    <strong>ยอดนิยม</strong>
-                </div>
+                <span class="shop-toolbar-tag">กำลังเปิดขาย</span>
+                <p data-results-label>พบสินค้า @Model.Products.Count รายการ</p>
             </div>
         </div>
     </div>
@@ -43,6 +33,14 @@
 <section class="shop-catalog-section">
     <div class="container bakery-container">
         <div class="search-panel" data-product-search>
+            <div class="search-panel-head">
+                <div>
+                    <p class="section-overline">ค้นหาและกรอง</p>
+                    <h2>เลือกเมนูที่อยากสั่ง</h2>
+                </div>
+                <p class="search-panel-copy">พิมพ์ชื่อเมนูหรือเลือกหมวดสินค้าได้เลย</p>
+            </div>
+
             <div class="search-inputs">
                 <div>
                     <label for="shopSearch" class="form-label">ค้นหาสินค้า</label>
@@ -100,33 +98,7 @@
                 }
             </div>
 
-            <div class="empty-products d-none" data-empty-state>
-                สินค้าไม่มี
-            </div>
-        </div>
-
-        <div class="shop-pagination">
-            <span class="active">1</span>
-            <span>2</span>
-            <span>3</span>
-            <span class="next">ถัดไป</span>
-        </div>
-    </div>
-</section>
-
-<section class="feature-strip feature-strip-soft">
-    <div class="container bakery-container">
-        <div class="feature-strip-grid">
-            @foreach (var feature in Model.Features)
-            {
-                <article class="feature-strip-item">
-                    <span>@feature.IconText</span>
-                    <div>
-                        <h3>@feature.Title</h3>
-                        <p>@feature.Description</p>
-                    </div>
-                </article>
-            }
+            <div class="empty-products d-none" data-empty-state>ไม่พบสินค้าที่ตรงกับคำค้นหาในตอนนี้</div>
         </div>
     </div>
 </section>

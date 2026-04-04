@@ -2974,62 +2974,6 @@ body.auth-body .site-notice {
   background: #122330;
 }
 
-.auth-divider {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin: 30px 0 22px;
-  color: #667085;
-}
-
-.auth-divider::before,
-.auth-divider::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: #e4e7ec;
-}
-
-.auth-socials {
-  display: grid;
-  gap: 14px;
-}
-
-.auth-social-btn {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  min-height: 50px;
-  border-radius: 12px;
-  border: 1px solid #eef2f7;
-  background: #f5fafc;
-  color: #344054;
-  font-weight: 600;
-}
-
-.auth-social-btn:hover {
-  background: #eef5f8;
-}
-
-.auth-social-icon {
-  display: inline-grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: #ffffff;
-  font-weight: 800;
-}
-
-.auth-social-icon-google {
-  color: #ea4335;
-}
-
-.auth-social-icon-facebook {
-  color: #1877f2;
-}
-
 .auth-switch-center {
   margin-top: 28px;
   text-align: center;
@@ -3056,8 +3000,20 @@ body.auth-body .site-notice {
   height: 100%;
   min-height: 720px;
   border-radius: 28px;
-  background: url("/images/auth-reference-crop.png") center center / cover no-repeat;
+  background-color: #f8efe6;
+  background-repeat: no-repeat, no-repeat;
+  background-size: cover, cover;
   box-shadow: 0 28px 50px rgba(17, 24, 39, 0.12);
+}
+
+.auth-shell-login .auth-reference-image {
+  background-image: linear-gradient(180deg, rgba(46, 27, 14, 0.14), rgba(46, 27, 14, 0.08)), url("/images/auth-bakery-photo.jpg");
+  background-position: center center, center top;
+}
+
+.auth-shell-register .auth-reference-image {
+  background-image: linear-gradient(180deg, rgba(55, 33, 18, 0.16), rgba(55, 33, 18, 0.08)), url("/images/auth-bakery-register.jpg");
+  background-position: center center, center center;
 }
 
 @media (max-width: 991.98px) {
@@ -5190,5 +5146,746 @@ body.auth-body .site-notice {
   .admin-product-visibility-form .admin-primary-button,
   .admin-product-visibility-form .admin-secondary-button {
     width: 100%;
+  }
+}
+
+/* Visual refresh */
+:root {
+  --rose-500: #c36a8e;
+  --rose-700: #7a425d;
+  --brown-900: #34252f;
+  --shadow-soft: 0 28px 54px rgba(123, 66, 93, 0.12);
+  --shadow-card: 0 18px 36px rgba(123, 66, 93, 0.09);
+  --surface-paper: rgba(255, 255, 255, 0.94);
+  --surface-soft: rgba(255, 247, 250, 0.92);
+  --line-soft: rgba(195, 106, 142, 0.16);
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(255, 226, 237, 0.9), transparent 22%),
+    radial-gradient(circle at bottom right, rgba(255, 240, 246, 0.82), transparent 24%),
+    linear-gradient(180deg, #fffefe 0%, #fff9fb 54%, #fff5f8 100%);
+}
+
+h1,
+h2,
+h3,
+.bakery-brand,
+.admin-brand,
+.admin-topbar h1,
+.auth-panel-form h1 {
+  font-family: var(--font-display);
+}
+
+.site-header {
+  padding: 14px 0 0;
+}
+
+.bakery-nav .container {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: var(--line-soft);
+  box-shadow: 0 14px 32px rgba(123, 66, 93, 0.08);
+}
+
+.bakery-brand-mark {
+  background: linear-gradient(145deg, #ffd7e7, #fffefe);
+  color: var(--rose-700);
+}
+
+.site-notice {
+  border-radius: 20px;
+  border: 1px solid var(--line-soft);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(255, 241, 246, 0.92));
+  box-shadow: 0 16px 30px rgba(123, 66, 93, 0.08);
+}
+
+.section-overline {
+  color: #b45d81;
+  letter-spacing: 0.14em;
+}
+
+.bakery-btn,
+.store-primary-btn,
+.store-outline-btn,
+.store-inline-btn,
+.store-card-btn,
+.admin-primary-button,
+.admin-secondary-button,
+.auth-submit {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.bakery-btn-primary,
+.store-primary-btn,
+.admin-primary-button,
+.auth-submit {
+  background: linear-gradient(135deg, #cf7a9a 0%, #b85c81 100%);
+  box-shadow: 0 16px 30px rgba(195, 106, 142, 0.18);
+}
+
+.bakery-btn-primary:hover,
+.store-primary-btn:hover,
+.store-primary-btn:focus,
+.admin-primary-button:hover,
+.admin-primary-button:focus,
+.auth-submit:hover,
+.auth-submit:focus {
+  background: linear-gradient(135deg, #c66f92 0%, #a94f72 100%);
+  transform: translateY(-1px);
+}
+
+.store-outline-btn,
+.admin-secondary-button {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(122, 66, 93, 0.22);
+  color: var(--rose-700);
+}
+
+.store-outline-btn:hover,
+.admin-secondary-button:hover {
+  background: rgba(255, 242, 247, 0.96);
+}
+
+.store-inline-btn,
+.store-card-btn {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--line-soft);
+  color: var(--rose-700);
+}
+
+.store-card-btn:hover:not(:disabled) {
+  background: rgba(255, 243, 248, 0.96);
+  transform: translateY(-1px);
+}
+
+.store-hero-panel {
+  gap: 26px;
+  min-height: 520px;
+  padding: 30px;
+  border-color: var(--line-soft);
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.6), transparent 26%),
+    linear-gradient(135deg, #ffeef4 0%, #fff8fb 62%, #fffefe 100%);
+  box-shadow: var(--shadow-soft);
+}
+
+.hero-main-image {
+  min-height: 460px;
+}
+
+.hero-sweet-card,
+.range-card,
+.catalog-card,
+.inspiration-card,
+.page-banner-card,
+.about-story-copy,
+.about-story-card,
+.about-stat-card,
+.about-value-card,
+.about-process-card,
+.contact-info-card,
+.contact-form-card,
+.cart-empty-state,
+.cart-list-card,
+.cart-summary-card,
+.order-success-hero,
+.order-bill-card,
+.order-details-card,
+.order-status-card,
+.search-panel,
+.admin-card,
+.admin-page-banner,
+.auth-note-panel {
+  background: var(--surface-paper);
+  border: 1px solid var(--line-soft);
+  box-shadow: var(--shadow-card);
+}
+
+.hero-sweet-card {
+  min-height: 126px;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.48), transparent 28%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 247, 250, 0.86));
+  box-shadow: 0 14px 24px rgba(123, 66, 93, 0.1);
+}
+
+.hero-sweet-card strong,
+.page-banner-card h1,
+.store-hero-card h1,
+.section-heading h2,
+.about-story-copy h2,
+.inspiration-copy h2 {
+  font-family: var(--font-display);
+}
+
+.store-hero-card {
+  border: 1px solid var(--line-soft);
+  background: rgba(255, 250, 252, 0.9);
+}
+
+.store-hero-card h1 {
+  color: var(--rose-700);
+}
+
+.page-banner-card {
+  padding: 40px 30px;
+  text-align: left;
+  background:
+    radial-gradient(circle at top left, rgba(255, 232, 240, 0.74), transparent 22%),
+    linear-gradient(135deg, rgba(255, 247, 250, 0.94), rgba(255, 255, 255, 0.94));
+}
+
+.page-banner-summary {
+  max-width: 640px;
+  margin: 10px 0 18px;
+  color: rgba(52, 37, 47, 0.72);
+  line-height: 1.75;
+}
+
+.shop-toolbar-shell {
+  padding: 20px 22px;
+  border-radius: 22px;
+  border: 1px solid var(--line-soft);
+  background: rgba(255, 250, 252, 0.92);
+  box-shadow: var(--shadow-card);
+}
+
+.shop-toolbar-box {
+  border: 1px solid rgba(122, 66, 93, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.shop-toolbar-box-accent {
+  background: linear-gradient(135deg, rgba(255, 238, 244, 0.96), rgba(255, 255, 255, 0.96));
+}
+
+.search-panel {
+  padding: 30px;
+}
+
+.search-panel-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.search-panel-head h2 {
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 2.45rem);
+}
+
+.search-panel-copy {
+  max-width: 420px;
+  margin: 0;
+  color: rgba(52, 37, 47, 0.68);
+  line-height: 1.7;
+}
+
+.bakery-field {
+  border-color: rgba(195, 106, 142, 0.18);
+  background: rgba(255, 250, 252, 0.96);
+}
+
+.catalog-body {
+  background: #fffbfc;
+}
+
+.catalog-description {
+  min-height: 56px;
+}
+
+.empty-products {
+  padding: 22px;
+  border-radius: 22px;
+  background: rgba(255, 241, 246, 0.96);
+  border: 1px dashed rgba(195, 106, 142, 0.28);
+}
+
+.feature-strip {
+  background: rgba(255, 244, 248, 0.88);
+}
+
+.cart-summary-card,
+.order-details-card {
+  top: 92px;
+}
+
+.cart-payment-option {
+  border-color: rgba(195, 106, 142, 0.16);
+  background: rgba(255, 251, 252, 0.96);
+}
+
+.cart-payment-option:hover,
+.cart-payment-option.is-selected,
+.cart-payment-option:has(input:checked) {
+  border-color: rgba(195, 106, 142, 0.3);
+  box-shadow: 0 14px 26px rgba(123, 66, 93, 0.08);
+}
+
+body.auth-body {
+  background:
+    radial-gradient(circle at top left, rgba(255, 232, 240, 0.84), transparent 24%),
+    linear-gradient(180deg, #fffefe 0%, #fff7fa 100%);
+}
+
+.auth-panel-form h1 {
+  font-size: clamp(2.4rem, 4vw, 3.4rem);
+  color: var(--brown-900);
+}
+
+.auth-copy {
+  color: rgba(52, 37, 47, 0.7);
+}
+
+.auth-field {
+  min-height: 54px;
+  border-radius: 18px;
+  border-color: rgba(195, 106, 142, 0.18);
+  background: rgba(255, 250, 252, 0.96);
+}
+
+.auth-helper-copy {
+  margin: 10px 0 0;
+  color: rgba(52, 37, 47, 0.64);
+  font-size: 0.88rem;
+  line-height: 1.65;
+}
+
+.auth-note-panel {
+  margin-top: 22px;
+  padding: 18px 20px;
+  border-radius: 20px;
+  background: var(--surface-soft);
+}
+
+.auth-note-panel strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--rose-700);
+}
+
+.auth-note-panel p {
+  margin: 0;
+  color: rgba(52, 37, 47, 0.7);
+  line-height: 1.7;
+}
+
+.auth-note-panel-soft {
+  margin-top: 20px;
+}
+
+.auth-submit {
+  min-height: 56px;
+  border-radius: 18px;
+}
+
+.auth-panel-image {
+  padding: 10px 0 10px 10px;
+}
+
+.auth-reference-image {
+  border: 1px solid rgba(195, 106, 142, 0.14);
+  box-shadow: var(--shadow-soft);
+}
+
+.admin-body {
+  color: var(--brown-900);
+  font-family: var(--font-sans);
+}
+
+.admin-shell {
+  gap: 22px;
+  padding: 18px;
+}
+
+.admin-topbar-kicker {
+  margin: 0 0 4px;
+  color: rgba(122, 66, 93, 0.62);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.admin-topbar h1 {
+  font-size: clamp(1.7rem, 3vw, 2.3rem);
+  color: var(--rose-700);
+}
+
+.admin-date-pill,
+.admin-back-link {
+  border-color: var(--line-soft);
+}
+
+.admin-primary-button {
+  background: linear-gradient(135deg, #cf7a9a 0%, #b85c81 100%);
+  box-shadow: 0 14px 26px rgba(195, 106, 142, 0.18);
+}
+
+.admin-secondary-button {
+  background: rgba(255, 244, 248, 0.96);
+  color: var(--rose-700);
+  border: 1px solid var(--line-soft);
+}
+
+.admin-page-banner {
+  border: 1px solid var(--line-soft);
+  background: linear-gradient(135deg, rgba(255, 247, 250, 0.96) 0%, rgba(255, 255, 255, 0.96) 58%, rgba(255, 241, 246, 0.96) 100%);
+}
+
+.admin-site-notice {
+  margin-bottom: 18px;
+}
+
+.site-footer {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 247, 250, 0.92) 100%);
+}
+
+@media (max-width: 991.98px) {
+  .search-panel-head {
+    flex-direction: column;
+    align-items: start;
+  }
+
+  .page-banner-card {
+    text-align: center;
+  }
+
+  .page-banner-summary {
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  .auth-panel-image {
+    padding: 0;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .store-hero-panel {
+    padding: 22px;
+  }
+
+  .page-banner-card,
+  .search-panel,
+  .cart-list-card,
+  .cart-summary-card {
+    padding: 22px;
+  }
+
+  .shop-toolbar-box-accent {
+    width: 100%;
+  }
+}
+
+/* Comfortable typography scale */
+.bakery-brand {
+  font-size: 1.32rem;
+}
+
+.bakery-brand small {
+  font-size: 0.74rem;
+}
+
+.bakery-nav-links .nav-link,
+.bakery-cart-link,
+.bakery-btn,
+.store-primary-btn,
+.store-outline-btn,
+.store-inline-btn,
+.store-card-btn,
+.admin-primary-button,
+.admin-secondary-button,
+.auth-submit {
+  font-size: 0.95rem;
+}
+
+.store-hero-card h1 {
+  font-size: clamp(2.25rem, 3.4vw, 3.3rem);
+  line-height: 1.08;
+}
+
+.page-banner-card h1,
+.section-heading h2,
+.inspiration-copy h2,
+.search-panel-head h2,
+.about-story-copy h2 {
+  font-size: clamp(1.85rem, 2.8vw, 2.55rem);
+  line-height: 1.14;
+}
+
+.hero-sweet-card strong,
+.range-card h3,
+.catalog-body h3,
+.cart-item-head h3,
+.order-status-card h3 {
+  font-size: 1.3rem;
+  line-height: 1.2;
+}
+
+.store-hero-card p,
+.page-banner-summary,
+.search-panel-copy,
+.catalog-description,
+.cart-item-description,
+.auth-copy,
+.auth-note-panel p {
+  font-size: 0.97rem;
+  line-height: 1.7;
+}
+
+.catalog-price strong,
+.cart-summary-row.is-total strong,
+.order-summary-row.is-total strong {
+  font-size: 1.24rem;
+}
+
+.cart-empty-state h2,
+.cart-list-head h2,
+.cart-summary-head h2,
+.order-success-copy h2,
+.order-bill-head h2,
+.order-detail-block h2 {
+  font-size: clamp(1.7rem, 2.7vw, 2.2rem);
+  line-height: 1.16;
+}
+
+.auth-panel-form h1 {
+  font-size: clamp(2.05rem, 3vw, 2.7rem);
+  line-height: 1.12;
+}
+
+.auth-field-wrap .form-label,
+.form-label {
+  font-size: 0.92rem;
+}
+
+.auth-field,
+.bakery-field {
+  font-size: 0.96rem;
+}
+
+.admin-brand {
+  font-size: 1.55rem;
+}
+
+.admin-nav-item {
+  font-size: 0.93rem;
+}
+
+.admin-topbar h1 {
+  font-size: clamp(1.45rem, 2.4vw, 1.95rem);
+  line-height: 1.15;
+}
+
+.admin-card-head h2,
+.admin-page-banner h2 {
+  font-size: 0.96rem;
+}
+
+.admin-metric-row strong,
+.admin-chart-value strong,
+.admin-status-summary-item strong,
+.admin-account-summary-card strong {
+  font-size: 1.28rem;
+}
+
+/* Auth minimal refresh */
+body.auth-body {
+  background: #f7f4ef;
+}
+
+.auth-section {
+  padding: 32px 0;
+}
+
+.auth-container {
+  max-width: 1180px;
+}
+
+.auth-shell {
+  gap: 24px;
+  align-items: center;
+}
+
+.auth-panel {
+  min-height: 680px;
+}
+
+.auth-panel-form {
+  padding: 0;
+}
+
+.auth-form-wrap {
+  max-width: 440px;
+  padding: 40px;
+  border-radius: 28px;
+  background: #ffffff;
+  border: 1px solid #ece4da;
+  box-shadow: 0 18px 40px rgba(44, 33, 24, 0.06);
+}
+
+.auth-panel-form h1 {
+  margin-bottom: 10px;
+  color: #241b15;
+  font-size: clamp(1.95rem, 3vw, 2.45rem);
+  font-family: "Sarabun", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.auth-copy {
+  max-width: 30ch;
+  margin-bottom: 24px;
+  color: #6f665e;
+  font-size: 0.96rem;
+  line-height: 1.65;
+}
+
+.auth-form {
+  gap: 16px;
+}
+
+.auth-field-wrap .form-label {
+  margin-bottom: 8px;
+  color: #4b433d;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.auth-field {
+  min-height: 54px;
+  border-radius: 14px;
+  border: 1px solid #ddd5cb;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.auth-field::placeholder {
+  color: #aaa096;
+}
+
+.auth-field:focus {
+  border-color: #b08968;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(176, 137, 104, 0.12);
+}
+
+.auth-submit {
+  min-height: 54px;
+  border-radius: 14px;
+  background: #34271f;
+  border: 0;
+  box-shadow: none;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.auth-submit:hover,
+.auth-submit:focus {
+  background: #2a211a;
+  transform: none;
+  box-shadow: none;
+}
+
+.auth-switch-center {
+  margin-top: 24px;
+}
+
+.auth-switch a {
+  color: #7b5b44;
+}
+
+.auth-copyright {
+  margin-top: 32px;
+  color: #ada49a;
+}
+
+.auth-panel-image {
+  padding: 0;
+}
+
+.auth-reference-image {
+  min-height: 680px;
+  border-radius: 28px;
+  border: 1px solid #ece4da;
+  box-shadow: 0 18px 40px rgba(44, 33, 24, 0.06);
+}
+
+.auth-reference-image::before,
+.auth-reference-image::after {
+  display: none;
+}
+
+@media (max-width: 991.98px) {
+  .auth-panel {
+    min-height: auto;
+  }
+
+  .auth-form-wrap {
+    max-width: none;
+  }
+
+  .auth-reference-image {
+    min-height: 380px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .auth-section {
+    padding: 18px 0;
+  }
+
+  .auth-form-wrap {
+    padding: 28px 22px;
+    border-radius: 24px;
+  }
+
+  .auth-reference-image {
+    min-height: 300px;
+    border-radius: 24px;
+  }
+}
+
+.admin-table th {
+  font-size: 0.76rem;
+}
+
+.admin-table td,
+.admin-card-label,
+.admin-card-head p,
+.admin-topbar-kicker {
+  font-size: 0.86rem;
+}
+
+@media (max-width: 767.98px) {
+  .store-hero-card h1 {
+    font-size: 2rem;
+  }
+
+  .page-banner-card h1,
+  .section-heading h2,
+  .inspiration-copy h2,
+  .search-panel-head h2,
+  .about-story-copy h2,
+  .cart-empty-state h2,
+  .cart-list-head h2,
+  .cart-summary-head h2,
+  .order-success-copy h2,
+  .order-bill-head h2,
+  .order-detail-block h2,
+  .auth-panel-form h1 {
+    font-size: 1.72rem;
+  }
+
+  .hero-sweet-card strong,
+  .range-card h3,
+  .catalog-body h3,
+  .cart-item-head h3,
+  .order-status-card h3 {
+    font-size: 1.14rem;
   }
 }

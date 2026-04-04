@@ -5,6 +5,8 @@ if (searchRoot) {
   const categoryInput = searchRoot.querySelector("[data-category-input]");
   const cards = [...searchRoot.querySelectorAll("[data-product-card]")];
   const emptyState = searchRoot.querySelector("[data-empty-state]");
+  const resultsLabel = document.querySelector("[data-results-label]");
+  const totalCount = cards.length;
 
   const filterProducts = () => {
     const searchTerm = (searchInput?.value || "").trim().toLowerCase();
@@ -26,10 +28,17 @@ if (searchRoot) {
     });
 
     emptyState?.classList.toggle("d-none", visibleCount > 0);
+
+    if (resultsLabel) {
+      resultsLabel.textContent = visibleCount === totalCount
+        ? `พบสินค้า ${visibleCount} รายการ`
+        : `พบสินค้า ${visibleCount} จาก ${totalCount} รายการ`;
+    }
   };
 
   searchInput?.addEventListener("input", filterProducts);
   categoryInput?.addEventListener("change", filterProducts);
+  filterProducts();
 }
 
 const adminItemsRoot = document.querySelector("[data-admin-items]");

@@ -10,11 +10,8 @@
         <div class="auth-shell auth-shell-login">
             <div class="auth-panel auth-panel-form">
                 <div class="auth-form-wrap">
-                    <h1>ยินดีต้อนรับกลับ</h1>
-                    <p class="auth-copy">
-                        เข้าสู่ระบบเพื่อกลับมาดูสินค้าโปรด ตะกร้า และรายการสั่งซื้อของคุณ
-                        หากต้องการจัดการหลังบ้านยังสามารถเข้าจากเมนูแอดมินได้เหมือนเดิม
-                    </p>
+                    <h1>เข้าสู่ระบบ</h1>
+                    <p class="auth-copy">ใช้บัญชีเดิมเพื่อสั่งซื้อและติดตามออเดอร์ของคุณ</p>
 
                     <form asp-action="Login" method="post" class="auth-form">
                         @Html.AntiForgeryToken()
@@ -28,30 +25,12 @@
 
                         <div class="auth-field-wrap">
                             <label asp-for="Password" class="form-label">รหัสผ่าน</label>
-                            <input asp-for="Password" type="text" class="form-control bakery-field auth-field" placeholder="อย่างน้อย 8 ตัวอักษร" />
+                            <input asp-for="Password" type="password" class="form-control bakery-field auth-field" placeholder="อย่างน้อย 8 ตัวอักษร" />
                             <span asp-validation-for="Password" class="text-danger small"></span>
-                            <div class="auth-helper-row">
-                                <a href="#">ลืมรหัสผ่าน?</a>
-                            </div>
                         </div>
 
                         <button type="submit" class="btn auth-submit w-100">เข้าสู่ระบบ</button>
                     </form>
-
-                    <div class="auth-divider">
-                        <span>หรือ</span>
-                    </div>
-
-                    <div class="auth-socials">
-                        <button type="button" class="btn auth-social-btn">
-                            <span class="auth-social-icon auth-social-icon-google">G</span>
-                            เข้าสู่ระบบด้วย Google
-                        </button>
-                        <button type="button" class="btn auth-social-btn">
-                            <span class="auth-social-icon auth-social-icon-facebook">f</span>
-                            เข้าสู่ระบบด้วย Facebook
-                        </button>
-                    </div>
 
                     <p class="auth-switch auth-switch-center">
                         ยังไม่มีบัญชี?

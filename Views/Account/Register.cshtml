@@ -10,13 +10,9 @@
         <div class="auth-shell auth-shell-register">
             <div class="auth-panel auth-panel-form">
                 <div class="auth-form-wrap">
-                    <h1>สร้างบัญชีผู้ใช้</h1>
-                    <p class="auth-copy">
-                        สมัครสมาชิกเพื่อบันทึกเมนูโปรดและสั่งขนมต่อได้สะดวกขึ้น
-                        บัญชีที่สมัครจากหน้านี้จะเป็นบัญชีผู้ใช้งานทั่วไปเท่านั้น
-                        และไม่สามารถใช้เข้าสู่หน้าหลังบ้านได้
-                    </p>
-
+                    <h1>สมัครสมาชิก</h1>
+                    <p class="auth-copy">สร้างบัญชีเพื่อบันทึกข้อมูลสำหรับการสั่งซื้อครั้งถัดไป</p>
+                    
                     <form asp-action="Register" method="post" class="auth-form auth-form-register">
                         @Html.AntiForgeryToken()
                         <div asp-validation-summary="ModelOnly" class="text-danger small auth-form-span"></div>
@@ -41,18 +37,19 @@
 
                         <div class="auth-field-wrap">
                             <label asp-for="Password" class="form-label">รหัสผ่าน</label>
-                            <input asp-for="Password" type="text" class="form-control bakery-field auth-field" placeholder="อย่างน้อย 8 ตัวอักษร" />
+                            <input asp-for="Password" type="password" class="form-control bakery-field auth-field" placeholder="อย่างน้อย 8 ตัวอักษร" />
                             <span asp-validation-for="Password" class="text-danger small"></span>
                         </div>
 
                         <div class="auth-field-wrap">
                             <label asp-for="ConfirmPassword" class="form-label">ยืนยันรหัสผ่าน</label>
-                            <input asp-for="ConfirmPassword" type="text" class="form-control bakery-field auth-field" placeholder="กรอกรหัสผ่านอีกครั้ง" />
+                            <input asp-for="ConfirmPassword" type="password" class="form-control bakery-field auth-field" placeholder="กรอกรหัสผ่านอีกครั้ง" />
                             <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
                         </div>
 
                         <button type="submit" class="btn auth-submit w-100 auth-form-span">สร้างบัญชี</button>
                     </form>
+
 
                     <p class="auth-switch auth-switch-center auth-switch-register">
                         มีบัญชีอยู่แล้ว?

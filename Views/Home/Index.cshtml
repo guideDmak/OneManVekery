@@ -28,10 +28,10 @@
             <div class="store-hero-card">
                 <span class="store-kicker">มาใหม่</span>
                 <p class="store-brand-label">One Man Vekery</p>
-                <h1>รวมขนมหวานของร้านไว้ในที่เดียว</h1>
+                <h1>สั่งขนมของร้านได้ในหน้าเดียว</h1>
                 <p>
-                    รวมสินค้าที่เปิดขายจริงจากระบบไว้ในหน้าเดียว
-                    เลือกดูหมวดที่พร้อมขาย เพิ่มลงตะกร้า และสั่งซื้อได้ทันทีจากหน้าร้าน
+                    เลือกดูสินค้าที่เปิดขายจริง เพิ่มลงตะกร้า
+                    และสั่งซื้อได้ทันทีจากหน้าร้าน
                 </p>
                 <a class="btn store-primary-btn" asp-action="Shop">สั่งซื้อเลย</a>
             </div>
@@ -44,7 +44,7 @@
         <div class="section-heading section-heading-center">
             <p class="section-overline">หมวดขนมแนะนำ</p>
             <h2>เลือกดูตามสไตล์ที่ชอบ</h2>
-            <p>เลือกหมวดขนมตามฟีลที่อยากได้ในวันนั้น ไม่ว่าจะเป็นของฝาก เค้กวันเกิด หรือขนมทานคู่กาแฟ</p>
+            <p>เลือกหมวดที่อยากดูได้ทันทีจากด้านล่าง</p>
         </div>
 
         <div class="range-grid">
@@ -107,49 +107,6 @@
 
         <div class="section-action">
             <a class="btn store-outline-btn" asp-action="Shop">ดูทั้งหมด</a>
-        </div>
-    </div>
-</section>
-
-<section class="inspiration-section">
-    <div class="container bakery-container">
-        <div class="inspiration-layout">
-            <div class="inspiration-copy">
-                <h2>เมนูที่กำลังถูกหยิบดูบนหน้าร้าน</h2>
-                <p>บล็อกนี้ดึงจากสินค้าที่เปิดขายจริงในระบบ เพื่อให้เห็นเมนูเด่นของร้านในตอนนี้</p>
-                <a class="btn store-primary-btn" asp-action="About">ดูเพิ่มเติม</a>
-            </div>
-
-            <div class="inspiration-gallery">
-                @foreach (var inspiration in Model.Inspirations)
-                {
-                    <article class="inspiration-card theme-@inspiration.ThemeKey">
-                        <img src="@Url.Content(inspiration.ImagePath)" alt="@inspiration.Title" class="inspiration-image" />
-                        <div class="inspiration-card-copy">
-                            <span>@inspiration.Number</span>
-                            <p>@inspiration.Subtitle</p>
-                            <h3>@inspiration.Title</h3>
-                        </div>
-                    </article>
-                }
-            </div>
-        </div>
-    </div>
-</section>
-
-<section class="feature-strip">
-    <div class="container bakery-container">
-        <div class="feature-strip-grid">
-            @foreach (var feature in Model.Features)
-            {
-                <article class="feature-strip-item">
-                    <span>@feature.IconText</span>
-                    <div>
-                        <h3>@feature.Title</h3>
-                        <p>@feature.Description</p>
-                    </div>
-                </article>
-            }
         </div>
     </div>
 </section>

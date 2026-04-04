@@ -106,22 +106,6 @@
                         <a asp-controller="Home" asp-action="About">เกี่ยวกับร้าน</a>
                         <a asp-controller="Home" asp-action="Contact">ติดต่อ</a>
                     </div>
-
-                    <div>
-                        <p class="site-footer-label">ช่วยเหลือ</p>
-                        @foreach (var helpItem in layoutContent.HelpItems)
-                        {
-                            <span>@helpItem</span>
-                        }
-                    </div>
-
-                    <div>
-                        <p class="site-footer-label">@layoutContent.NewsletterTitle</p>
-                        <form class="site-footer-newsletter">
-                            <input type="email" class="form-control bakery-field" placeholder="กรอกอีเมลของคุณ" />
-                            <button type="button" class="btn store-inline-btn">ติดตาม</button>
-                        </form>
-                    </div>
                 </div>
 
                 <div class="site-footer-bottom">

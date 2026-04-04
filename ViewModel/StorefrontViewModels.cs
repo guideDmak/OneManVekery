@@ -7,10 +7,6 @@ public class HomeIndexViewModel
     public IReadOnlyList<CategoryCardViewModel> Categories { get; init; } = [];
 
     public IReadOnlyList<ProductCardViewModel> Products { get; init; } = [];
-
-    public IReadOnlyList<InspirationCardViewModel> Inspirations { get; init; } = [];
-
-    public IReadOnlyList<ServiceFeatureViewModel> Features { get; init; } = [];
 }
 
 public class ShopPageViewModel
@@ -18,8 +14,6 @@ public class ShopPageViewModel
     public IReadOnlyList<ProductCardViewModel> Products { get; init; } = [];
 
     public IReadOnlyList<string> Categories { get; init; } = [];
-
-    public IReadOnlyList<ServiceFeatureViewModel> Features { get; init; } = [];
 }
 
 public class CartPageViewModel
@@ -78,15 +72,7 @@ public class AboutPageViewModel
 
     public IReadOnlyList<string> StoryParagraphs { get; init; } = [];
 
-    public string Quote { get; init; } = string.Empty;
-
-    public string QuoteCaption { get; init; } = string.Empty;
-
-    public IReadOnlyList<AboutStatViewModel> Stats { get; init; } = [];
-
     public IReadOnlyList<ServiceFeatureViewModel> Values { get; init; } = [];
-
-    public IReadOnlyList<ProcessStepViewModel> Steps { get; init; } = [];
 }
 
 public class ContactPageViewModel
@@ -95,11 +81,7 @@ public class ContactPageViewModel
 
     public string HeadingTitle { get; init; } = string.Empty;
 
-    public string HeadingDescription { get; init; } = string.Empty;
-
     public IReadOnlyList<ContactInfoCardViewModel> ContactCards { get; init; } = [];
-
-    public IReadOnlyList<ServiceFeatureViewModel> Features { get; init; } = [];
 }
 
 public class CategoryCardViewModel
@@ -192,38 +174,9 @@ public class PaymentOptionViewModel
     public string Description { get; init; } = string.Empty;
 }
 
-public class InspirationCardViewModel
-{
-    public string Number { get; init; } = string.Empty;
-
-    public string Title { get; init; } = string.Empty;
-
-    public string Subtitle { get; init; } = string.Empty;
-
-    public string ThemeKey { get; init; } = string.Empty;
-
-    public string ImagePath { get; init; } = string.Empty;
-}
-
 public class ServiceFeatureViewModel
 {
     public string IconText { get; init; } = string.Empty;
-
-    public string Title { get; init; } = string.Empty;
-
-    public string Description { get; init; } = string.Empty;
-}
-
-public class AboutStatViewModel
-{
-    public string Value { get; init; } = string.Empty;
-
-    public string Label { get; init; } = string.Empty;
-}
-
-public class ProcessStepViewModel
-{
-    public string Number { get; init; } = string.Empty;
 
     public string Title { get; init; } = string.Empty;
 

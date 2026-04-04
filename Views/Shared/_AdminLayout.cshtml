@@ -6,11 +6,11 @@
 }
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Admin</title>
+    <title>@ViewData["Title"] - One Man Vekery Admin</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/OneManVekery.styles.css" asp-append-version="true" />
@@ -21,11 +21,11 @@
             <div class="admin-sidebar-panel">
                 <div class="admin-sidebar-head">
                     <div>
-                        <a class="admin-brand" asp-controller="Admin" asp-action="Index">Bakery Admin</a>
-                        <p>Control Center</p>
+                        <a class="admin-brand" asp-controller="Admin" asp-action="Index">One Man Vekery</a>
+                        <p>Admin workspace</p>
                     </div>
 
-                    <span class="admin-sidebar-badge">07</span>
+                    <span class="admin-sidebar-badge">OVK</span>
                 </div>
 
                 <nav class="admin-nav">
@@ -68,7 +68,7 @@
                         </div>
                     </a>
 
-                    <a class="admin-logout-link" asp-controller="Account" asp-action="Logout">Logout</a>
+                    <a class="admin-logout-link" asp-controller="Account" asp-action="Logout">ออกจากระบบ</a>
                 </div>
             </div>
         </aside>
@@ -81,6 +81,7 @@
 
             <header class="admin-topbar">
                 <div>
+                    <p class="admin-topbar-kicker">One Man Vekery Admin</p>
                     <h1>@ViewData["Title"]</h1>
                 </div>
 
@@ -89,7 +90,7 @@
                     {
                         <span class="admin-date-pill">@adminDateRange</span>
                     }
-                    <a class="admin-back-link" asp-controller="Home" asp-action="Index">Back to store</a>
+                    <a class="admin-back-link" asp-controller="Home" asp-action="Index">กลับหน้าร้าน</a>
                 </div>
             </header>
 
