@@ -26,7 +26,7 @@
                             <p class="section-overline">ตะกร้าของคุณ</p>
                             <h2>สินค้า @Model.ItemCount ชิ้น</h2>
                         </div>
-                        <span class="cart-list-note">ส่งฟรีเมื่อยอดสั่งซื้อ 300 ฿ ขึ้นไป</span>
+                        <span class="cart-list-note">ส่งฟรีอัตโนมัติเมื่อยอดสินค้าครบ 100 ฿ ขึ้นไป</span>
                     </div>
 
                     <div class="cart-item-list">
@@ -107,15 +107,112 @@
                             <span>ค่าส่ง</span>
                             <strong>@Model.DeliveryFee.ToString("0.##") ฿</strong>
                         </div>
+                        @if (Model.DiscountAmount > 0)
+                        {
+                            <div class="cart-summary-row cart-summary-row-discount">
+                                <span>ส่วนลดสินค้า</span>
+                                <strong>-@Model.DiscountAmount.ToString("0.##") ฿</strong>
+                            </div>
+                        }
+                        @if (Model.ShippingDiscountAmount > 0)
+                        {
+                            <div class="cart-summary-row cart-summary-row-discount">
+                                <span>ส่วนลดค่าส่ง</span>
+                                <strong>-@Model.ShippingDiscountAmount.ToString("0.##") ฿</strong>
+                            </div>
+                        }
                         <div class="cart-summary-row is-total">
                             <span>รวมทั้งหมด</span>
                             <strong>@Model.Total.ToString("0.##") ฿</strong>
                         </div>
                     </div>
 
+                    @if (Model.AppliedBenefits.Count > 0)
+                    {
+                        <div class="cart-benefit-list">
+                            @foreach (var benefit in Model.AppliedBenefits)
+                            {
+                                <article class="cart-benefit-item is-@benefit.Tone">
+                                    <div>
+                                        <strong>@benefit.Title</strong>
+                                        <span>@benefit.Description</span>
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(benefit.ValueLabel))
+                                    {
+                                        <em>@benefit.ValueLabel</em>
+                                    }
+                                </article>
+                            }
+                        </div>
+                    }
+
                     <form asp-action="Checkout" method="post" class="cart-checkout-form">
                         @Html.AntiForgeryToken()
                         <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+
+                        <div class="cart-promo-panel">
+                            <div class="cart-promo-copy">
+                                <div>
+                                    <p class="section-overline">โค้ดส่วนลด</p>
+                                    <h3>ใส่โค้ดก่อนยืนยันออเดอร์</h3>
+                                </div>
+                                @if (Model.HasAppliedPromotion)
+                                {
+                                    <span class="cart-promo-badge">@Model.AppliedPromoCode</span>
+                                }
+                            </div>
+
+                            <div class="cart-promo-entry">
+                                <input asp-for="Checkout.PromoCode" class="form-control bakery-field" placeholder="เช่น WELCOME10" />
+                                <button type="submit" class="btn store-outline-btn cart-promo-button" asp-action="ApplyPromoCode">ใช้โค้ด</button>
+                            </div>
+                            <span asp-validation-for="Checkout.PromoCode" class="text-danger small"></span>
+
+                            @if (Model.HasPromoMessage)
+                            {
+                                <div class="cart-promo-status is-@Model.PromoMessageState">
+                                    <strong>@(Model.HasAppliedPromotion ? Model.AppliedPromoTitle : "ตรวจสอบโค้ดส่วนลด")</strong>
+                                    <span>@Model.PromoMessage</span>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="cart-loyalty-panel">
+                            <div class="cart-loyalty-head">
+                                <div>
+                                    <p class="section-overline">พอยต์สะสม</p>
+                                    <h3>@Model.CurrentPoints P</h3>
+                                </div>
+                                <span class="cart-loyalty-projection">หลังสั่งซื้อ @Model.ProjectedPointsBalance P</span>
+                            </div>
+
+                            <div class="cart-loyalty-grid">
+                                <div class="cart-loyalty-stat">
+                                    <span>ได้รับเพิ่ม</span>
+                                    <strong>+@Model.PointsEarned P</strong>
+                                </div>
+                                <div class="cart-loyalty-stat">
+                                    <span>ใช้แลก</span>
+                                    <strong>-@Model.PointsRedeemed P</strong>
+                                </div>
+                            </div>
+
+                            @if (Model.RewardPointCost > 0 && Model.CanRedeemFreeItem)
+                            {
+                                <label class="cart-reward-toggle">
+                                    <input asp-for="Checkout.UsePointsReward" type="checkbox" />
+                                    <div>
+                                        <strong>ใช้ @Model.RewardPointCost พอยต์แลก @Model.RewardProductName ฟรี @Model.RewardQty ชิ้น</strong>
+                                        <span>ระบบจะคำนวณจากสินค้าของรางวัลที่กำหนดไว้ในโปรโมชันจริงของร้าน</span>
+                                    </div>
+                                </label>
+                                <span asp-validation-for="Checkout.UsePointsReward" class="text-danger small"></span>
+                            }
+                            else if (Model.RewardPointCost > 0)
+                            {
+                                <p class="cart-loyalty-note">สะสมอีก @Model.PointsNeededForFreeItem P เพื่อแลก @Model.RewardProductName ฟรี @Model.RewardQty ชิ้น</p>
+                            }
+                        </div>
 
                         <div class="cart-payment-options">
                             @foreach (var option in Model.PaymentOptions)

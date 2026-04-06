@@ -5,6 +5,7 @@
 @inject OneManVekery.Models.Db.OneManVekeryDBContext DbContext
 
 @{
+    var storefrontContent = StorefrontContentOptionsAccessor.Value ?? new StorefrontContentOptions();
     var hideChrome = ViewData["HideChrome"] is bool value && value;
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
@@ -25,7 +26,24 @@
     }
 
     var cartCount = cartItems.Sum(item => item.Quantity);
-    var layoutContent = StorefrontContentOptionsAccessor.Value.Layout ?? new StorefrontLayoutOptions();
+    var layoutContent = storefrontContent.Layout ?? new StorefrontLayoutOptions();
+    var contactContent = storefrontContent.Contact ?? new StorefrontContactOptions();
+    var footerHelpItems = layoutContent.HelpItems ?? [];
+    var footerFeatures = storefrontContent.Features?
+        .Where(item => item is not null && !string.IsNullOrWhiteSpace(item.Title))
+        .Take(3)
+        .ToList() ?? [];
+    var footerContactCards = contactContent.Cards?
+        .Where(card => card is not null && (!string.IsNullOrWhiteSpace(card.Title) || !string.IsNullOrWhiteSpace(card.LineOne) || !string.IsNullOrWhiteSpace(card.LineTwo)))
+        .Take(3)
+        .ToList() ?? [];
+    var footerTagline = string.IsNullOrWhiteSpace(layoutContent.BrandTagline)
+        ? "ขนมอบสดใหม่ทุกวัน พร้อมหน้าร้านออนไลน์ที่สั่งซื้อได้ง่าย"
+        : layoutContent.BrandTagline;
+    var footerAddress = string.IsNullOrWhiteSpace(layoutContent.FooterAddress)
+        ? "Bangkok, Thailand"
+        : layoutContent.FooterAddress;
+    var footerYear = DateTime.Now.Year;
     var signedInAccountId = int.TryParse(Context.Session.GetString(AdminPortalAuth.SessionAccountIdKey), out var accountIdValue)
         ? accountIdValue
         : 0;
@@ -195,25 +213,104 @@
             <div class="container bakery-container">
                 <div class="site-footer-grid">
                     <div class="site-footer-brand">
-                        <p class="site-footer-title">One Man Vekery.</p>
-                        <p>@layoutContent.FooterAddress</p>
+                        <div class="site-footer-brand-head">
+                            <div>
+                                <p class="site-footer-title">One Man Vekery.</p>
+                                <p class="site-footer-subtitle">@footerTagline</p>
+                            </div>
+                        </div>
+                        <div class="site-footer-brand-body">
+                            <p class="site-footer-copy">เลือกดูสินค้า สั่งซื้อ และติดตามออเดอร์ได้จากหน้าเดียวกันในบรรยากาศร้านขนมที่เรียบและชัดเจน</p>
+                            <p class="site-footer-address">@footerAddress</p>
+                            @if (footerFeatures.Count > 0)
+                            {
+                                <div class="site-footer-feature-list">
+                                    @foreach (var feature in footerFeatures)
+                                    {
+                                        <span class="site-footer-feature-pill">@feature.Title</span>
+                                    }
+                                </div>
+                            }
+                        </div>
                     </div>
 
-                    <div>
+                    <div class="site-footer-column">
                         <p class="site-footer-label">เมนู</p>
-                        <a asp-controller="Home" asp-action="Index">หน้าแรก</a>
-                        <a asp-controller="Home" asp-action="Shop">สินค้า</a>
-                        @if (isStorefrontUser)
-                        {
-                            <a asp-controller="Home" asp-action="Cart">ตะกร้า</a>
-                        }
-                        <a asp-controller="Home" asp-action="About">เกี่ยวกับร้าน</a>
-                        <a asp-controller="Home" asp-action="Contact">ติดต่อ</a>
+                        <nav class="site-footer-links" aria-label="เมนูท้ายหน้า">
+                            <a asp-controller="Home" asp-action="Index">หน้าแรก</a>
+                            <a asp-controller="Home" asp-action="Shop">สินค้า</a>
+                            @if (isStorefrontUser)
+                            {
+                                <a asp-controller="Home" asp-action="Cart">ตะกร้า</a>
+                            }
+                            <a asp-controller="Home" asp-action="About">เกี่ยวกับร้าน</a>
+                            <a asp-controller="Home" asp-action="Contact">ติดต่อ</a>
+                        </nav>
+                    </div>
+
+                    <div class="site-footer-column">
+                        <p class="site-footer-label">ติดต่อร้าน</p>
+                        <div class="site-footer-stack">
+                            @if (footerContactCards.Count == 0)
+                            {
+                                <span>@footerAddress</span>
+                            }
+                            else
+                            {
+                                @foreach (var card in footerContactCards)
+                                {
+                                    <div class="site-footer-contact-item">
+                                        <strong>@card.Title</strong>
+                                        @if (!string.IsNullOrWhiteSpace(card.LineOne))
+                                        {
+                                            <span>@card.LineOne</span>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(card.LineTwo))
+                                        {
+                                            <span>@card.LineTwo</span>
+                                        }
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <div class="site-footer-column">
+                        <p class="site-footer-label">ช่วยเหลือ</p>
+                        <div class="site-footer-stack">
+                            @if (footerHelpItems.Count == 0)
+                            {
+                                <span>สอบถามเพิ่มเติมได้จากหน้าติดต่อของร้าน</span>
+                            }
+                            else
+                            {
+                                @foreach (var helpItem in footerHelpItems)
+                                {
+                                    <span>@helpItem</span>
+                                }
+                            }
+                        </div>
+
+                        <div class="site-footer-account-link">
+                            @if (isStorefrontUser)
+                            {
+                                <a asp-controller="Account" asp-action="Profile">โปรไฟล์ของฉัน</a>
+                            }
+                            else
+                            {
+                                <a asp-controller="Account" asp-action="Login">เข้าสู่ระบบ</a>
+                            }
+                        </div>
                     </div>
                 </div>
 
                 <div class="site-footer-bottom">
-                    2026 One Man Vekery. สงวนลิขสิทธิ์
+                    <span class="site-footer-copyright">@footerYear One Man Vekery. สงวนลิขสิทธิ์</span>
+                    <div class="site-footer-bottom-links">
+                        <a asp-controller="Home" asp-action="Index">หน้าแรก</a>
+                        <a asp-controller="Home" asp-action="About">เกี่ยวกับร้าน</a>
+                        <a asp-controller="Home" asp-action="Contact">ติดต่อ</a>
+                    </div>
                 </div>
             </div>
         </footer>

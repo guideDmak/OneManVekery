@@ -96,11 +96,44 @@
                         <span>ค่าส่ง</span>
                         <strong>@Model.DeliveryFee.ToString("0.##") ฿</strong>
                     </div>
+                    @if (Model.DiscountAmount > 0)
+                    {
+                        <div class="order-summary-row order-summary-row-discount">
+                            <span>ส่วนลดสินค้า</span>
+                            <strong>-@Model.DiscountAmount.ToString("0.##") ฿</strong>
+                        </div>
+                    }
+                    @if (Model.ShippingDiscountAmount > 0)
+                    {
+                        <div class="order-summary-row order-summary-row-discount">
+                            <span>ส่วนลดค่าส่ง</span>
+                            <strong>-@Model.ShippingDiscountAmount.ToString("0.##") ฿</strong>
+                        </div>
+                    }
                     <div class="order-summary-row is-total">
                         <span>รวมทั้งหมด</span>
                         <strong>@Model.Total.ToString("0.##") ฿</strong>
                     </div>
                 </div>
+
+                @if (Model.AppliedBenefits.Count > 0)
+                {
+                    <div class="cart-benefit-list order-benefit-list">
+                        @foreach (var benefit in Model.AppliedBenefits)
+                        {
+                            <article class="cart-benefit-item is-@benefit.Tone">
+                                <div>
+                                    <strong>@benefit.Title</strong>
+                                    <span>@benefit.Description</span>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(benefit.ValueLabel))
+                                {
+                                    <em>@benefit.ValueLabel</em>
+                                }
+                            </article>
+                        }
+                    </div>
+                }
             </article>
 
             <aside class="order-details-card">
@@ -120,6 +153,28 @@
                 <div class="order-detail-block">
                     <p class="section-overline">วิธีชำระเงิน</p>
                     <strong>@Model.PaymentMethodLabel</strong>
+                </div>
+
+                @if (Model.HasAppliedPromotion)
+                {
+                    <div class="order-detail-block">
+                        <p class="section-overline">โค้ดส่วนลด</p>
+                        <strong>@Model.AppliedPromoCode</strong>
+                        @if (!string.IsNullOrWhiteSpace(Model.AppliedPromoTitle))
+                        {
+                            <span>@Model.AppliedPromoTitle</span>
+                        }
+                    </div>
+                }
+
+                <div class="order-detail-block">
+                    <p class="section-overline">พอยต์สะสม</p>
+                    <strong>+@Model.PointsEarned P</strong>
+                    @if (Model.PointsRedeemed > 0)
+                    {
+                        <span>ใช้แลก -@Model.PointsRedeemed P</span>
+                    }
+                    <span>คงเหลือหลังออเดอร์ @Model.PointsBalanceAfter P</span>
                 </div>
 
                 @if (!string.IsNullOrWhiteSpace(Model.Notes))

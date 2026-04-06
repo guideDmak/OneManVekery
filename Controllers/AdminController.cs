@@ -1430,71 +1430,407 @@ public class AdminController : Controller
         };
     }
 
-    private static AdminCodesViewModel BuildCodesModel()
+    private AdminCodesViewModel BuildCodesModel()
     {
-        IReadOnlyList<AdminPromotionRecordViewModel> promotions = [];
+        var promotions = _dbContext.Promotions
+            .AsNoTracking()
+            .Include(promotion => promotion.PromoCodes)
+            .Include(promotion => promotion.OrderPromotions)
+            .Include(promotion => promotion.PromotionTargets)
+                .ThenInclude(target => target.Product)
+            .Include(promotion => promotion.PromotionTargets)
+                .ThenInclude(target => target.Category)
+            .Include(promotion => promotion.RewardProduct)
+            .OrderBy(promotion => promotion.Priority)
+            .ThenBy(promotion => promotion.Title)
+            .ToList();
+
+        var promotionRows = promotions
+            .SelectMany(BuildPromotionRows)
+            .OrderBy(record => record.StatusKey == "active" ? 0 : 1)
+            .ThenBy(record => record.Title, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(record => record.Code, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var activePromotions = promotions.Count(promotion => NormalizePromotionStatusKey(promotion.Status) == "active");
+        var autoPromotions = promotions.Count(promotion => promotion.AutoApply && !promotion.RequiresCode);
+        var codeBasedPromotions = promotions.Count(promotion => promotion.RequiresCode || promotion.PromoCodes.Count > 0);
+        var loyaltyPromotions = promotions.Count(promotion => string.Equals(promotion.CampaignType, "loyalty", StringComparison.OrdinalIgnoreCase));
+        var stackablePromotions = promotions.Count(promotion => promotion.CanStack);
+        var freeShippingPromotions = promotions.Count(promotion => promotion.FreeShipping);
+        var rewardPromotions = promotions.Count(promotion => (promotion.RewardQty ?? 0) > 0 || (promotion.PointsCost ?? 0) > 0);
+        var totalCodeUses = promotions
+            .SelectMany(promotion => promotion.PromoCodes)
+            .Sum(code => code.UsedCount);
+        var totalAppliedOrders = promotions.Sum(promotion => promotion.OrderPromotions.Count);
+        var loyaltyWalletCount = _dbContext.LoyaltyWallets.AsNoTracking().Count();
 
         return new AdminCodesViewModel
         {
-            DateRangeLabel = $"แผนโปรโมชัน {DateTime.Now:dd MMM yyyy}",
+            DateRangeLabel = $"Promotion sync {DateTime.Now:dd MMM yyyy}",
             Metrics =
             [
-                new AdminMetricCardViewModel { Label = "รูปแบบโปร", Value = "5", Delta = "แถม, ลดราคา, ค่าส่ง, ช่วงเวลา, แต้มสะสม", PositiveTrend = true, AccentKey = "gold" },
-                new AdminMetricCardViewModel { Label = "กฎอัตโนมัติ", Value = "4", Delta = "ไม่ต้องกรอกโค้ดก็ทำงานได้", PositiveTrend = true, AccentKey = "green" },
-                new AdminMetricCardViewModel { Label = "ชุดแต้มสะสม", Value = "2", Delta = "รับแต้มและแลกของรางวัล", PositiveTrend = true, AccentKey = "blue" },
-                new AdminMetricCardViewModel { Label = "การผูกกับออเดอร์", Value = "พร้อม", Delta = "รองรับหลายโปรในออเดอร์เดียว", PositiveTrend = true, AccentKey = "orange" }
-            ],
-            Blueprints =
-            [
-                new AdminCodeBlueprintViewModel
+                new AdminMetricCardViewModel
                 {
-                    Kicker = "โปรรายสัปดาห์",
-                    Title = "ซื้อ 1 แถม 1 ทุกวันอังคาร",
-                    Description = "ใช้กฎ buy x get y และกำหนด weekday mask เฉพาะวันอังคารได้",
-                    Tags = ["ซื้อ 1 แถม 1", "วันอังคาร", "อัตโนมัติ"],
+                    Label = "Promotions",
+                    Value = promotions.Count.ToString(CultureInfo.InvariantCulture),
+                    Delta = $"{activePromotions} active campaigns",
+                    PositiveTrend = activePromotions > 0,
                     AccentKey = "gold"
                 },
-                new AdminCodeBlueprintViewModel
+                new AdminMetricCardViewModel
                 {
-                    Kicker = "โปรตามจำนวนชิ้น",
-                    Title = "ซื้อครบ 3 ชิ้น ลด 15%",
-                    Description = "ตั้ง min item quantity และ percent discount เพื่อทำโปรตามจำนวนชิ้นได้",
-                    Tags = ["3 ชิ้น", "15%", "ตามเงื่อนไขตะกร้า"],
-                    AccentKey = "pink"
+                    Label = "Auto Apply",
+                    Value = autoPromotions.ToString(CultureInfo.InvariantCulture),
+                    Delta = $"{codeBasedPromotions} ต้องกรอกโค้ด",
+                    PositiveTrend = autoPromotions > 0,
+                    AccentKey = "green"
                 },
-                new AdminCodeBlueprintViewModel
+                new AdminMetricCardViewModel
                 {
-                    Kicker = "โปรค่าส่ง",
-                    Title = "ซื้อครบ 100 ฿ ส่งฟรี",
-                    Description = "กำหนดขั้นต่ำของออเดอร์แล้วให้ลดค่าส่งทั้งก้อนได้โดยอัตโนมัติ",
-                    Tags = ["100 ฿", "ส่งฟรี", "ยอดรวมออเดอร์"],
+                    Label = "Promo Codes",
+                    Value = promotions.SelectMany(promotion => promotion.PromoCodes).Count().ToString(CultureInfo.InvariantCulture),
+                    Delta = $"{totalCodeUses} ครั้งที่ถูกใช้",
+                    PositiveTrend = totalCodeUses > 0,
                     AccentKey = "blue"
                 },
-                new AdminCodeBlueprintViewModel
+                new AdminMetricCardViewModel
                 {
-                    Kicker = "โปรตามเวลา",
-                    Title = "ลดทั้งร้าน 50% เวลา 19:00-20:00",
-                    Description = "รองรับโปรรายวันแบบ time window ด้วย daily start/end time และ storewide scope",
-                    Tags = ["50%", "19:00-20:00", "ช่วงเวลารายวัน"],
-                    AccentKey = "gold"
-                },
-                new AdminCodeBlueprintViewModel
-                {
-                    Kicker = "แต้มสะสม",
-                    Title = "ซื้อครบ 20 ฿ ได้ 10 แต้ม แลกฟรี 1 ชิ้นเมื่อครบ 100 แต้ม",
-                    Description = "ใช้ wallet + points ledger แยกกับ promotion rules เพื่อคิดแต้มและแลกรางวัลได้",
-                    Tags = ["10 แต้ม", "แลก 100 แต้ม", "ขนมฟรี 1 ชิ้น"],
-                    AccentKey = "blue"
+                    Label = "Loyalty",
+                    Value = loyaltyPromotions.ToString(CultureInfo.InvariantCulture),
+                    Delta = $"{loyaltyWalletCount} wallets พร้อมใช้งาน",
+                    PositiveTrend = loyaltyPromotions > 0,
+                    AccentKey = "orange"
                 }
             ],
             SummaryItems =
             [
-                new AdminInfoItemViewModel { Label = "ตัวกระตุ้น", Value = "5", Detail = "ขั้นต่ำ, จำนวนชิ้น, วัน, เวลา, แต้มสะสม", AccentKey = "gold" },
-                new AdminInfoItemViewModel { Label = "รูปแบบรางวัล", Value = "5", Detail = "เปอร์เซ็นต์, จำนวนเงิน, ค่าส่ง, ของแถม, แต้ม", AccentKey = "blue" },
-                new AdminInfoItemViewModel { Label = "บันทึกต่อออเดอร์", Value = "พร้อม", Detail = "แยก order_promotions สำหรับหลายโปรในบิลเดียว", AccentKey = "green" },
-                new AdminInfoItemViewModel { Label = "กระเป๋าแต้มและ ledger", Value = "พร้อม", Detail = "เก็บยอดแต้มปัจจุบันและประวัติการเคลื่อนไหวแยกกัน", AccentKey = "orange" }
+                new AdminInfoItemViewModel
+                {
+                    Label = "Stackable",
+                    Value = stackablePromotions.ToString(CultureInfo.InvariantCulture),
+                    Detail = "โปรโมชั่นที่ใช้ร่วมกับสิทธิ์อื่นได้",
+                    AccentKey = stackablePromotions > 0 ? "green" : "gold"
+                },
+                new AdminInfoItemViewModel
+                {
+                    Label = "Free Shipping",
+                    Value = freeShippingPromotions.ToString(CultureInfo.InvariantCulture),
+                    Detail = "กฎที่มีผลกับค่าจัดส่ง",
+                    AccentKey = freeShippingPromotions > 0 ? "blue" : "gold"
+                },
+                new AdminInfoItemViewModel
+                {
+                    Label = "Rewards",
+                    Value = rewardPromotions.ToString(CultureInfo.InvariantCulture),
+                    Detail = "แคมเปญสะสมแต้มและของรางวัล",
+                    AccentKey = rewardPromotions > 0 ? "orange" : "gold"
+                },
+                new AdminInfoItemViewModel
+                {
+                    Label = "Applied Orders",
+                    Value = totalAppliedOrders.ToString(CultureInfo.InvariantCulture),
+                    Detail = "ออเดอร์ที่มีการบันทึกโปรโมชันจริง",
+                    AccentKey = totalAppliedOrders > 0 ? "green" : "gold"
+                }
             ],
-            Promotions = promotions
+            Promotions = promotionRows
+        };
+    }
+
+    private static IReadOnlyList<AdminPromotionRecordViewModel> BuildPromotionRows(Promotion promotion)
+    {
+        var promoCodes = promotion.PromoCodes
+            .OrderBy(code => code.Code, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (promoCodes.Count == 0)
+        {
+            return [MapPromotionRecord(promotion, null)];
+        }
+
+        return promoCodes
+            .Select(code => MapPromotionRecord(promotion, code))
+            .ToList();
+    }
+
+    private static AdminPromotionRecordViewModel MapPromotionRecord(Promotion promotion, PromoCode? promoCode)
+    {
+        var statusSource = promoCode?.Status ?? promotion.Status;
+
+        return new AdminPromotionRecordViewModel
+        {
+            Code = BuildPromotionCodeLabel(promotion, promoCode),
+            Title = promotion.Title,
+            DiscountLabel = BuildPromotionDiscountLabel(promotion, promoCode),
+            RuleLabel = BuildPromotionRuleLabel(promotion, promoCode),
+            Status = FormatPromotionStatusLabel(statusSource),
+            StatusKey = NormalizePromotionStatusKey(statusSource),
+            UsageLabel = BuildPromotionUsageLabel(promotion, promoCode),
+            ExpiryLabel = BuildPromotionExpiryLabel(promotion, promoCode),
+            Note = BuildPromotionNote(promotion, promoCode)
+        };
+    }
+
+    private static string BuildPromotionCodeLabel(Promotion promotion, PromoCode? promoCode)
+    {
+        if (!string.IsNullOrWhiteSpace(promoCode?.Code))
+        {
+            return promoCode.Code;
+        }
+
+        if (string.Equals(promotion.CampaignType, "loyalty", StringComparison.OrdinalIgnoreCase))
+        {
+            return "LOYALTY";
+        }
+
+        return promotion.AutoApply ? "AUTO" : promotion.PromotionKey.ToUpperInvariant();
+    }
+
+    private static string BuildPromotionDiscountLabel(Promotion promotion, PromoCode? promoCode)
+    {
+        if (promoCode is not null)
+        {
+            return NormalizeDiscountType(promoCode.DiscountType) switch
+            {
+                "percent" => promoCode.MaxDiscountAmount is decimal maxDiscount
+                    ? $"ลด {promoCode.DiscountValue:0.##}% สูงสุด {maxDiscount:0.##} ฿"
+                    : $"ลด {promoCode.DiscountValue:0.##}%",
+                "amount" => $"ลด {promoCode.DiscountValue:0.##} ฿",
+                "shipping" => "ส่งฟรี",
+                _ => promotion.Title
+            };
+        }
+
+        var parts = new List<string>();
+
+        if (promotion.BuyQty is > 0 && promotion.GetQty is > 0)
+        {
+            parts.Add($"ซื้อ {promotion.BuyQty:0} แถม {promotion.GetQty:0}");
+        }
+
+        if (promotion.DiscountPercent is decimal discountPercent)
+        {
+            parts.Add($"ลด {discountPercent:0.##}%");
+        }
+
+        if (promotion.DiscountAmount is decimal discountAmount)
+        {
+            parts.Add($"ลด {discountAmount:0.##} ฿");
+        }
+
+        if (promotion.FreeShipping)
+        {
+            parts.Add("ส่งฟรี");
+        }
+
+        if (promotion.PointsAwarded is > 0 && promotion.SpendStepAmount is decimal spendStepAmount)
+        {
+            parts.Add($"ทุก {spendStepAmount:0.##} ฿ ได้ {promotion.PointsAwarded:0} พอยต์");
+        }
+
+        if (promotion.PointsCost is > 0)
+        {
+            var rewardLabel = promotion.RewardProduct?.Name ?? "ของรางวัล";
+            var rewardQty = promotion.RewardQty.GetValueOrDefault(1);
+            parts.Add($"แลก {promotion.PointsCost:0} พอยต์ รับ {rewardLabel} x{rewardQty:0}");
+        }
+
+        return parts.Count == 0
+            ? promotion.BenefitType
+            : string.Join(" / ", parts);
+    }
+
+    private static string BuildPromotionRuleLabel(Promotion promotion, PromoCode? promoCode)
+    {
+        var parts = new List<string>();
+
+        if (promoCode is not null)
+        {
+            parts.Add("กรอกโค้ด");
+        }
+        else if (promotion.AutoApply)
+        {
+            parts.Add("อัตโนมัติ");
+        }
+
+        if ((promoCode?.MinOrderAmount ?? promotion.MinOrderAmount) is decimal minOrderAmount)
+        {
+            parts.Add($"ขั้นต่ำ {minOrderAmount:0.##} ฿");
+        }
+
+        if (promotion.MinItemQty is > 0)
+        {
+            parts.Add($"ครบ {promotion.MinItemQty:0} ชิ้น");
+        }
+
+        if (promotion.BuyQty is > 0)
+        {
+            parts.Add($"ซื้ออย่างน้อย {promotion.BuyQty:0} ชิ้น");
+        }
+
+        var targetLabel = BuildPromotionTargetLabel(promotion);
+        if (!string.IsNullOrWhiteSpace(targetLabel))
+        {
+            parts.Add(targetLabel);
+        }
+
+        var weekdayLabel = BuildWeekdayLabel(promotion.WeekdayMask);
+        if (!string.IsNullOrWhiteSpace(weekdayLabel))
+        {
+            parts.Add(weekdayLabel);
+        }
+
+        if (promotion.DailyStartTime is TimeOnly startTime && promotion.DailyEndTime is TimeOnly endTime)
+        {
+            parts.Add($"{startTime:HH\\:mm}-{endTime:HH\\:mm}");
+        }
+
+        return parts.Count == 0
+            ? "ไม่มีเงื่อนไขพิเศษ"
+            : string.Join(" | ", parts);
+    }
+
+    private static string BuildPromotionUsageLabel(Promotion promotion, PromoCode? promoCode)
+    {
+        if (promoCode is not null)
+        {
+            return promoCode.UsageLimit is int usageLimit
+                ? $"{promoCode.UsedCount:0}/{usageLimit:0} ครั้ง"
+                : $"{promoCode.UsedCount:0} ครั้ง";
+        }
+
+        return $"{promotion.OrderPromotions.Count:0} ออเดอร์";
+    }
+
+    private static string BuildPromotionExpiryLabel(Promotion promotion, PromoCode? promoCode)
+    {
+        var startsAt = promoCode?.StartsAt ?? promotion.StartsAt;
+        var expiresAt = promoCode?.ExpiresAt ?? promotion.ExpiresAt;
+
+        if (startsAt.HasValue || expiresAt.HasValue)
+        {
+            var startLabel = startsAt?.ToString("dd MMM yyyy") ?? "-";
+            var endLabel = expiresAt?.ToString("dd MMM yyyy") ?? "ไม่กำหนด";
+            return $"{startLabel} -> {endLabel}";
+        }
+
+        if (promotion.DailyStartTime is TimeOnly startTime && promotion.DailyEndTime is TimeOnly endTime)
+        {
+            return $"ทุกวัน {startTime:HH\\:mm}-{endTime:HH\\:mm}";
+        }
+
+        var weekdayLabel = BuildWeekdayLabel(promotion.WeekdayMask);
+        if (!string.IsNullOrWhiteSpace(weekdayLabel))
+        {
+            return weekdayLabel;
+        }
+
+        return "ไม่กำหนดวันหมดอายุ";
+    }
+
+    private static string BuildPromotionNote(Promotion promotion, PromoCode? promoCode)
+    {
+        var noteParts = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(promotion.Note))
+        {
+            noteParts.Add(promotion.Note);
+        }
+
+        if (!string.IsNullOrWhiteSpace(promoCode?.Note))
+        {
+            noteParts.Add(promoCode.Note);
+        }
+
+        if (!promotion.CanStack)
+        {
+            noteParts.Add("ไม่ stack กับโปรอื่น");
+        }
+
+        return noteParts.Count == 0
+            ? "-"
+            : string.Join(" | ", noteParts.Distinct(StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static string BuildPromotionTargetLabel(Promotion promotion)
+    {
+        var targets = promotion.PromotionTargets
+            .Select(target => target.Product?.Name ?? target.Category?.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Take(2)
+            .ToList();
+
+        if (targets.Count > 0)
+        {
+            return $"เป้าหมาย {string.Join(", ", targets)}";
+        }
+
+        return (promotion.TargetScope ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "order" => "ทั้งออเดอร์",
+            "store" => "ทั้งร้าน",
+            "product" => "ตามสินค้า",
+            "category" => "ตามหมวด",
+            _ => string.Empty
+        };
+    }
+
+    private static string BuildWeekdayLabel(int? weekdayMask)
+    {
+        if (!weekdayMask.HasValue || weekdayMask.Value <= 0)
+        {
+            return string.Empty;
+        }
+
+        var days = new List<string>();
+        var dayMap = new (int Mask, string Label)[]
+        {
+            (1, "อาทิตย์"),
+            (2, "จันทร์"),
+            (4, "อังคาร"),
+            (8, "พุธ"),
+            (16, "พฤหัส"),
+            (32, "ศุกร์"),
+            (64, "เสาร์")
+        };
+
+        foreach (var day in dayMap)
+        {
+            if ((weekdayMask.Value & day.Mask) == day.Mask)
+            {
+                days.Add(day.Label);
+            }
+        }
+
+        return days.Count == 0 ? string.Empty : $"วัน{string.Join(", ", days)}";
+    }
+
+    private static string NormalizeDiscountType(string? discountType)
+    {
+        return (discountType ?? string.Empty).Trim().ToLowerInvariant();
+    }
+
+    private static string NormalizePromotionStatusKey(string? status)
+    {
+        return (status ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "draft" => "draft",
+            "paused" => "paused",
+            "expired" => "expired",
+            "inactive" => "paused",
+            _ => "active"
+        };
+    }
+
+    private static string FormatPromotionStatusLabel(string? status)
+    {
+        return NormalizePromotionStatusKey(status) switch
+        {
+            "draft" => "Draft",
+            "paused" => "Paused",
+            "expired" => "Expired",
+            _ => "Active"
         };
     }
 

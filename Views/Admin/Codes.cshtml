@@ -27,39 +27,12 @@
 </section>
 
 <section class="admin-detail-grid admin-codes-detail-grid">
-    <article class="admin-card admin-codes-blueprint-card">
-        <div class="admin-card-head admin-card-head-stack">
-            <div>
-                <p class="admin-page-kicker">คลังกฎ</p>
-                <h2>ชุดโปรโมชันที่รองรับ</h2>
-                <p>ชุดกฎที่เตรียมไว้ให้รองรับโปรอัตโนมัติ โปรตามเวลา และรางวัลจากแต้มสะสม</p>
-            </div>
-        </div>
-
-        <div class="admin-code-blueprint-grid">
-            @foreach (var blueprint in Model.Blueprints)
-            {
-                <article class="admin-code-blueprint-card-item @($"is-{blueprint.AccentKey}")">
-                    <p class="admin-page-kicker">@blueprint.Kicker</p>
-                    <h3>@blueprint.Title</h3>
-                    <p>@blueprint.Description</p>
-                    <div class="admin-code-tag-row">
-                        @foreach (var tag in blueprint.Tags)
-                        {
-                            <span class="admin-code-tag">@tag</span>
-                        }
-                    </div>
-                </article>
-            }
-        </div>
-    </article>
-
     <article class="admin-card admin-codes-summary-card">
         <div class="admin-card-head admin-card-head-stack">
             <div>
-                <p class="admin-page-kicker">ความพร้อมของระบบ</p>
-                <h2>โครงสร้างโปรโมชัน</h2>
-                <p>โครงนี้ออกแบบให้หนึ่งออเดอร์รับได้หลายสิทธิประโยชน์ และมีแต้มสะสมแยกออกมาเป็นระบบ</p>
+                <p class="admin-page-kicker">System Snapshot</p>
+                <h2>โครงสร้างโปรโมชันในฐานข้อมูล</h2>
+                <p>ส่วนนี้อ่านจากตาราง promotions, promo_codes, order_promotions และ loyalty_wallets โดยตรงแล้ว ไม่มี mock rule หรือแบบฟอร์มหลอกค้างอยู่</p>
             </div>
         </div>
 
@@ -76,54 +49,47 @@
             }
         </div>
     </article>
+
+    <article class="admin-card admin-codes-summary-card">
+        <div class="admin-card-head admin-card-head-stack">
+            <div>
+                <p class="admin-page-kicker">Campaigns</p>
+                <h2>กฎที่เปิดอยู่ในระบบ</h2>
+                <p>รวมทั้งโปรอัตโนมัติ, โปรแบบกรอกโค้ด, ส่งฟรี และ loyalty reward ที่ checkout ใช้งานจริงอยู่ตอนนี้</p>
+            </div>
+        </div>
+
+        <div class="admin-code-tag-row">
+            @if (Model.Promotions.Count == 0)
+            {
+                <span class="admin-code-tag">ยังไม่มีโปรโมชัน</span>
+            }
+            else
+            {
+                @foreach (var promotion in Model.Promotions.Take(8))
+                {
+                    <span class="admin-code-tag">@promotion.Title</span>
+                }
+            }
+        </div>
+    </article>
 </section>
 
 <section class="admin-orders-section">
     <article class="admin-card admin-codes-library-card">
         <div class="admin-card-head admin-card-head-stack">
             <div>
-                <h2>โปรโมชันและรางวัล</h2>
-                <p>หน้าหลักสำหรับคุมโปรอัตโนมัติ โค้ดคูปอง ส่งฟรี ลดตามช่วงเวลา และรางวัลจากแต้มสะสม</p>
+                <h2>Promotion Library</h2>
+                <p>รายการด้านล่างแสดงข้อมูลจากฐานข้อมูลจริงของแต่ละ campaign และ coupon code พร้อมเงื่อนไข, สถานะ, จำนวนครั้งที่ใช้ และช่วงเวลาที่มีผล</p>
             </div>
-            <button type="button" class="admin-primary-button" data-bs-toggle="modal" data-bs-target="#addCodeModal">
-                เพิ่มโปรโมชัน
-            </button>
         </div>
-
-        <form class="admin-codes-toolbar" action="javascript:void(0);">
-            <input type="search"
-                   class="form-control bakery-field"
-                   placeholder="ค้นหาโปรโมชัน โค้ด หรือโน้ต" />
-            <select class="form-select bakery-field">
-                <option>ทุกสถานะ</option>
-                <option>ฉบับร่าง</option>
-                <option>ใช้งานอยู่</option>
-                <option>พักใช้</option>
-                <option>หมดอายุ</option>
-            </select>
-            <select class="form-select bakery-field">
-                <option>ตั้งค่าล่าสุด</option>
-                <option>ชื่อโปร A-Z</option>
-                <option>สถานะ</option>
-                <option>วันหมดอายุ</option>
-            </select>
-            <button type="button" class="admin-secondary-button">ล้างค่า</button>
-        </form>
 
         @if (Model.Promotions.Count == 0)
         {
             <div class="admin-empty-state admin-code-empty-panel">
                 <div>
-                    <h3>ยังไม่มี promotion ในระบบ</h3>
-                    <p>โครงหน้าร้านและฐานข้อมูลพร้อมสำหรับโปรหลายรูปแบบแล้ว ขั้นถัดไปคือผูก CRUD กับ checkout และ loyalty wallet ให้ใช้งานจริง</p>
-                </div>
-
-                <div class="admin-code-tag-row">
-                    <span class="admin-code-tag">ซื้อ 1 แถม 1</span>
-                    <span class="admin-code-tag">ส่งฟรี</span>
-                    <span class="admin-code-tag">ลดตามเวลา</span>
-                    <span class="admin-code-tag">แต้มสะสม</span>
-                    <span class="admin-code-tag">ของรางวัล</span>
+                    <h3>ยังไม่มีโปรโมชันในฐานข้อมูล</h3>
+                    <p>เพิ่มข้อมูลในตาราง promotions และ promo_codes ก่อน แล้วหน้านี้จะแสดงผลทันทีโดยไม่ต้องแก้ controller เพิ่ม</p>
                 </div>
             </div>
         }
@@ -134,11 +100,11 @@
                     <thead>
                         <tr>
                             <th>โค้ด</th>
-                            <th>ส่วนลด</th>
+                            <th>สิทธิประโยชน์</th>
                             <th>เงื่อนไข</th>
                             <th>สถานะ</th>
                             <th>การใช้งาน</th>
-                            <th>วันหมดอายุ</th>
+                            <th>ช่วงเวลา</th>
                             <th>โน้ต</th>
                         </tr>
                     </thead>
@@ -166,228 +132,3 @@
         }
     </article>
 </section>
-
-<div class="modal fade admin-modal" id="addCodeModal" tabindex="-1" aria-labelledby="addCodeModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div>
-                    <p class="admin-modal-kicker">สร้างโปรโมชัน</p>
-                    <h2 class="modal-title" id="addCodeModalLabel">เพิ่มโปรโมชันใหม่</h2>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-
-            <div class="modal-body">
-                <form class="admin-item-form" action="javascript:void(0);">
-                    <div class="admin-readonly-note">
-                        ฟอร์มนี้เตรียมให้รองรับโปรอัตโนมัติ, code-based campaign และ loyalty reward ใน flow เดียว รอบถัดไปค่อยผูก save และ rule engine จริง
-                    </div>
-
-                    <div class="admin-form-grid">
-                        <section class="admin-form-section admin-form-span-full">
-                            <div class="admin-form-section-head">
-                                <p class="admin-page-kicker">พื้นฐาน</p>
-                                <h3>ตั้งค่าแคมเปญ</h3>
-                            </div>
-                            <div class="admin-form-subgrid">
-                                <div class="admin-form-span-full">
-                                    <label class="form-label">ชื่อโปรโมชัน</label>
-                                    <input class="form-control bakery-field" placeholder="ซื้อ 1 แถม 1 ทุกวันอังคาร" />
-                                </div>
-
-                                <div>
-                                    <label class="form-label">โหมดโปรโมชัน</label>
-                                    <select class="form-select bakery-field">
-                                        <option>อัตโนมัติ</option>
-                                        <option>ใช้โค้ด</option>
-                                        <option>รางวัลแต้มสะสม</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label class="form-label">สถานะ</label>
-                                    <select class="form-select bakery-field">
-                                        <option>ฉบับร่าง</option>
-                                        <option>ใช้งานอยู่</option>
-                                        <option>พักใช้</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label class="form-label">โค้ดคูปอง (ถ้ามี)</label>
-                                    <input class="form-control bakery-field" placeholder="TUESDAYBOGO" />
-                                </div>
-
-                                <div>
-                                    <label class="form-label">ใช้ร่วมกับโปรอื่นได้ไหม</label>
-                                    <select class="form-select bakery-field">
-                                        <option>ไม่ได้</option>
-                                        <option>ได้</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section class="admin-form-section admin-form-span-full">
-                            <div class="admin-form-section-head">
-                                <p class="admin-page-kicker">เงื่อนไข</p>
-                                <h3>กฎเริ่มทำงานเมื่อไร</h3>
-                            </div>
-                            <div class="admin-form-subgrid">
-                                <div>
-                                    <label class="form-label">ประเภทกฎ</label>
-                                    <select class="form-select bakery-field">
-                                        <option>ซื้อ X แถม Y</option>
-                                        <option>ลดตามจำนวนชิ้น</option>
-                                        <option>ส่งฟรีตามยอดขั้นต่ำ</option>
-                                        <option>ลดตามช่วงเวลา</option>
-                                        <option>รับแต้มสะสม</option>
-                                        <option>แลกแต้มสะสม</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label class="form-label">ขอบเขตเป้าหมาย</label>
-                                    <select class="form-select bakery-field">
-                                        <option>ทั้งร้าน</option>
-                                        <option>ตามหมวด</option>
-                                        <option>ตามสินค้า</option>
-                                        <option>ตามยอดรวมออเดอร์</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label class="form-label">ยอดขั้นต่ำของออเดอร์</label>
-                                    <input class="form-control bakery-field" type="number" min="0" step="0.01" placeholder="100" />
-                                </div>
-
-                                <div>
-                                    <label class="form-label">จำนวนชิ้นขั้นต่ำ</label>
-                                    <input class="form-control bakery-field" type="number" min="0" step="1" placeholder="3" />
-                                </div>
-
-                                <div>
-                                    <label class="form-label">ยอดต่อขั้นของแต้ม</label>
-                                    <input class="form-control bakery-field" type="number" min="0" step="0.01" placeholder="20" />
-                                </div>
-
-                                <div>
-                                    <label class="form-label">วันในสัปดาห์</label>
-                                    <select class="form-select bakery-field">
-                                        <option>ทุกวัน</option>
-                                        <option>เฉพาะวันอังคาร</option>
-                                        <option>เฉพาะเสาร์อาทิตย์</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label class="form-label">จำนวนที่ต้องซื้อ</label>
-                                    <input class="form-control bakery-field" type="number" min="0" step="1" placeholder="1" />
-                                </div>
-
-                                <div>
-                                    <label class="form-label">จำนวนที่แถม</label>
-                                    <input class="form-control bakery-field" type="number" min="0" step="1" placeholder="1" />
-                                </div>
-
-                                <div>
-                                    <label class="form-label">เวลาเริ่มต่อวัน</label>
-                                    <input class="form-control bakery-field" type="time" value="19:00" />
-                                </div>
-
-                                <div>
-                                    <label class="form-label">เวลาสิ้นสุดต่อวัน</label>
-                                    <input class="form-control bakery-field" type="time" value="20:00" />
-                                </div>
-                            </div>
-                        </section>
-
-                        <section class="admin-form-section admin-form-span-full">
-                            <div class="admin-form-section-head">
-                                <p class="admin-page-kicker">ผลลัพธ์</p>
-                                <h3>ลูกค้าจะได้รับอะไร</h3>
-                            </div>
-                            <div class="admin-form-subgrid">
-                                <div>
-                                    <label class="form-label">ส่วนลดเป็นเปอร์เซ็นต์</label>
-                                    <input class="form-control bakery-field" type="number" min="0" step="0.01" placeholder="15" />
-                                </div>
-
-                                <div>
-                                    <label class="form-label">ส่วนลดเป็นจำนวนเงิน</label>
-                                    <input class="form-control bakery-field" type="number" min="0" step="0.01" placeholder="50" />
-                                </div>
-
-                                <div>
-                                    <label class="form-label">เพดานส่วนลด</label>
-                                    <input class="form-control bakery-field" type="number" min="0" step="0.01" placeholder="200" />
-                                </div>
-
-                                <div>
-                                    <label class="form-label">ส่งฟรี</label>
-                                    <select class="form-select bakery-field">
-                                        <option>ไม่ใช่</option>
-                                        <option>ใช่</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label class="form-label">แต้มที่ได้รับ</label>
-                                    <input class="form-control bakery-field" type="number" min="0" step="1" placeholder="10" />
-                                </div>
-
-                                <div>
-                                    <label class="form-label">แต้มที่ใช้แลก</label>
-                                    <input class="form-control bakery-field" type="number" min="0" step="1" placeholder="100" />
-                                </div>
-
-                                <div>
-                                    <label class="form-label">ขอบเขตรางวัล</label>
-                                    <select class="form-select bakery-field">
-                                        <option>ขนมในกลุ่มที่กำหนด</option>
-                                        <option>ตามหมวดที่กำหนด</option>
-                                        <option>ตามสินค้าที่กำหนด</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label class="form-label">จำนวนรางวัล</label>
-                                    <input class="form-control bakery-field" type="number" min="0" step="1" placeholder="1" />
-                                </div>
-                            </div>
-                        </section>
-
-                        <section class="admin-form-section admin-form-span-full">
-                            <div class="admin-form-section-head">
-                                <p class="admin-page-kicker">ช่วงเวลา</p>
-                                <h3>ระยะเวลาและโน้ต</h3>
-                            </div>
-                            <div class="admin-form-subgrid">
-                                <div>
-                                    <label class="form-label">เริ่มใช้งานเมื่อ</label>
-                                    <input class="form-control bakery-field" type="datetime-local" />
-                                </div>
-
-                                <div>
-                                    <label class="form-label">สิ้นสุดเมื่อ</label>
-                                    <input class="form-control bakery-field" type="datetime-local" />
-                                </div>
-
-                                <div class="admin-form-span-full">
-                                    <label class="form-label">โน้ตภายใน</label>
-                                    <textarea class="form-control bakery-field bakery-field-area admin-field-area" placeholder="บันทึกภายในสำหรับโปรโมชันนี้"></textarea>
-                                </div>
-                            </div>
-                        </section>
-                    </div>
-
-                    <div class="admin-form-actions">
-                        <button type="button" class="admin-secondary-button" data-bs-dismiss="modal">ปิด</button>
-                        <button type="button" class="admin-primary-button" disabled>บันทึกโปรโมชัน</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>

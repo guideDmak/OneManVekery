@@ -22,6 +22,8 @@ public class CartPageViewModel
 
     public IReadOnlyList<PaymentOptionViewModel> PaymentOptions { get; init; } = [];
 
+    public IReadOnlyList<CheckoutBenefitViewModel> AppliedBenefits { get; init; } = [];
+
     public CartCheckoutViewModel Checkout { get; init; } = new();
 
     public int ItemCount { get; init; }
@@ -30,9 +32,49 @@ public class CartPageViewModel
 
     public decimal DeliveryFee { get; init; }
 
-    public decimal Total => Subtotal + DeliveryFee;
+    public decimal DiscountAmount { get; init; }
+
+    public decimal ShippingDiscountAmount { get; init; }
+
+    public string AppliedPromoCode { get; init; } = string.Empty;
+
+    public string AppliedPromoTitle { get; init; } = string.Empty;
+
+    public string AppliedPromoDescription { get; init; } = string.Empty;
+
+    public string PromoMessage { get; init; } = string.Empty;
+
+    public string PromoMessageState { get; init; } = string.Empty;
+
+    public int CurrentPoints { get; init; }
+
+    public int PointsEarned { get; init; }
+
+    public int PointsRedeemed { get; init; }
+
+    public int ProjectedPointsBalance { get; init; }
+
+    public int PointsNeededForFreeItem { get; init; }
+
+    public int RewardPointCost { get; init; }
+
+    public int RewardQty { get; init; } = 1;
+
+    public string RewardProductName { get; init; } = string.Empty;
+
+    public bool CanRedeemFreeItem { get; init; }
+
+    public bool WillRedeemFreeItem => Checkout.UsePointsReward && CanRedeemFreeItem;
+
+    public decimal TotalSavings => DiscountAmount + ShippingDiscountAmount;
+
+    public decimal Total => Math.Max(0, Subtotal + DeliveryFee - TotalSavings);
 
     public bool HasItems => Items.Count > 0;
+
+    public bool HasAppliedPromotion => !string.IsNullOrWhiteSpace(AppliedPromoCode) && TotalSavings > 0;
+
+    public bool HasPromoMessage => !string.IsNullOrWhiteSpace(PromoMessage);
 }
 
 public class OrderStatusPageViewModel
@@ -59,11 +101,31 @@ public class OrderStatusPageViewModel
 
     public IReadOnlyList<OrderProgressStepViewModel> StatusSteps { get; init; } = [];
 
+    public IReadOnlyList<CheckoutBenefitViewModel> AppliedBenefits { get; init; } = [];
+
     public decimal Subtotal { get; init; }
 
     public decimal DeliveryFee { get; init; }
 
-    public decimal Total => Subtotal + DeliveryFee;
+    public decimal DiscountAmount { get; init; }
+
+    public decimal ShippingDiscountAmount { get; init; }
+
+    public string AppliedPromoCode { get; init; } = string.Empty;
+
+    public string AppliedPromoTitle { get; init; } = string.Empty;
+
+    public int PointsEarned { get; init; }
+
+    public int PointsRedeemed { get; init; }
+
+    public int PointsBalanceAfter { get; init; }
+
+    public decimal TotalSavings => DiscountAmount + ShippingDiscountAmount;
+
+    public decimal Total => Math.Max(0, Subtotal + DeliveryFee - TotalSavings);
+
+    public bool HasAppliedPromotion => !string.IsNullOrWhiteSpace(AppliedPromoCode) && TotalSavings > 0;
 }
 
 public class AboutPageViewModel
@@ -174,6 +236,17 @@ public class PaymentOptionViewModel
     public string Description { get; init; } = string.Empty;
 }
 
+public class CheckoutBenefitViewModel
+{
+    public string Title { get; init; } = string.Empty;
+
+    public string Description { get; init; } = string.Empty;
+
+    public string ValueLabel { get; init; } = string.Empty;
+
+    public string Tone { get; init; } = string.Empty;
+}
+
 public class ServiceFeatureViewModel
 {
     public string IconText { get; init; } = string.Empty;
@@ -215,6 +288,12 @@ public class ContactFormViewModel
 
 public class CartCheckoutViewModel
 {
+    [Display(Name = "โค้ดส่วนลด")]
+    public string PromoCode { get; set; } = string.Empty;
+
+    [Display(Name = "ใช้พอยต์แลกขนมฟรี")]
+    public bool UsePointsReward { get; set; }
+
     [Required(ErrorMessage = "กรุณากรอกชื่อผู้รับ")]
     public string CustomerName { get; set; } = string.Empty;
 

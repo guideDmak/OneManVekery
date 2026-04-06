@@ -84,24 +84,9 @@ public class AdminCodesViewModel
 
     public IReadOnlyList<AdminMetricCardViewModel> Metrics { get; init; } = [];
 
-    public IReadOnlyList<AdminCodeBlueprintViewModel> Blueprints { get; init; } = [];
-
     public IReadOnlyList<AdminInfoItemViewModel> SummaryItems { get; init; } = [];
 
     public IReadOnlyList<AdminPromotionRecordViewModel> Promotions { get; init; } = [];
-}
-
-public class AdminCodeBlueprintViewModel
-{
-    public string Kicker { get; init; } = string.Empty;
-
-    public string Title { get; init; } = string.Empty;
-
-    public string Description { get; init; } = string.Empty;
-
-    public IReadOnlyList<string> Tags { get; init; } = [];
-
-    public string AccentKey { get; init; } = string.Empty;
 }
 
 public class AdminPromotionRecordViewModel
