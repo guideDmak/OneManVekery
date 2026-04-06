@@ -1,4 +1,111 @@
 ﻿const searchRoot = document.querySelector("[data-product-search]");
+const isStorefrontUserSignedIn = document.body?.dataset.storefrontUser === "true";
+const isAuthPage = document.body?.classList.contains("auth-body");
+
+if (isAuthPage) {
+  if ("scrollRestoration" in window.history) {
+    window.history.scrollRestoration = "manual";
+  }
+
+  const resetAuthScroll = () => {
+    window.scrollTo(0, 0);
+  };
+
+  resetAuthScroll();
+  window.requestAnimationFrame(resetAuthScroll);
+  window.addEventListener("load", resetAuthScroll, { once: true });
+}
+
+const confirmModalElement = document.getElementById("siteConfirmModal");
+const confirmTitleElement = confirmModalElement?.querySelector("[data-confirm-title]");
+const confirmMessageElement = confirmModalElement?.querySelector("[data-confirm-message]");
+const confirmActionElement = confirmModalElement?.querySelector("[data-confirm-action]");
+const logoutTriggers = [...document.querySelectorAll("a[data-confirm-message]")];
+const siteNoticeShell = document.querySelector("[data-site-notice]");
+let pendingConfirmHref = "";
+
+const resetConfirmState = () => {
+  pendingConfirmHref = "";
+};
+
+if (siteNoticeShell instanceof HTMLElement) {
+  const dismissAfterMs = Number.parseInt(siteNoticeShell.dataset.siteNoticeDismissMs || "5000", 10);
+  const resolvedDismissAfterMs = Number.isFinite(dismissAfterMs) ? dismissAfterMs : 5000;
+  const noticeExitDurationMs = 520;
+
+  window.setTimeout(() => {
+    siteNoticeShell.classList.add("is-hiding");
+
+    window.setTimeout(() => {
+      siteNoticeShell.remove();
+    }, noticeExitDurationMs);
+  }, resolvedDismissAfterMs);
+}
+
+if (confirmModalElement && window.bootstrap && confirmActionElement) {
+  const confirmModal = window.bootstrap.Modal.getOrCreateInstance(confirmModalElement);
+
+  logoutTriggers.forEach((trigger) => {
+    trigger.addEventListener("click", (event) => {
+      if (!(trigger instanceof HTMLAnchorElement)) {
+        return;
+      }
+
+      event.preventDefault();
+      pendingConfirmHref = trigger.href;
+
+      if (confirmTitleElement) {
+        confirmTitleElement.textContent = trigger.getAttribute("data-confirm-title") || "ยืนยันรายการ";
+      }
+
+      if (confirmMessageElement) {
+        confirmMessageElement.textContent = trigger.getAttribute("data-confirm-message") || "ต้องการดำเนินการต่อหรือไม่";
+      }
+
+      if (confirmActionElement instanceof HTMLButtonElement) {
+        confirmActionElement.textContent = trigger.getAttribute("data-confirm-action-label") || "ยืนยัน";
+      }
+
+      confirmModal.show();
+    });
+  });
+
+  confirmActionElement.addEventListener("click", () => {
+    if (pendingConfirmHref) {
+      window.location.href = pendingConfirmHref;
+    }
+  });
+
+  confirmModalElement.addEventListener("hidden.bs.modal", resetConfirmState);
+} else {
+  logoutTriggers.forEach((trigger) => {
+    trigger.addEventListener("click", (event) => {
+      const message = trigger.getAttribute("data-confirm-message") || "ต้องการดำเนินการต่อหรือไม่";
+      if (!window.confirm(message)) {
+        event.preventDefault();
+      }
+    });
+  });
+}
+
+const loginPromptModalElement = document.getElementById("siteLoginPromptModal");
+const loginRequiredForms = [...document.querySelectorAll("form[data-login-required-form]")];
+
+if (!isStorefrontUserSignedIn && loginPromptModalElement && window.bootstrap) {
+  const loginPromptModal = window.bootstrap.Modal.getOrCreateInstance(loginPromptModalElement);
+
+  loginRequiredForms.forEach((formElement) => {
+    formElement.addEventListener("submit", (event) => {
+      const submitter = event.submitter;
+      if (submitter instanceof HTMLButtonElement && submitter.disabled) {
+        return;
+      }
+
+      event.preventDefault();
+      loginPromptModal.show();
+    });
+  });
+}
 
 if (searchRoot) {
   const searchInput = searchRoot.querySelector("[data-search-input]");

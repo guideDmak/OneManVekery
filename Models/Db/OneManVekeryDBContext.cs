@@ -35,6 +35,8 @@ public partial class OneManVekeryDBContext : DbContext
 
     public virtual DbSet<User> Users { get; set; }
 
+    public virtual DbSet<UserAddress> UserAddresses { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Category>(entity =>
@@ -525,6 +527,47 @@ public partial class OneManVekeryDBContext : DbContext
                 .HasForeignKey(d => d.RoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_users_roles");
+        });
+
+        modelBuilder.Entity<UserAddress>(entity =>
+        {
+            entity.ToTable("user_addresses");
+
+            entity.HasIndex(e => e.UserId)
+                .HasDatabaseName("IX_user_addresses_user_id");
+
+            entity.HasIndex(e => e.UserId)
+                .HasDatabaseName("UX_user_addresses_default_per_user")
+                .IsUnique()
+                .HasFilter("([is_default]=(1))");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.AddressLine).HasColumnName("address_line");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.IsDefault).HasColumnName("is_default");
+            entity.Property(e => e.Label)
+                .HasMaxLength(50)
+                .HasColumnName("label");
+            entity.Property(e => e.Phone)
+                .HasMaxLength(20)
+                .HasColumnName("phone");
+            entity.Property(e => e.PostalCode)
+                .HasMaxLength(20)
+                .HasColumnName("postal_code");
+            entity.Property(e => e.RecipientName)
+                .HasMaxLength(100)
+                .HasColumnName("recipient_name");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+
+            entity.HasOne(d => d.User).WithMany(p => p.UserAddresses)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_user_addresses_users");
         });
 
         OnModelCreatingPartial(modelBuilder);

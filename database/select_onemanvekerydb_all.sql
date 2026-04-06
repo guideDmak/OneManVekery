@@ -94,6 +94,8 @@ UNION ALL
 SELECT N'roles' AS table_name, COUNT(*) AS row_count FROM dbo.roles
 UNION ALL
 SELECT N'users' AS table_name, COUNT(*) AS row_count FROM dbo.users
+UNION ALL
+SELECT N'user_addresses' AS table_name, COUNT(*) AS row_count FROM dbo.user_addresses
 ORDER BY table_name;
 GO
 
@@ -107,6 +109,12 @@ PRINT N'=== RAW: USERS ===';
 SELECT *
 FROM dbo.users
 ORDER BY id;
+GO
+
+PRINT N'=== RAW: USER ADDRESSES ===';
+SELECT *
+FROM dbo.user_addresses
+ORDER BY user_id, is_default DESC, id;
 GO
 
 PRINT N'=== RAW: CATEGORIES ===';
@@ -191,6 +199,26 @@ FROM dbo.users AS u
 LEFT JOIN dbo.roles AS r
     ON u.role_id = r.id
 ORDER BY u.id;
+GO
+
+PRINT N'=== READABLE: USER ADDRESSES ===';
+SELECT
+    ua.id,
+    ua.user_id,
+    u.full_name,
+    u.email,
+    ua.label,
+    ua.recipient_name,
+    ua.phone,
+    ua.address_line,
+    ua.postal_code,
+    ua.is_default,
+    ua.created_at,
+    ua.updated_at
+FROM dbo.user_addresses AS ua
+INNER JOIN dbo.users AS u
+    ON ua.user_id = u.id
+ORDER BY ua.user_id, ua.is_default DESC, ua.id;
 GO
 
 PRINT N'=== READABLE: PRODUCTS WITH CATEGORY ===';

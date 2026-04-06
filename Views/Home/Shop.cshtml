@@ -4,21 +4,6 @@
     ViewData["Title"] = "สินค้า";
 }
 
-<section class="page-banner">
-    <div class="container bakery-container">
-        <div class="page-banner-card">
-            <p class="page-banner-brand">One Man Vekery</p>
-            <h1>สินค้า</h1>
-            <p class="page-banner-summary">เลือกจากรายการที่เปิดขายจริงของร้านได้ทันที</p>
-            <p class="page-banner-crumb">
-                <a asp-action="Index">หน้าแรก</a>
-                <span>&gt;</span>
-                <strong>สินค้า</strong>
-            </p>
-        </div>
-    </div>
-</section>
-
 <section class="shop-toolbar">
     <div class="container bakery-container">
         <div class="shop-toolbar-shell">
@@ -86,7 +71,7 @@
                                 }
                             </div>
 
-                            <form asp-action="AddToCart" method="post" class="store-cart-form">
+                            <form asp-action="AddToCart" method="post" class="store-cart-form" data-login-required-form>
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="productId" value="@product.ProductId" />
                                 <button type="submit" class="btn store-card-btn" @(product.IsSoldOut ? "disabled" : null)>

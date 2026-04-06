@@ -57,6 +57,12 @@ public class HomeController : Controller
     [HttpGet]
     public IActionResult Cart()
     {
+        if (!IsStorefrontUserSignedIn())
+        {
+            TempData["SiteNotice"] = "กรุณาเข้าสู่ระบบก่อนใช้งานตะกร้าสินค้า";
+            return RedirectToAction("Login", "Account");
+        }
+
         return View(BuildCartPageModel());
     }
 
@@ -77,6 +83,12 @@ public class HomeController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult AddToCart(string productId)
     {
+        if (!IsStorefrontUserSignedIn())
+        {
+            TempData["SiteNotice"] = "กรุณาเข้าสู่ระบบก่อนเพิ่มสินค้าในตะกร้า";
+            return RedirectToAction("Login", "Account");
+        }
+
         if (AddItemToCart(productId))
         {
             TempData["SiteNotice"] = "เพิ่มสินค้าเข้าตะกร้าแล้ว";
@@ -93,6 +105,12 @@ public class HomeController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult ChangeCartQuantity(string productId, int delta)
     {
+        if (!IsStorefrontUserSignedIn())
+        {
+            TempData["SiteNotice"] = "กรุณาเข้าสู่ระบบก่อนใช้งานตะกร้าสินค้า";
+            return RedirectToAction("Login", "Account");
+        }
+
         if (!ChangeCartItemQuantity(productId, delta))
         {
             TempData["SiteNotice"] = "ไม่สามารถอัปเดตจำนวนสินค้าได้";
@@ -105,6 +123,12 @@ public class HomeController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult RemoveFromCart(string productId)
     {
+        if (!IsStorefrontUserSignedIn())
+        {
+            TempData["SiteNotice"] = "กรุณาเข้าสู่ระบบก่อนใช้งานตะกร้าสินค้า";
+            return RedirectToAction("Login", "Account");
+        }
+
         if (RemoveCartItem(productId))
         {
             TempData["SiteNotice"] = "ลบสินค้าออกจากตะกร้าแล้ว";
@@ -121,6 +145,12 @@ public class HomeController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult Checkout(CartCheckoutViewModel checkout)
     {
+        if (!IsStorefrontUserSignedIn())
+        {
+            TempData["SiteNotice"] = "กรุณาเข้าสู่ระบบก่อนสั่งซื้อสินค้า";
+            return RedirectToAction("Login", "Account");
+        }
+
         var cartItems = GetCartItems();
         if (cartItems.Count == 0)
         {
@@ -157,17 +187,22 @@ public class HomeController : Controller
     public IActionResult About()
     {
         var aboutContent = _storefrontContent.About ?? new StorefrontAboutOptions();
+        var storyParagraphs = aboutContent.StoryParagraphs ?? [];
+        var values = aboutContent.Values ?? [];
 
         return View(new AboutPageViewModel
         {
-            StoryTitle = aboutContent.StoryTitle,
-            StoryParagraphs = aboutContent.StoryParagraphs,
-            Values = aboutContent.Values
+            StoryTitle = aboutContent.StoryTitle ?? string.Empty,
+            StoryParagraphs = storyParagraphs
+                .Where(paragraph => !string.IsNullOrWhiteSpace(paragraph))
+                .ToList(),
+            Values = values
+                .Where(item => item is not null)
                 .Select(item => new ServiceFeatureViewModel
                 {
-                    IconText = item.IconText,
-                    Title = item.Title,
-                    Description = item.Description
+                    IconText = item.IconText ?? string.Empty,
+                    Title = item.Title ?? string.Empty,
+                    Description = item.Description ?? string.Empty
                 })
                 .ToList()
         });
@@ -450,6 +485,16 @@ public class HomeController : Controller
             .FirstOrDefault(order => string.Equals(order.OrderNumber, orderNumber, StringComparison.OrdinalIgnoreCase));
     }
 
+    private bool IsStorefrontUserSignedIn()
+    {
+        var roleKey = HttpContext.Session.GetString(AdminPortalAuth.SessionAccountRoleKey);
+        var accountId = HttpContext.Session.GetString(AdminPortalAuth.SessionAccountIdKey);
+
+        return int.TryParse(accountId, out var accountIdValue)
+               && accountIdValue > 0
+               && string.Equals(roleKey, "user", StringComparison.OrdinalIgnoreCase);
+    }
+
     private List<CartSessionItem> ReadCartItems()
     {
         var raw = HttpContext.Session.GetString(CartSessionKey);
@@ -458,7 +503,15 @@ public class HomeController : Controller
             return [];
         }
 
-        return JsonSerializer.Deserialize<List<CartSessionItem>>(raw) ?? [];
+        try
+        {
+            return JsonSerializer.Deserialize<List<CartSessionItem>>(raw) ?? [];
+        }
+        catch (JsonException)
+        {
+            HttpContext.Session.Remove(CartSessionKey);
+            return [];
+        }
     }
 
     private void WriteCartItems(List<CartSessionItem> items)
@@ -502,7 +555,15 @@ public class HomeController : Controller
             return [];
         }
 
-        return JsonSerializer.Deserialize<List<OrderReceiptRecord>>(raw) ?? [];
+        try
+        {
+            return JsonSerializer.Deserialize<List<OrderReceiptRecord>>(raw) ?? [];
+        }
+        catch (JsonException)
+        {
+            HttpContext.Session.Remove(OrderSessionKey);
+            return [];
+        }
     }
 
     private void WriteOrders(List<OrderReceiptRecord> orders)

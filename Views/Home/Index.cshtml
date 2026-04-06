@@ -93,7 +93,7 @@
                             }
                         </div>
 
-                        <form asp-action="AddToCart" method="post" class="store-cart-form">
+                        <form asp-action="AddToCart" method="post" class="store-cart-form" data-login-required-form>
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="productId" value="@product.ProductId" />
                             <button type="submit" class="btn store-card-btn" @(product.IsSoldOut ? "disabled" : null)>

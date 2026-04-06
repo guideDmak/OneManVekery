@@ -1,0 +1,116 @@
+@model AccountProfileViewModel
+
+@{
+    ViewData["Title"] = "โปรไฟล์";
+}
+
+<section class="page-banner">
+    <div class="container bakery-container">
+        <div class="page-banner-card">
+            <p class="page-banner-brand">One Man Vekery</p>
+            <h1>โปรไฟล์ของฉัน</h1>
+            <p class="page-banner-summary">ดูข้อมูลบัญชี แต้มสะสม และที่อยู่จัดส่งหลักของคุณได้จากหน้านี้</p>
+            <p class="page-banner-crumb">
+                <a asp-controller="Home" asp-action="Index">หน้าแรก</a>
+                <span>&gt;</span>
+                <strong>โปรไฟล์</strong>
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="account-profile-section">
+    <div class="container bakery-container">
+        <div class="account-profile-grid">
+            <article class="account-profile-card">
+                <p class="section-overline">บัญชีผู้ใช้</p>
+                <h2>@Model.FullName</h2>
+
+                <div class="account-profile-meta">
+                    <div class="account-profile-row">
+                        <span>Account ID</span>
+                        <strong>@Model.AccountCode</strong>
+                    </div>
+                    <div class="account-profile-row">
+                        <span>อีเมล</span>
+                        <strong>@Model.Email</strong>
+                    </div>
+                    <div class="account-profile-row">
+                        <span>เบอร์โทร</span>
+                        <strong>@Model.PhoneNumber</strong>
+                    </div>
+                    <div class="account-profile-row">
+                        <span>สิทธิ์</span>
+                        <strong>@Model.RoleLabel</strong>
+                    </div>
+                    <div class="account-profile-row">
+                        <span>สถานะ</span>
+                        <strong>@Model.StatusLabel</strong>
+                    </div>
+                    <div class="account-profile-row">
+                        <span>ใช้งานล่าสุด</span>
+                        <strong>@Model.LastActiveAt.ToString("dd MMM yyyy, HH:mm")</strong>
+                    </div>
+                </div>
+            </article>
+
+            <aside class="account-points-card">
+                <p class="section-overline">แต้มสะสม</p>
+                <h2>@Model.CurrentPoints พอยต์</h2>
+
+                <div class="account-profile-meta">
+                    <div class="account-profile-row">
+                        <span>สะสมทั้งหมด</span>
+                        <strong>@Model.LifetimeEarnedPoints พอยต์</strong>
+                    </div>
+                    <div class="account-profile-row">
+                        <span>ใช้ไปแล้ว</span>
+                        <strong>@Model.LifetimeRedeemedPoints พอยต์</strong>
+                    </div>
+                </div>
+
+                <a class="btn store-outline-btn" asp-controller="Home" asp-action="Shop">เลือกสินค้าต่อ</a>
+            </aside>
+        </div>
+
+        <div class="account-addresses-head">
+            <div>
+                <p class="section-overline">ที่อยู่ของฉัน</p>
+                <h2>ที่อยู่จัดส่ง</h2>
+            </div>
+        </div>
+
+        <div class="account-address-grid">
+            @if (Model.Addresses.Count == 0)
+            {
+                <article class="account-address-card">
+                    <h3>ยังไม่มีที่อยู่</h3>
+                    <p>ตอนนี้บัญชีนี้ยังไม่มีที่อยู่จัดส่งที่บันทึกไว้ในระบบ</p>
+                </article>
+            }
+            else
+            {
+                @foreach (var address in Model.Addresses)
+                {
+                    <article class="account-address-card">
+                        <div class="account-address-head">
+                            <h3>@address.Label</h3>
+                            @if (address.IsDefault)
+                            {
+                                <span class="account-address-badge">ค่าเริ่มต้น</span>
+                            }
+                        </div>
+
+                        <strong>@address.RecipientName</strong>
+                        <p>@address.PhoneNumber</p>
+                        <p>@address.AddressLine</p>
+                        @if (!string.IsNullOrWhiteSpace(address.PostalCode))
+                        {
+                            <p>รหัสไปรษณีย์ @address.PostalCode</p>
+                        }
+                    </article>
+                }
+            }
+        </div>
+    </div>
+</section>

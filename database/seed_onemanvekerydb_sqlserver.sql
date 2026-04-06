@@ -116,6 +116,90 @@ BEGIN
 END
 GO
 
+IF OBJECT_ID(N'dbo.user_addresses', N'U') IS NOT NULL
+    AND NOT EXISTS (
+        SELECT 1
+        FROM dbo.user_addresses
+        WHERE user_id = (SELECT TOP 1 id FROM dbo.users WHERE email = N'mild@example.com')
+          AND label = N'บ้าน'
+    )
+BEGIN
+    INSERT INTO dbo.user_addresses (user_id, label, recipient_name, phone, address_line, postal_code, is_default)
+    VALUES (
+        (SELECT TOP 1 id FROM dbo.users WHERE email = N'mild@example.com'),
+        N'บ้าน',
+        N'Mild Patisserie',
+        N'0890000002',
+        N'89/14 ถนนสุขุมวิท แขวงคลองตันเหนือ เขตวัฒนา กรุงเทพมหานคร',
+        N'10110',
+        1
+    );
+END
+GO
+
+IF OBJECT_ID(N'dbo.user_addresses', N'U') IS NOT NULL
+    AND NOT EXISTS (
+        SELECT 1
+        FROM dbo.user_addresses
+        WHERE user_id = (SELECT TOP 1 id FROM dbo.users WHERE email = N'mild@example.com')
+          AND label = N'ที่ทำงาน'
+    )
+BEGIN
+    INSERT INTO dbo.user_addresses (user_id, label, recipient_name, phone, address_line, postal_code, is_default)
+    VALUES (
+        (SELECT TOP 1 id FROM dbo.users WHERE email = N'mild@example.com'),
+        N'ที่ทำงาน',
+        N'Mild Patisserie',
+        N'0890000002',
+        N'21 ซอยพหลโยธิน 9 แขวงสามเสนใน เขตพญาไท กรุงเทพมหานคร',
+        N'10400',
+        0
+    );
+END
+GO
+
+IF OBJECT_ID(N'dbo.user_addresses', N'U') IS NOT NULL
+    AND NOT EXISTS (
+        SELECT 1
+        FROM dbo.user_addresses
+        WHERE user_id = (SELECT TOP 1 id FROM dbo.users WHERE email = N'beam@example.com')
+          AND label = N'บ้าน'
+    )
+BEGIN
+    INSERT INTO dbo.user_addresses (user_id, label, recipient_name, phone, address_line, postal_code, is_default)
+    VALUES (
+        (SELECT TOP 1 id FROM dbo.users WHERE email = N'beam@example.com'),
+        N'บ้าน',
+        N'Beam Bakery Lover',
+        N'0890000003',
+        N'155/7 ถนนรามคำแหง แขวงหัวหมาก เขตบางกะปิ กรุงเทพมหานคร',
+        N'10240',
+        1
+    );
+END
+GO
+
+IF OBJECT_ID(N'dbo.user_addresses', N'U') IS NOT NULL
+    AND NOT EXISTS (
+        SELECT 1
+        FROM dbo.user_addresses
+        WHERE user_id = (SELECT TOP 1 id FROM dbo.users WHERE email = N'prai@example.com')
+          AND label = N'บ้าน'
+    )
+BEGIN
+    INSERT INTO dbo.user_addresses (user_id, label, recipient_name, phone, address_line, postal_code, is_default)
+    VALUES (
+        (SELECT TOP 1 id FROM dbo.users WHERE email = N'prai@example.com'),
+        N'บ้าน',
+        N'ปราย ลูกค้าหน้าร้าน',
+        N'0890000004',
+        N'44/9 ถนนเจริญนคร แขวงบางลำภูล่าง เขตคลองสาน กรุงเทพมหานคร',
+        N'10600',
+        1
+    );
+END
+GO
+
 -- Products
 IF NOT EXISTS (SELECT 1 FROM dbo.products WHERE sku = N'MC-ROSE-01')
 BEGIN

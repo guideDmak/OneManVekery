@@ -1,16 +1,58 @@
 ﻿@using System.Text.Json
 @using Microsoft.AspNetCore.Http
+@using Microsoft.EntityFrameworkCore
 @inject Microsoft.Extensions.Options.IOptions<OneManVekery.Models.StorefrontContentOptions> StorefrontContentOptionsAccessor
+@inject OneManVekery.Models.Db.OneManVekeryDBContext DbContext
 
 @{
     var hideChrome = ViewData["HideChrome"] is bool value && value;
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
     var rawCartItems = hideChrome ? null : Context.Session.GetString("one-man-vekery-cart");
-    var cartItems = string.IsNullOrWhiteSpace(rawCartItems)
-        ? []
-        : JsonSerializer.Deserialize<List<CartSessionItem>>(rawCartItems) ?? [];
+    List<CartSessionItem> cartItems = [];
+
+    if (!string.IsNullOrWhiteSpace(rawCartItems))
+    {
+        try
+        {
+            cartItems = JsonSerializer.Deserialize<List<CartSessionItem>>(rawCartItems) ?? [];
+        }
+        catch (JsonException)
+        {
+            Context.Session.Remove("one-man-vekery-cart");
+            cartItems = [];
+        }
+    }
+
     var cartCount = cartItems.Sum(item => item.Quantity);
     var layoutContent = StorefrontContentOptionsAccessor.Value.Layout ?? new StorefrontLayoutOptions();
+    var signedInAccountId = int.TryParse(Context.Session.GetString(AdminPortalAuth.SessionAccountIdKey), out var accountIdValue)
+        ? accountIdValue
+        : 0;
+    var signedInAccountName = Context.Session.GetString(AdminPortalAuth.SessionAccountNameKey) ?? string.Empty;
+    var signedInRoleKey = Context.Session.GetString(AdminPortalAuth.SessionAccountRoleKey) ?? string.Empty;
+    var signedInRoleLabel = Context.Session.GetString(AdminPortalAuth.SessionAccountRoleLabelKey) ?? string.Empty;
+    var isSignedIn = signedInAccountId > 0;
+    var isStorefrontUser = isSignedIn && string.Equals(signedInRoleKey, "user", StringComparison.OrdinalIgnoreCase);
+    var signedInDisplayName = string.IsNullOrWhiteSpace(signedInAccountName) ? "สมาชิก" : signedInAccountName.Trim();
+    var profileLabel = isStorefrontUser
+        ? "โปรไฟล์"
+        : (string.IsNullOrWhiteSpace(signedInRoleLabel) ? "บัญชี" : signedInRoleLabel);
+    var profileController = isStorefrontUser ? "Account" : "Admin";
+    var profileAction = isStorefrontUser ? "Profile" : "Profile";
+    var profileIsActive = (isStorefrontUser && currentController == "Account" && currentAction == "Profile")
+        || (!isStorefrontUser && currentController == "Admin" && currentAction == "Profile");
+    var profileInitial = signedInDisplayName[..1];
+    var currentPoints = 0;
+
+    if (!hideChrome && isStorefrontUser)
+    {
+        currentPoints = DbContext.LoyaltyWallets
+            .AsNoTracking()
+            .Where(wallet => wallet.UserId == signedInAccountId)
+            .Select(wallet => wallet.CurrentPoints)
+            .FirstOrDefault();
+    }
 }
 
 <!DOCTYPE html>
@@ -27,7 +69,7 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/OneManVekery.styles.css" asp-append-version="true" />
 </head>
-<body class="@(hideChrome ? "auth-body" : string.Empty)">
+<body class="@(hideChrome ? "auth-body" : string.Empty)" data-storefront-user="@(isStorefrontUser ? "true" : "false")">
     @if (!hideChrome)
     {
         <header class="site-header">
@@ -58,18 +100,75 @@
                             <li class="nav-item">
                                 <a class="nav-link @(currentAction == "Contact" ? "active" : string.Empty)" asp-area="" asp-controller="Home" asp-action="Contact">ติดต่อ</a>
                             </li>
-                            <li class="nav-item">
-                                <a class="bakery-cart-link @(currentAction == "Cart" ? "active" : string.Empty)" asp-area="" asp-controller="Home" asp-action="Cart">
-                                    <span>ตะกร้า</span>
-                                    <span class="bakery-cart-count">@cartCount</span>
-                                </a>
+                            <li class="nav-item d-none d-lg-flex bakery-nav-divider" aria-hidden="true">
+                                <span>|</span>
                             </li>
-                            <li class="nav-item">
-                                <a class="btn bakery-btn bakery-btn-light" asp-area="" asp-controller="Account" asp-action="Login">เข้าสู่ระบบ</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="btn bakery-btn bakery-btn-primary" asp-area="" asp-controller="Account" asp-action="Register">สมัครสมาชิก</a>
-                            </li>
+                            @if (isStorefrontUser)
+                            {
+                                <li class="nav-item">
+                                    <span class="bakery-points-pill">P @currentPoints</span>
+                                </li>
+                            }
+                            @if (isStorefrontUser)
+                            {
+                                <li class="nav-item">
+                                    <a class="bakery-icon-button bakery-cart-link @(currentAction == "Cart" ? "active" : string.Empty)"
+                                       asp-area=""
+                                       asp-controller="Home"
+                                       asp-action="Cart"
+                                       aria-label="ตะกร้า"
+                                       title="ตะกร้า">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M3.75 5.25h1.6c.37 0 .7.25.79.61l.33 1.39m0 0 1.33 5.45c.09.36.42.61.79.61h8.91c.37 0 .69-.24.79-.59l1.44-4.94a.82.82 0 0 0-.79-1.05H6.47Z" />
+                                            <path d="M9.5 18.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
+                                            <path d="M18 18.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
+                                        </svg>
+                                        <span class="bakery-cart-count">@cartCount</span>
+                                        <span class="visually-hidden">ตะกร้า</span>
+                                    </a>
+                                </li>
+                            }
+                            @if (isSignedIn)
+                            {
+                                <li class="nav-item">
+                                    <a class="bakery-profile-link @(profileIsActive ? "active" : string.Empty)"
+                                       asp-area=""
+                                       asp-controller="@profileController"
+                                       asp-action="@profileAction"
+                                       aria-label="@profileLabel"
+                                       title="@signedInDisplayName">
+                                        <span class="bakery-profile-avatar">@profileInitial</span>
+                                        <span class="visually-hidden">@signedInDisplayName</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="bakery-icon-button bakery-btn-logout"
+                                       asp-area=""
+                                       asp-controller="Account"
+                                       asp-action="Logout"
+                                       data-confirm-title="ออกจากระบบ"
+                                       data-confirm-message="ต้องการออกจากระบบตอนนี้ใช่ไหม คุณสามารถกลับมาเข้าสู่ระบบได้ทุกเมื่อ"
+                                       data-confirm-action-label="ออกจากระบบ"
+                                       aria-label="ล็อกเอาต์"
+                                       title="ล็อกเอาต์">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M14.5 4.75H9.25A2.5 2.5 0 0 0 6.75 7.25v9.5a2.5 2.5 0 0 0 2.5 2.5h5.25" />
+                                            <path d="M11.75 12h8.5" />
+                                            <path d="m17.25 8.5 3.5 3.5-3.5 3.5" />
+                                        </svg>
+                                        <span class="visually-hidden">ล็อกเอาต์</span>
+                                    </a>
+                                </li>
+                            }
+                            else
+                            {
+                                <li class="nav-item">
+                                    <a class="btn bakery-btn bakery-btn-light" asp-area="" asp-controller="Account" asp-action="Login">เข้าสู่ระบบ</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="btn bakery-btn bakery-btn-primary" asp-area="" asp-controller="Account" asp-action="Register">สมัครสมาชิก</a>
+                                </li>
+                            }
                         </ul>
                     </div>
                 </div>
@@ -79,7 +178,9 @@
 
     @if (TempData["SiteNotice"] is string siteNotice)
     {
-        <div class="container bakery-container">
+        <div class="container bakery-container site-notice-shell @(hideChrome ? "site-notice-shell-auth" : string.Empty)"
+             data-site-notice
+             data-site-notice-dismiss-ms="5000">
             <div class="site-notice" role="status">@siteNotice</div>
         </div>
     }
@@ -102,7 +203,10 @@
                         <p class="site-footer-label">เมนู</p>
                         <a asp-controller="Home" asp-action="Index">หน้าแรก</a>
                         <a asp-controller="Home" asp-action="Shop">สินค้า</a>
-                        <a asp-controller="Home" asp-action="Cart">ตะกร้า</a>
+                        @if (isStorefrontUser)
+                        {
+                            <a asp-controller="Home" asp-action="Cart">ตะกร้า</a>
+                        }
                         <a asp-controller="Home" asp-action="About">เกี่ยวกับร้าน</a>
                         <a asp-controller="Home" asp-action="Contact">ติดต่อ</a>
                     </div>
@@ -113,6 +217,57 @@
                 </div>
             </div>
         </footer>
+
+        <div class="modal fade site-confirm-modal" id="siteConfirmModal" tabindex="-1" aria-labelledby="siteConfirmTitle" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered site-confirm-dialog">
+                <div class="modal-content">
+                    <div class="modal-body">
+                        <div class="site-confirm-copy">
+                            <span class="site-confirm-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M14.5 4.75H9.25A2.5 2.5 0 0 0 6.75 7.25v9.5a2.5 2.5 0 0 0 2.5 2.5h5.25" />
+                                    <path d="M11.75 12h8.5" />
+                                    <path d="m17.25 8.5 3.5 3.5-3.5 3.5" />
+                                </svg>
+                            </span>
+                            <p class="site-confirm-kicker">ยืนยันรายการ</p>
+                            <h2 class="site-confirm-title" id="siteConfirmTitle" data-confirm-title>ออกจากระบบ</h2>
+                            <p class="site-confirm-message" data-confirm-message>ต้องการออกจากระบบตอนนี้ใช่ไหม คุณสามารถกลับมาเข้าสู่ระบบได้ทุกเมื่อ</p>
+                        </div>
+
+                        <div class="site-confirm-actions">
+                            <button type="button" class="btn store-outline-btn site-confirm-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                            <button type="button" class="btn store-primary-btn site-confirm-primary" data-confirm-action>ออกจากระบบ</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade site-confirm-modal" id="siteLoginPromptModal" tabindex="-1" aria-labelledby="siteLoginPromptTitle" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered site-confirm-dialog">
+                <div class="modal-content">
+                    <div class="modal-body">
+                        <div class="site-confirm-copy">
+                            <span class="site-confirm-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+                                    <path d="M4.75 19.25a7.25 7.25 0 0 1 14.5 0" />
+                                </svg>
+                            </span>
+                            <p class="site-confirm-kicker">เข้าสู่ระบบก่อน</p>
+                            <h2 class="site-confirm-title" id="siteLoginPromptTitle">ต้องเข้าสู่ระบบก่อนเพิ่มสินค้า</h2>
+                            <p class="site-confirm-message">กรุณาเข้าสู่ระบบก่อนจึงจะสามารถเพิ่มสินค้าในตะกร้าและสั่งซื้อสินค้าได้</p>
+                        </div>
+
+                        <div class="site-confirm-actions">
+                            <button type="button" class="btn store-outline-btn site-confirm-secondary" data-bs-dismiss="modal">ภายหลัง</button>
+                            <a class="btn store-primary-btn site-confirm-primary" asp-controller="Account" asp-action="Login">ไปหน้าเข้าสู่ระบบ</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     }
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>

@@ -98,6 +98,15 @@ a {
   gap: 10px;
 }
 
+.bakery-nav-divider {
+  align-items: center;
+  padding: 0 4px;
+  color: #c9bbab;
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
 .bakery-nav-links .nav-link {
   font-weight: 600;
   color: rgba(64, 38, 55, 0.75);
@@ -109,36 +118,147 @@ a {
 }
 
 .bakery-cart-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0.68rem 1rem;
-  border-radius: 999px;
-  background: rgba(255, 244, 248, 0.92);
-  border: 1px solid rgba(217, 101, 144, 0.18);
-  color: rgba(64, 38, 55, 0.82);
-  font-weight: 700;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  position: relative;
+  overflow: visible;
 }
 
 .bakery-cart-link:hover,
 .bakery-cart-link.active {
-  color: var(--rose-700);
-  border-color: rgba(217, 101, 144, 0.32);
-  box-shadow: 0 12px 24px rgba(217, 101, 144, 0.12);
-  transform: translateY(-1px);
+  transform: none;
+}
+
+.bakery-cart-link svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
 }
 
 .bakery-cart-count {
   display: inline-grid;
   place-items: center;
-  min-width: 30px;
-  height: 30px;
-  padding: 0 8px;
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--rose-500), var(--pink-400));
+  background: #c6ae95;
   color: #fff;
-  font-size: 0.86rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.bakery-profile-link {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  color: #3f352d;
+}
+
+.bakery-profile-link.active,
+.bakery-profile-link:hover {
+  color: #4d4035;
+}
+
+.bakery-profile-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  background: #b8a28c;
+  border: 1px solid #cdb9a6;
+  color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.bakery-profile-link.active .bakery-profile-avatar,
+.bakery-profile-link:hover .bakery-profile-avatar,
+.bakery-profile-link:focus .bakery-profile-avatar {
+  background: #aa9179;
+  border-color: #bfa991;
+}
+
+.bakery-profile-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bakery-profile-copy small {
+  color: #8a7f74;
+  font-size: 0.72rem;
+  line-height: 1.1;
+}
+
+.bakery-profile-copy strong {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.bakery-points-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 0 14px;
+  border-radius: 14px;
+  background: #efe5d8;
+  border: 1px solid #dccdbd;
+  color: #5f5044;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.bakery-icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: #f7f2ea;
+  border: 1px solid #dfd3c5;
+  color: #7b6a5d;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.bakery-icon-button:hover,
+.bakery-icon-button:focus {
+  background: #eee4d8;
+  border-color: #d3c4b4;
+  color: #5e4d40;
+}
+
+.bakery-icon-button svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.bakery-btn-logout {
+  color: #7b6a5d;
+}
+
+.bakery-btn-logout:hover,
+.bakery-btn-logout:focus {
+  color: #5e4d40;
 }
 
 .bakery-toggler {
@@ -150,6 +270,12 @@ a {
   padding: 24px 0 0;
 }
 
+.site-notice-shell {
+  overflow: hidden;
+  max-height: 140px;
+  transition: max-height 520ms ease, opacity 520ms ease;
+}
+
 .site-notice {
   margin-top: 16px;
   padding: 14px 18px;
@@ -158,6 +284,74 @@ a {
   border: 1px solid rgba(217, 101, 144, 0.2);
   box-shadow: var(--shadow-card);
   font-weight: 600;
+  will-change: transform, opacity;
+  animation: site-notice-drop 560ms cubic-bezier(0.2, 0.9, 0.24, 1) both;
+}
+
+.site-notice-shell.is-hiding {
+  max-height: 0;
+  opacity: 0;
+}
+
+.site-notice-shell.is-hiding .site-notice {
+  animation: site-notice-lift 520ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.site-notice-shell-auth {
+  position: fixed;
+  top: 18px;
+  left: 0;
+  right: 0;
+  z-index: 80;
+  pointer-events: none;
+}
+
+.site-notice-shell-auth .site-notice {
+  max-width: 460px;
+  margin: 0 auto;
+  pointer-events: auto;
+}
+
+@keyframes site-notice-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-26px) scale(0.985);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translateY(5px) scale(1);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes site-notice-lift {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  25% {
+    opacity: 1;
+    transform: translateY(3px) scale(0.998);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-24px) scale(0.985);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-notice-shell,
+  .site-notice {
+    transition: none;
+    animation: none;
+  }
 }
 
 .bakery-btn {
@@ -2111,6 +2305,113 @@ a {
   min-width: 180px;
 }
 
+.account-profile-section {
+  padding: 8px 0 36px;
+}
+
+.account-profile-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  gap: 22px;
+  margin-bottom: 28px;
+}
+
+.account-profile-card,
+.account-points-card,
+.account-address-card {
+  padding: 28px;
+  border-radius: 24px;
+  background: #ffffff;
+  border: 1px solid #e7e1d8;
+  box-shadow: 0 14px 32px rgba(44, 33, 24, 0.04);
+}
+
+.account-profile-card h2,
+.account-points-card h2,
+.account-addresses-head h2,
+.account-address-card h3 {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: #221d18;
+  letter-spacing: -0.03em;
+}
+
+.account-profile-card h2,
+.account-points-card h2,
+.account-addresses-head h2 {
+  margin-bottom: 18px;
+  font-size: clamp(1.7rem, 2.7vw, 2.2rem);
+}
+
+.account-profile-meta {
+  display: grid;
+  gap: 14px;
+}
+
+.account-profile-row {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #eee7df;
+}
+
+.account-profile-row span {
+  color: #8a7f74;
+}
+
+.account-profile-row strong {
+  color: #2a221c;
+  text-align: right;
+}
+
+.account-points-card .store-outline-btn {
+  margin-top: 20px;
+  width: fit-content;
+}
+
+.account-addresses-head {
+  margin-bottom: 18px;
+}
+
+.account-address-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.account-address-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.account-address-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #f3f0eb;
+  color: #4f473f;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.account-address-card strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.account-address-card p {
+  margin: 0 0 6px;
+  color: #70665c;
+  line-height: 1.65;
+}
+
 .site-footer-grid {
   display: grid;
   grid-template-columns: 1.1fr 0.7fr 0.7fr 1fr;
@@ -2858,8 +3159,7 @@ body.auth-body {
 }
 
 body.auth-body .site-notice {
-  max-width: 460px;
-  margin: 24px auto -8px;
+  margin-top: 0;
 }
 
 .site-main-auth {
@@ -5593,6 +5893,8 @@ body.auth-body {
 
 .bakery-nav-links .nav-link,
 .bakery-cart-link,
+.bakery-profile-link,
+.bakery-points-pill,
 .bakery-btn,
 .store-primary-btn,
 .store-outline-btn,
@@ -5746,6 +6048,15 @@ body.auth-body {
   line-height: 1.65;
 }
 
+.auth-step {
+  margin: 0 0 10px;
+  color: #8a7f74;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .auth-form {
   gap: 16px;
 }
@@ -5804,6 +6115,51 @@ body.auth-body {
   color: #ada49a;
 }
 
+.auth-summary-card {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 22px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: #f6f2ec;
+  border: 1px solid #e4dcd2;
+}
+
+.auth-summary-item span {
+  display: block;
+  margin-bottom: 4px;
+  color: #8a7f74;
+  font-size: 0.82rem;
+}
+
+.auth-summary-item strong {
+  display: block;
+  color: #2a221c;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.auth-address-field {
+  min-height: 146px;
+}
+
+.auth-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.auth-secondary-link {
+  color: #7b5b44;
+  font-weight: 600;
+}
+
+.auth-secondary-link:hover,
+.auth-secondary-link:focus {
+  color: #5c4332;
+}
+
 .auth-panel-image {
   padding: 0;
 }
@@ -5820,6 +6176,76 @@ body.auth-body {
   display: none;
 }
 
+.auth-shell-address {
+  grid-template-columns: minmax(0, 1.02fr) minmax(360px, 0.98fr);
+  align-items: start;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.auth-shell-address .auth-panel {
+  min-height: auto;
+}
+
+.auth-shell-address .auth-panel-form {
+  align-self: start;
+}
+
+.auth-form-wrap-address {
+  max-width: none;
+  padding: 38px 40px 36px;
+}
+
+.auth-shell-address .auth-copy {
+  max-width: 38ch;
+}
+
+.auth-summary-card-address {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 18px;
+  padding: 18px 20px;
+  margin-bottom: 24px;
+}
+
+.auth-summary-card-address .auth-summary-item {
+  min-width: 0;
+}
+
+.auth-form-register-address {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 16px;
+}
+
+.auth-form-register-address .auth-form-span {
+  grid-column: 1 / -1;
+}
+
+.auth-shell-address .auth-address-field {
+  min-height: 126px;
+}
+
+.auth-shell-address .auth-form-actions {
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.auth-shell-address .auth-submit {
+  min-width: 240px;
+}
+
+.auth-shell-address .auth-panel-image {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+}
+
+.auth-shell-address .auth-reference-image {
+  min-height: 760px;
+  background-position: center center, center center;
+}
+
 @media (max-width: 991.98px) {
   .auth-panel {
     min-height: auto;
@@ -5831,6 +6257,27 @@ body.auth-body {
 
   .auth-reference-image {
     min-height: 380px;
+  }
+
+  .auth-form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .auth-shell-address {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-summary-card-address {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .auth-form-register-address {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-shell-address .auth-panel-image {
+    position: static;
   }
 }
 
@@ -5847,6 +6294,15 @@ body.auth-body {
   .auth-reference-image {
     min-height: 300px;
     border-radius: 24px;
+  }
+
+  .auth-form-wrap-address {
+    padding: 28px 22px;
+  }
+
+  .auth-summary-card-address {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 }
 
@@ -5887,5 +6343,533 @@ body.auth-body {
   .cart-item-head h3,
   .order-status-card h3 {
     font-size: 1.14rem;
+  }
+}
+
+/* Public formal refresh */
+body:not(.auth-body) {
+  background: #f6f4ef;
+  color: #221d18;
+}
+
+.bakery-brand {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.bakery-brand small {
+  color: #7b736b;
+}
+
+.site-header {
+  padding: 12px 0 0;
+}
+
+.bakery-nav .container {
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #e8e2d9;
+  box-shadow: 0 12px 28px rgba(44, 33, 24, 0.05);
+  backdrop-filter: none;
+}
+
+.bakery-brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: #1f2d3a;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.bakery-nav-links .nav-link {
+  color: #6d645c;
+  font-weight: 500;
+}
+
+.bakery-nav-links .nav-link.active,
+.bakery-nav-links .nav-link:hover {
+  color: #1f2d3a;
+}
+
+.bakery-cart-link {
+  background: #f8f3ec;
+  border: 1px solid #e1d6c9;
+  color: #4c4036;
+  box-shadow: none;
+}
+
+.bakery-cart-link:hover,
+.bakery-cart-link.active {
+  background: #f2ebe1;
+  border-color: #d2c4b4;
+  color: #4d4035;
+  box-shadow: none;
+  transform: none;
+}
+
+.bakery-cart-count {
+  background: #c6ae95;
+  color: #ffffff;
+}
+
+.site-notice {
+  background: #ffffff;
+  border: 1px solid #e6dfd6;
+  box-shadow: none;
+}
+
+.section-overline,
+.store-kicker,
+.page-banner-brand,
+.store-brand-label {
+  color: #8a7f74;
+  letter-spacing: 0.12em;
+}
+
+.bakery-btn,
+.store-primary-btn,
+.store-outline-btn,
+.store-inline-btn,
+.store-card-btn,
+.admin-primary-button,
+.admin-secondary-button,
+.auth-submit {
+  border-radius: 14px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.bakery-btn-primary,
+.store-primary-btn,
+.admin-primary-button,
+.auth-submit {
+  background: #a88b72;
+  border: 1px solid #a88b72;
+  color: #ffffff;
+}
+
+.bakery-btn-primary:hover,
+.bakery-btn-primary:focus,
+.store-primary-btn:hover,
+.store-primary-btn:focus,
+.admin-primary-button:hover,
+.admin-primary-button:focus,
+.auth-submit:hover,
+.auth-submit:focus {
+  background: #967a62;
+  border-color: #967a62;
+  color: #ffffff;
+  box-shadow: none;
+  transform: none;
+}
+
+.bakery-btn-light,
+.store-outline-btn,
+.store-inline-btn,
+.store-card-btn,
+.admin-secondary-button {
+  background: #fbf7f1;
+  border: 1px solid #dfd3c5;
+  color: #5d4f43;
+}
+
+.bakery-btn-light:hover,
+.bakery-btn-light:focus,
+.store-outline-btn:hover,
+.store-outline-btn:focus,
+.store-inline-btn:hover,
+.store-inline-btn:focus,
+.store-card-btn:hover:not(:disabled),
+.admin-secondary-button:hover,
+.admin-secondary-button:focus {
+  background: #f2eadf;
+  border-color: #d1c2b1;
+  color: #4f4135;
+  box-shadow: none;
+  transform: none;
+}
+
+.cart-qty-button {
+  background: #f7f1e8;
+  color: #6f5e50;
+  border: 1px solid #e0d4c6;
+}
+
+.cart-qty-button.is-plus {
+  background: #e8dccd;
+  color: #5e4d40;
+  border-color: #d4c4b2;
+}
+
+.cart-qty-button:hover,
+.cart-qty-button:focus {
+  background: #f0e6da;
+  color: #59493c;
+}
+
+.site-confirm-dialog {
+  max-width: 460px;
+}
+
+.site-confirm-modal .modal-content {
+  border: 1px solid #e2d7ca;
+  border-radius: 28px;
+  background: #fffdf9;
+  box-shadow: 0 28px 48px rgba(71, 55, 41, 0.14);
+}
+
+.site-confirm-modal .modal-body {
+  padding: 30px 30px 26px;
+}
+
+.site-confirm-copy {
+  text-align: center;
+}
+
+.site-confirm-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 18px;
+  border-radius: 20px;
+  background: #f4ece2;
+  border: 1px solid #e2d5c6;
+  color: #8a715b;
+}
+
+.site-confirm-icon svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.site-confirm-kicker {
+  margin: 0 0 8px;
+  color: #9a8775;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.site-confirm-title {
+  margin: 0;
+  color: #2d241d;
+  font-family: var(--font-sans);
+  font-size: clamp(1.45rem, 2.5vw, 1.8rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.site-confirm-message {
+  margin: 12px 0 0;
+  color: #6e6257;
+  line-height: 1.7;
+}
+
+.site-confirm-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.site-confirm-primary,
+.site-confirm-secondary {
+  width: 100%;
+  min-height: 50px;
+}
+
+@media (max-width: 575.98px) {
+  .site-confirm-modal .modal-body {
+    padding: 24px 20px 20px;
+  }
+
+  .site-confirm-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+.store-hero-panel {
+  grid-template-columns: 1.08fr 0.92fr;
+  gap: 24px;
+  min-height: 540px;
+  padding: 24px;
+  border-radius: 32px;
+  background: #ffffff;
+  border: 1px solid #e7e1d8;
+  box-shadow: 0 18px 42px rgba(44, 33, 24, 0.05);
+}
+
+.store-hero-panel::after,
+.hero-floating,
+.hero-sweet-board {
+  display: none;
+}
+
+.store-hero-visual-shell {
+  border-radius: 28px;
+  border: 1px solid #ece5dc;
+  box-shadow: none;
+}
+
+.hero-main-image {
+  min-height: 500px;
+}
+
+.store-hero-card {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8px 8px 8px 20px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.store-hero-card h1,
+.page-banner-card h1,
+.section-heading h2,
+.search-panel-head h2,
+.about-story-copy h2,
+.cart-empty-state h2,
+.cart-list-head h2,
+.cart-summary-head h2,
+.range-card h3,
+.catalog-body h3,
+.about-value-card h3,
+.contact-info-card h3 {
+  font-family: var(--font-sans);
+  color: #221d18;
+  letter-spacing: -0.03em;
+}
+
+.store-hero-card h1 {
+  color: #221d18;
+  font-size: clamp(2.3rem, 3.7vw, 3.5rem);
+}
+
+.store-hero-card p,
+.page-banner-summary,
+.catalog-description,
+.search-panel-copy,
+.about-story-copy p,
+.about-value-card p,
+.contact-info-card p,
+.cart-empty-state p:last-child,
+.cart-list-note {
+  color: #70665c;
+}
+
+.range-card,
+.catalog-card,
+.page-banner-card,
+.about-story-copy,
+.about-value-card,
+.contact-info-card,
+.contact-form-card,
+.search-panel,
+.cart-empty-state,
+.cart-list-card,
+.cart-summary-card {
+  background: #ffffff;
+  border: 1px solid #e7e1d8;
+  border-radius: 24px;
+  box-shadow: 0 14px 32px rgba(44, 33, 24, 0.04);
+}
+
+.page-banner-card {
+  padding: 34px 34px 32px;
+  background: #ffffff;
+}
+
+.page-banner-crumb a {
+  color: #7d7368;
+}
+
+.shop-toolbar-shell {
+  padding: 16px 20px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid #e7e1d8;
+  box-shadow: none;
+}
+
+.shop-toolbar-tag {
+  padding: 8px 12px;
+  background: #f3f0eb;
+  color: #4f473f;
+}
+
+.search-panel {
+  padding: 28px;
+}
+
+.bakery-field {
+  background: #ffffff;
+  border: 1px solid #ddd5cb;
+  box-shadow: none;
+}
+
+.bakery-field:focus {
+  border-color: #8e8377;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(31, 45, 58, 0.08);
+}
+
+.catalog-body {
+  background: #ffffff;
+}
+
+.catalog-thumb {
+  min-height: 240px;
+}
+
+.catalog-badge {
+  top: 14px;
+  right: 14px;
+  width: auto;
+  height: auto;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #1f2d3a;
+  font-size: 0.78rem;
+}
+
+.catalog-price strong {
+  color: #1f2d3a;
+}
+
+.empty-products {
+  background: #ffffff;
+  border: 1px dashed #d8d0c6;
+  color: #6e645a;
+}
+
+.about-story-grid,
+.contact-page-grid {
+  gap: 20px;
+}
+
+.about-story-copy {
+  padding: 32px;
+}
+
+.contact-info-icon {
+  background: #f3f0eb;
+  color: #1f2d3a;
+}
+
+.contact-form-card {
+  padding: 28px;
+}
+
+.cart-empty-state,
+.cart-list-card,
+.cart-summary-card {
+  border-radius: 26px;
+}
+
+.cart-payment-option {
+  background: #ffffff;
+  border: 1px solid #dfd7cd;
+  box-shadow: none;
+}
+
+.cart-payment-option:hover,
+.cart-payment-option.is-selected,
+.cart-payment-option:has(input:checked) {
+  border-color: #c6b9aa;
+  box-shadow: none;
+}
+
+.site-footer {
+  background: #ffffff;
+  border-top: 1px solid #e9e2d9;
+}
+
+.site-footer-grid {
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 36px;
+  padding-top: 8px;
+  padding-bottom: 28px;
+}
+
+.site-footer-title,
+.site-footer-label {
+  font-family: var(--font-sans);
+  color: #221d18;
+}
+
+.site-footer-label {
+  margin-bottom: 14px;
+  color: #8b7f73;
+}
+
+.site-footer-grid a,
+.site-footer-grid span {
+  margin-bottom: 12px;
+  color: #665c52;
+}
+
+.site-footer-bottom {
+  color: #8c8176;
+  border-top: 1px solid #ece4da;
+}
+
+@media (max-width: 991.98px) {
+  .store-hero-panel {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .store-hero-card {
+    padding: 0;
+  }
+
+  .account-profile-grid,
+  .account-address-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .site-footer-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .bakery-nav .container {
+    border-radius: 18px;
+  }
+
+  .store-hero-panel,
+  .page-banner-card,
+  .search-panel,
+  .catalog-card,
+  .cart-empty-state,
+  .cart-list-card,
+  .cart-summary-card,
+  .account-profile-card,
+  .account-points-card,
+  .account-address-card,
+  .about-story-copy,
+  .about-value-card,
+  .contact-info-card,
+  .contact-form-card {
+    border-radius: 20px;
+  }
+
+  .hero-main-image {
+    min-height: 360px;
   }
 }

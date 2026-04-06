@@ -1,0 +1,83 @@
+@model RegisterAddressViewModel
+
+@{
+    ViewData["Title"] = "ที่อยู่จัดส่ง";
+    ViewData["HideChrome"] = true;
+}
+
+<section class="auth-section">
+    <div class="container auth-container">
+        <div class="auth-shell auth-shell-register auth-shell-address">
+            <div class="auth-panel auth-panel-form">
+                <div class="auth-form-wrap auth-form-wrap-address">
+                    <p class="auth-step">ขั้นตอน 2 จาก 2</p>
+                    <h1>ใส่ที่อยู่จัดส่ง</h1>
+                    <p class="auth-copy">กรอกที่อยู่เริ่มต้นสำหรับใช้งานหลังสมัครสมาชิกเสร็จ</p>
+
+                    <div class="auth-summary-card auth-summary-card-address">
+                        <div class="auth-summary-item">
+                            <span>ชื่อบัญชี</span>
+                            <strong>@Model.AccountFullName</strong>
+                        </div>
+                        <div class="auth-summary-item">
+                            <span>อีเมล</span>
+                            <strong>@Model.AccountEmail</strong>
+                        </div>
+                        <div class="auth-summary-item">
+                            <span>เบอร์โทรบัญชี</span>
+                            <strong>@Model.AccountPhoneNumber</strong>
+                        </div>
+                    </div>
+
+                    <form asp-action="CompleteRegistration" method="post" class="auth-form auth-form-register auth-form-register-address">
+                        @Html.AntiForgeryToken()
+                        <div asp-validation-summary="ModelOnly" class="text-danger small auth-form-span"></div>
+
+                        <div class="auth-field-wrap">
+                            <label asp-for="Label" class="form-label">ป้ายกำกับ</label>
+                            <input asp-for="Label" class="form-control bakery-field auth-field" placeholder="บ้าน / ที่ทำงาน" />
+                            <span asp-validation-for="Label" class="text-danger small"></span>
+                        </div>
+
+                        <div class="auth-field-wrap">
+                            <label asp-for="RecipientName" class="form-label">ชื่อผู้รับ</label>
+                            <input asp-for="RecipientName" class="form-control bakery-field auth-field" placeholder="ชื่อผู้รับสินค้า" />
+                            <span asp-validation-for="RecipientName" class="text-danger small"></span>
+                        </div>
+
+                        <div class="auth-field-wrap">
+                            <label asp-for="PhoneNumber" class="form-label">เบอร์โทรจัดส่ง</label>
+                            <input asp-for="PhoneNumber" class="form-control bakery-field auth-field" placeholder="089-000-1122" />
+                            <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
+                        </div>
+
+                        <div class="auth-field-wrap">
+                            <label asp-for="PostalCode" class="form-label">รหัสไปรษณีย์</label>
+                            <input asp-for="PostalCode" class="form-control bakery-field auth-field" placeholder="10110" />
+                            <span asp-validation-for="PostalCode" class="text-danger small"></span>
+                        </div>
+
+                        <div class="auth-field-wrap auth-form-span">
+                            <label asp-for="AddressLine" class="form-label">ที่อยู่จัดส่ง</label>
+                            <textarea asp-for="AddressLine" class="form-control bakery-field bakery-field-area auth-address-field" placeholder="บ้านเลขที่ ถนน แขวง เขต จังหวัด"></textarea>
+                            <span asp-validation-for="AddressLine" class="text-danger small"></span>
+                        </div>
+
+                        <div class="auth-form-actions auth-form-span">
+                            <button type="submit" class="btn auth-submit">สมัครสมาชิกให้เสร็จสิ้น</button>
+                            <a asp-action="Register" asp-route-restore="true" class="auth-secondary-link">กลับไปแก้ข้อมูลบัญชี</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="auth-panel auth-panel-image">
+                <div class="auth-reference-image" aria-hidden="true"></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

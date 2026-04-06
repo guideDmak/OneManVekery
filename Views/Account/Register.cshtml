@@ -11,7 +11,7 @@
             <div class="auth-panel auth-panel-form">
                 <div class="auth-form-wrap">
                     <h1>สมัครสมาชิก</h1>
-                    <p class="auth-copy">สร้างบัญชีเพื่อบันทึกข้อมูลสำหรับการสั่งซื้อครั้งถัดไป</p>
+                    <p class="auth-copy">สร้างบัญชีในขั้นแรก แล้วใส่ที่อยู่จัดส่งต่อในขั้นถัดไป</p>
                     
                     <form asp-action="Register" method="post" class="auth-form auth-form-register">
                         @Html.AntiForgeryToken()
@@ -47,7 +47,7 @@
                             <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
                         </div>
 
-                        <button type="submit" class="btn auth-submit w-100 auth-form-span">สร้างบัญชี</button>
+                        <button type="submit" class="btn auth-submit w-100 auth-form-span">ถัดไป</button>
                     </form>
 
 

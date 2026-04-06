@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using OneManVekery.Models;
 using OneManVekery.Models.Db;
 using OneManVekery.ViewModel;
@@ -9,6 +10,7 @@ namespace OneManVekery.Controllers;
 
 public class AccountController : Controller
 {
+    private const string PendingRegistrationSessionKey = "account-register-pending";
     private readonly OneManVekeryDBContext _dbContext;
 
     public AccountController(OneManVekeryDBContext dbContext)
@@ -65,8 +67,18 @@ public class AccountController : Controller
     }
 
     [HttpGet]
-    public IActionResult Register()
+    public IActionResult Register(bool restore = false)
     {
+        if (restore)
+        {
+            var pendingRegistration = ReadPendingRegistration();
+            if (pendingRegistration is not null)
+            {
+                return View(BuildRegisterViewModel(pendingRegistration));
+            }
+        }
+
+        ClearPendingRegistration();
         return View(new RegisterViewModel());
     }
 
@@ -80,6 +92,72 @@ public class AccountController : Controller
 
         TempData["SiteNotice"] = "ออกจากระบบเรียบร้อยแล้ว";
         return RedirectToAction(nameof(Login));
+    }
+
+    [HttpGet]
+    public IActionResult Profile()
+    {
+        var roleKey = HttpContext.Session.GetString(AdminPortalAuth.SessionAccountRoleKey);
+        if (string.IsNullOrWhiteSpace(roleKey))
+        {
+            TempData["SiteNotice"] = "กรุณาเข้าสู่ระบบก่อน";
+            return RedirectToAction(nameof(Login));
+        }
+
+        if (AdminPortalAuth.CanAccessAdmin(roleKey))
+        {
+            return RedirectToAction("Profile", "Admin");
+        }
+
+        var accountId = GetCurrentAccountId();
+        if (accountId <= 0)
+        {
+            TempData["SiteNotice"] = "ไม่พบข้อมูลบัญชีผู้ใช้ในระบบ";
+            return RedirectToAction(nameof(Login));
+        }
+
+        var user = _dbContext.Users
+            .AsNoTracking()
+            .Include(entry => entry.Role)
+            .Include(entry => entry.UserAddresses)
+            .FirstOrDefault(entry => entry.Id == accountId);
+
+        if (user is null)
+        {
+            TempData["SiteNotice"] = "ไม่พบบัญชีผู้ใช้ในระบบ";
+            return RedirectToAction(nameof(Login));
+        }
+
+        var loyaltyWallet = _dbContext.LoyaltyWallets
+            .AsNoTracking()
+            .FirstOrDefault(entry => entry.UserId == user.Id);
+
+        return View(new AccountProfileViewModel
+        {
+            FullName = user.FullName,
+            Email = user.Email,
+            PhoneNumber = user.Phone ?? "-",
+            RoleLabel = NormalizeRoleLabel(user.Role?.RoleName, user.Role?.RoleKey),
+            StatusLabel = NormalizeStatusLabel(user.Status),
+            AccountCode = $"ACC-{user.Id:0000}",
+            LastActiveAt = user.LastActiveAt ?? user.CreatedAt,
+            CurrentPoints = loyaltyWallet?.CurrentPoints ?? 0,
+            LifetimeEarnedPoints = loyaltyWallet?.LifetimeEarned ?? 0,
+            LifetimeRedeemedPoints = loyaltyWallet?.LifetimeRedeemed ?? 0,
+            Addresses = user.UserAddresses
+                .OrderByDescending(address => address.IsDefault)
+                .ThenBy(address => address.Id)
+                .Select(address => new AccountAddressCardViewModel
+                {
+                    Label = string.IsNullOrWhiteSpace(address.Label) ? "ที่อยู่จัดส่ง" : address.Label!,
+                    RecipientName = address.RecipientName,
+                    PhoneNumber = address.Phone,
+                    AddressLine = address.AddressLine,
+                    PostalCode = address.PostalCode ?? string.Empty,
+                    IsDefault = address.IsDefault
+                })
+                .ToList()
+        });
     }
 
     [HttpPost]
@@ -96,18 +174,55 @@ public class AccountController : Controller
             return View(model);
         }
 
-        AddAccount(new AccountInput
+        WritePendingRegistration(new PendingRegistrationRecord
         {
             FullName = model.FullName,
             Email = model.Email,
             PhoneNumber = model.PhoneNumber,
-            Role = "User",
-            Status = "Active",
-            Notes = "Registered from storefront",
             Password = model.Password
         });
 
-        TempData["SiteNotice"] = "สมัครสมาชิกผู้ใช้งานเรียบร้อยแล้ว บัญชีประเภทพนักงานและแอดมินต้องเพิ่มจากหน้าแอดมินเท่านั้น";
+        return RedirectToAction(nameof(RegisterAddress));
+    }
+
+    [HttpGet]
+    public IActionResult RegisterAddress()
+    {
+        var pendingRegistration = ReadPendingRegistration();
+        if (pendingRegistration is null)
+        {
+            TempData["SiteNotice"] = "กรอกข้อมูลบัญชีก่อนเพื่อไปยังขั้นตอนที่อยู่";
+            return RedirectToAction(nameof(Register));
+        }
+
+        return View(BuildRegisterAddressViewModel(pendingRegistration));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult CompleteRegistration(RegisterAddressViewModel model)
+    {
+        var pendingRegistration = ReadPendingRegistration();
+        if (pendingRegistration is null)
+        {
+            TempData["SiteNotice"] = "ข้อมูลสมัครสมาชิกหมดอายุแล้ว กรุณาเริ่มใหม่อีกครั้ง";
+            return RedirectToAction(nameof(Register));
+        }
+
+        if (EmailExists(pendingRegistration.Email))
+        {
+            ModelState.AddModelError(string.Empty, "อีเมลนี้ถูกใช้งานแล้ว กรุณาเริ่มสมัครใหม่อีกครั้ง");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return View("RegisterAddress", BuildRegisterAddressViewModel(pendingRegistration, model));
+        }
+
+        CompleteStorefrontRegistration(pendingRegistration, model);
+        ClearPendingRegistration();
+
+        TempData["SiteNotice"] = "สมัครสมาชิกเรียบร้อยแล้ว ตอนนี้คุณสามารถเข้าสู่ระบบและใช้ที่อยู่เริ่มต้นนี้ในการสั่งซื้อได้";
         return RedirectToAction(nameof(Login));
     }
 
@@ -146,7 +261,7 @@ public class AccountController : Controller
         return MapAccount(user);
     }
 
-    private AccountRecord AddAccount(AccountInput input)
+    private User AddAccount(AccountInput input)
     {
         var role = ResolveRole(input.Role);
         var user = new User
@@ -166,7 +281,7 @@ public class AccountController : Controller
         _dbContext.SaveChanges();
         _dbContext.Entry(user).Reference(entry => entry.Role).Load();
 
-        return MapAccount(user);
+        return user;
     }
 
     private Role ResolveRole(string roleValue)
@@ -280,5 +395,114 @@ public class AccountController : Controller
         using var sha256 = System.Security.Cryptography.SHA256.Create();
         var hashBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
         return Convert.ToHexString(hashBytes).ToLowerInvariant();
+    }
+
+    private int GetCurrentAccountId()
+    {
+        return int.TryParse(HttpContext.Session.GetString(AdminPortalAuth.SessionAccountIdKey), out var accountId)
+            ? accountId
+            : 0;
+    }
+
+    private static RegisterViewModel BuildRegisterViewModel(PendingRegistrationRecord pendingRegistration)
+    {
+        return new RegisterViewModel
+        {
+            FullName = pendingRegistration.FullName,
+            Email = pendingRegistration.Email,
+            PhoneNumber = pendingRegistration.PhoneNumber,
+            Password = pendingRegistration.Password,
+            ConfirmPassword = pendingRegistration.Password
+        };
+    }
+
+    private RegisterAddressViewModel BuildRegisterAddressViewModel(
+        PendingRegistrationRecord pendingRegistration,
+        RegisterAddressViewModel? input = null)
+    {
+        return new RegisterAddressViewModel
+        {
+            AccountFullName = pendingRegistration.FullName,
+            AccountEmail = pendingRegistration.Email,
+            AccountPhoneNumber = pendingRegistration.PhoneNumber,
+            Label = string.IsNullOrWhiteSpace(input?.Label) ? "บ้าน" : input!.Label,
+            RecipientName = string.IsNullOrWhiteSpace(input?.RecipientName) ? pendingRegistration.FullName : input!.RecipientName,
+            PhoneNumber = string.IsNullOrWhiteSpace(input?.PhoneNumber) ? pendingRegistration.PhoneNumber : input!.PhoneNumber,
+            AddressLine = input?.AddressLine ?? string.Empty,
+            PostalCode = input?.PostalCode ?? string.Empty
+        };
+    }
+
+    private void CompleteStorefrontRegistration(PendingRegistrationRecord pendingRegistration, RegisterAddressViewModel addressInput)
+    {
+        using var transaction = _dbContext.Database.BeginTransaction();
+
+        var user = AddAccount(new AccountInput
+        {
+            FullName = pendingRegistration.FullName,
+            Email = pendingRegistration.Email,
+            PhoneNumber = pendingRegistration.PhoneNumber,
+            Role = "User",
+            Status = "Active",
+            Notes = "Registered from storefront",
+            Password = pendingRegistration.Password
+        });
+
+        _dbContext.UserAddresses.Add(new UserAddress
+        {
+            UserId = user.Id,
+            Label = NormalizeOptionalText(addressInput.Label),
+            RecipientName = NormalizeText(addressInput.RecipientName),
+            Phone = NormalizeText(addressInput.PhoneNumber),
+            AddressLine = NormalizeText(addressInput.AddressLine),
+            PostalCode = NormalizeOptionalText(addressInput.PostalCode),
+            IsDefault = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+
+        _dbContext.SaveChanges();
+        transaction.Commit();
+    }
+
+    private PendingRegistrationRecord? ReadPendingRegistration()
+    {
+        var raw = HttpContext.Session.GetString(PendingRegistrationSessionKey);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<PendingRegistrationRecord>(raw);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private void WritePendingRegistration(PendingRegistrationRecord pendingRegistration)
+    {
+        HttpContext.Session.SetString(
+            PendingRegistrationSessionKey,
+            JsonSerializer.Serialize(pendingRegistration));
+    }
+
+    private void ClearPendingRegistration()
+    {
+        HttpContext.Session.Remove(PendingRegistrationSessionKey);
+    }
+
+    private sealed class PendingRegistrationRecord
+    {
+        public string FullName { get; init; } = string.Empty;
+
+        public string Email { get; init; } = string.Empty;
+
+        public string PhoneNumber { get; init; } = string.Empty;
+
+        public string Password { get; init; } = string.Empty;
     }
 }

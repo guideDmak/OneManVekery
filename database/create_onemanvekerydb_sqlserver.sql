@@ -15,6 +15,7 @@ GO
     Core tables:
     - roles
     - users
+    - user_addresses
     - categories
     - products
     - promotions
@@ -55,6 +56,50 @@ BEGIN
         CONSTRAINT FK_users_roles
             FOREIGN KEY (role_id) REFERENCES dbo.roles(id)
     );
+END
+GO
+
+IF OBJECT_ID(N'dbo.user_addresses', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.user_addresses (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        user_id INT NOT NULL,
+        label NVARCHAR(50) NULL,
+        recipient_name NVARCHAR(100) NOT NULL,
+        phone NVARCHAR(20) NOT NULL,
+        address_line NVARCHAR(MAX) NOT NULL,
+        postal_code NVARCHAR(20) NULL,
+        is_default BIT NOT NULL CONSTRAINT DF_user_addresses_is_default DEFAULT 0,
+        created_at DATETIME2 NOT NULL CONSTRAINT DF_user_addresses_created_at DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIME2 NOT NULL CONSTRAINT DF_user_addresses_updated_at DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_user_addresses_users
+            FOREIGN KEY (user_id) REFERENCES dbo.users(id) ON DELETE CASCADE
+    );
+END
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'IX_user_addresses_user_id'
+      AND object_id = OBJECT_ID(N'dbo.user_addresses')
+)
+BEGIN
+    CREATE INDEX IX_user_addresses_user_id
+        ON dbo.user_addresses (user_id, id);
+END
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'UX_user_addresses_default_per_user'
+      AND object_id = OBJECT_ID(N'dbo.user_addresses')
+)
+BEGIN
+    CREATE UNIQUE INDEX UX_user_addresses_default_per_user
+        ON dbo.user_addresses (user_id)
+        WHERE is_default = 1;
 END
 GO
 
