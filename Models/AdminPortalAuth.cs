@@ -19,6 +19,11 @@ public static class AdminPortalAuth
                string.Equals(roleKey, "owner", StringComparison.OrdinalIgnoreCase);
     }
 
+    public static bool CanManageStaffDirectory(string? roleKey)
+    {
+        return string.Equals(roleKey, "admin", StringComparison.OrdinalIgnoreCase);
+    }
+
     public static bool CanChangeAccountRoles(string? roleKey)
     {
         return CanCreateStaffAccounts(roleKey);

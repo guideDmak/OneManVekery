@@ -1,0 +1,99 @@
+@model MyOrdersPageViewModel
+
+@{
+    ViewData["Title"] = "คำสั่งซื้อของฉัน";
+}
+
+<section class="page-banner">
+    <div class="container bakery-container">
+        <div class="page-banner-card">
+            <p class="page-banner-brand">One Man Vekery</p>
+            <h1>คำสั่งซื้อของฉัน</h1>
+            <p class="page-banner-summary">ดูรายการสั่งซื้อย้อนหลัง ติดตามสถานะ และเปิดใบเสร็จของแต่ละออเดอร์ได้จากหน้านี้</p>
+            <p class="page-banner-crumb">
+                <a asp-controller="Home" asp-action="Index">หน้าแรก</a>
+                <span>&gt;</span>
+                <strong>คำสั่งซื้อของฉัน</strong>
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="my-orders-section">
+    <div class="container bakery-container">
+        <div class="my-orders-summary-grid">
+            <article class="my-orders-summary-card">
+                <span>จำนวนคำสั่งซื้อ</span>
+                <strong>@Model.OrderCount รายการ</strong>
+            </article>
+            <article class="my-orders-summary-card">
+                <span>ยอดซื้อทั้งหมด</span>
+                <strong>@Model.TotalSpendLabel</strong>
+            </article>
+            <article class="my-orders-summary-card">
+                <span>ออเดอร์ล่าสุด</span>
+                <strong>@Model.LastOrderLabel</strong>
+            </article>
+        </div>
+
+        @if (!Model.HasOrders)
+        {
+            <article class="my-orders-empty">
+                <div>
+                    <p class="section-overline">ยังไม่มีคำสั่งซื้อ</p>
+                    <h2>เริ่มสั่งขนมชิ้นแรกของคุณได้เลย</h2>
+                    <p>เมื่อสั่งซื้อสำเร็จ รายการและสถานะจะมาแสดงในหน้านี้อัตโนมัติ</p>
+                </div>
+                <a class="btn store-primary-btn" asp-controller="Home" asp-action="Shop">เลือกสินค้า</a>
+            </article>
+        }
+        else
+        {
+            <div class="my-orders-list">
+                @foreach (var order in Model.Orders)
+                {
+                    <article class="my-order-card">
+                        <div class="my-order-main">
+                            <div>
+                                <p class="section-overline">@order.CreatedAt.ToString("dd MMM yyyy, HH:mm")</p>
+                                <h2>@order.OrderNumber</h2>
+                                <p>@order.ProductSummary</p>
+                            </div>
+                            <span class="my-order-status is-@order.StatusKey">@order.StatusLabel</span>
+                        </div>
+
+                        <div class="my-order-meta">
+                            <div>
+                                <span>จำนวนสินค้า</span>
+                                <strong>@order.ItemCountLabel</strong>
+                            </div>
+                            <div>
+                                <span>ยอดชำระ</span>
+                                <strong>@order.TotalAmountLabel</strong>
+                            </div>
+                            <div>
+                                <span>วิธีชำระเงิน</span>
+                                <strong>@order.PaymentMethodLabel</strong>
+                            </div>
+                            <div>
+                                <span>พอยต์</span>
+                                <strong>+@order.PointsEarned P@(order.PointsRedeemed > 0 ? $" / -{order.PointsRedeemed} P" : string.Empty)</strong>
+                            </div>
+                        </div>
+
+                        <div class="my-order-footer">
+                            <p>@order.StatusDescription</p>
+                            <div class="my-order-actions">
+                                @if (!string.IsNullOrWhiteSpace(order.PromoLabel))
+                                {
+                                    <span class="my-order-code">@order.PromoLabel</span>
+                                }
+                                <a class="btn store-primary-btn" asp-controller="Home" asp-action="OrderStatus" asp-route-orderNumber="@order.OrderNumber">ดูรายละเอียด</a>
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </div>
+</section>

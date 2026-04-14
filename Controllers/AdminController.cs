@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.IO;
 using OneManVekery.Models.Db;
 using OneManVekery.Models;
 using OneManVekery.ViewModel;
@@ -13,11 +15,15 @@ namespace OneManVekery.Controllers;
 public class AdminController : Controller
 {
     private const int DefaultReorderLevel = 10;
+    private const long MaxItemImageUploadBytes = 5 * 1024 * 1024;
+    private static readonly string[] AllowedItemImageUploadExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
     private readonly OneManVekeryDBContext _dbContext;
+    private readonly IWebHostEnvironment _environment;
 
-    public AdminController(OneManVekeryDBContext dbContext)
+    public AdminController(OneManVekeryDBContext dbContext, IWebHostEnvironment environment)
     {
         _dbContext = dbContext;
+        _environment = environment;
     }
 
     public override void OnActionExecuting(ActionExecutingContext context)
@@ -32,6 +38,7 @@ public class AdminController : Controller
 
         ViewData["AdminSignedInName"] = HttpContext.Session.GetString(AdminPortalAuth.SessionAccountNameKey) ?? "Bakery Team";
         ViewData["AdminSignedInRole"] = HttpContext.Session.GetString(AdminPortalAuth.SessionAccountRoleLabelKey) ?? "Staff";
+        ViewData["AdminSignedInRoleKey"] = roleKey?.Trim().ToLowerInvariant() ?? string.Empty;
 
         base.OnActionExecuting(context);
     }
@@ -178,11 +185,17 @@ public class AdminController : Controller
             return RedirectToAction(nameof(Orders));
         }
 
+        if (!ModelState.IsValid)
+        {
+            return View("Orders", BuildOrdersModel(editForm: form, activeModal: "order-edit"));
+        }
+
         var normalizedOrderStatus = NormalizeOrderStatus(form.OrderStatus);
         var normalizedPaymentStatus = NormalizePaymentStatus(form.PaymentStatus);
 
         order.OrderStatus = normalizedOrderStatus;
         order.PaymentStatus = normalizedPaymentStatus;
+        order.Note = string.IsNullOrWhiteSpace(form.Note) ? null : form.Note.Trim();
 
         _dbContext.SaveChanges();
 
@@ -193,7 +206,19 @@ public class AdminController : Controller
     [HttpGet]
     public IActionResult Customers()
     {
-        return View(BuildCustomersModel());
+        return RedirectToAction(nameof(Staff));
+    }
+
+    [HttpGet]
+    public IActionResult Staff()
+    {
+        if (!AdminPortalAuth.CanManageStaffDirectory(GetCurrentAdminRoleKey()))
+        {
+            TempData["SiteNotice"] = "หน้านี้เปิดให้เฉพาะ Admin สำหรับดูข้อมูล Staff";
+            return RedirectToAction(nameof(Index));
+        }
+
+        return View(BuildStaffModel());
     }
 
     [HttpGet]
@@ -206,6 +231,54 @@ public class AdminController : Controller
     public IActionResult Codes()
     {
         return View(BuildCodesModel());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult CreatePromoCode([Bind(Prefix = "CreateForm")] AdminPromoCodeEditorViewModel form)
+    {
+        ValidatePromoCodeForm(form);
+
+        if (!ModelState.IsValid)
+        {
+            return View("Codes", BuildCodesModel(form, activeModal: "code-create"));
+        }
+
+        var promoCode = CreatePromoCodeRecord(form);
+        TempData["SiteNotice"] = $"สร้างโค้ด {promoCode.Code} เรียบร้อยแล้ว";
+
+        return RedirectToAction(nameof(Codes));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult UpdatePromoCodeStatus(int promoCodeId, string targetStatus)
+    {
+        var normalizedStatus = NormalizePromotionStatusKey(targetStatus);
+        if (!GetPromotionStatusValues().Contains(normalizedStatus, StringComparer.OrdinalIgnoreCase))
+        {
+            TempData["SiteNotice"] = "สถานะโค้ดไม่ถูกต้อง";
+            return RedirectToAction(nameof(Codes));
+        }
+
+        var promoCode = _dbContext.PromoCodes.FirstOrDefault(code => code.Id == promoCodeId);
+        if (promoCode is null)
+        {
+            TempData["SiteNotice"] = "ไม่พบโค้ดที่ต้องการอัปเดต";
+            return RedirectToAction(nameof(Codes));
+        }
+
+        if (normalizedStatus == "active" && promoCode.ExpiresAt.HasValue && promoCode.ExpiresAt <= DateTime.UtcNow)
+        {
+            TempData["SiteNotice"] = $"โค้ด {promoCode.Code} หมดอายุแล้ว ไม่สามารถเปิดใช้งานได้";
+            return RedirectToAction(nameof(Codes));
+        }
+
+        promoCode.Status = normalizedStatus;
+        _dbContext.SaveChanges();
+
+        TempData["SiteNotice"] = $"อัปเดตสถานะโค้ด {promoCode.Code} เป็น {FormatPromotionStatusLabel(normalizedStatus)} แล้ว";
+        return RedirectToAction(nameof(Codes));
     }
 
     [HttpPost]
@@ -362,7 +435,14 @@ public class AdminController : Controller
             ModelState.AddModelError("AddForm.Sku", "SKU นี้ถูกใช้งานแล้ว");
         }
 
+        ValidateItemImageUpload(form.ImageFile, "AddForm.ImageFile");
+
         if (!ModelState.IsValid)
+        {
+            return View("Items", BuildItemsModel(addForm: form, activeModal: "add"));
+        }
+
+        if (!TryApplyUploadedItemImage(form, "AddForm.ImageFile"))
         {
             return View("Items", BuildItemsModel(addForm: form, activeModal: "add"));
         }
@@ -388,7 +468,14 @@ public class AdminController : Controller
             ModelState.AddModelError("EditForm.Sku", "SKU นี้ถูกใช้งานแล้ว");
         }
 
+        ValidateItemImageUpload(form.ImageFile, "EditForm.ImageFile");
+
         if (!ModelState.IsValid)
+        {
+            return View("Items", BuildItemsModel(editForm: form, activeModal: "edit"));
+        }
+
+        if (!TryApplyUploadedItemImage(form, "EditForm.ImageFile"))
         {
             return View("Items", BuildItemsModel(editForm: form, activeModal: "edit"));
         }
@@ -493,9 +580,18 @@ public class AdminController : Controller
         {
             form.Role = existingAccount.Role;
         }
+        else if (IsProtectedAdminAccount(existingAccount))
+        {
+            form.Role = existingAccount.Role;
+        }
         else if (!CanKeepOrAssignRole(currentRoleKey, form.Role, existingAccount.Role))
         {
             ModelState.AddModelError("EditForm.Role", "บัญชีนี้เปลี่ยน role ได้เฉพาะ User หรือ Staff");
+        }
+
+        if (IsProtectedAdminAccount(existingAccount) && !IsActiveAccountStatus(form.Status))
+        {
+            ModelState.AddModelError("EditForm.Status", "บัญชี Admin ต้องเป็น Active และไม่สามารถระงับหรือปิดได้");
         }
 
         if (EmailExists(form.Email, form.AccountId))
@@ -508,7 +604,12 @@ public class AdminController : Controller
             return View("Accounts", BuildAccountsModel(editForm: form, activeModal: "account-edit"));
         }
 
-        UpdateAccount(form.AccountId, CreateAccountInput(form));
+        if (!UpdateAccount(form.AccountId, CreateAccountInput(form)))
+        {
+            TempData["SiteNotice"] = "ไม่สามารถอัปเดตบัญชีนี้ได้";
+            return RedirectToAction(nameof(Accounts));
+        }
+
         TempData["SiteNotice"] = $"อัปเดตบัญชี {form.FullName} แล้ว";
 
         return RedirectToAction(nameof(Accounts));
@@ -522,6 +623,12 @@ public class AdminController : Controller
         if (accountId <= 0 || existingAccount is null)
         {
             TempData["SiteNotice"] = "ไม่พบบัญชีที่ต้องการปิด";
+            return RedirectToAction(nameof(Accounts));
+        }
+
+        if (IsProtectedAdminAccount(existingAccount))
+        {
+            TempData["SiteNotice"] = "บัญชี Admin เป็นบัญชีหลักของระบบ ไม่สามารถปิดได้";
             return RedirectToAction(nameof(Accounts));
         }
 
@@ -546,6 +653,7 @@ public class AdminController : Controller
         var orders = _dbContext.Orders
             .AsNoTracking()
             .Include(order => order.OrderItems)
+            .Include(order => order.OrderPromotions)
             .OrderByDescending(order => order.CreatedAt)
             .ToList();
         var products = _dbContext.Products
@@ -969,6 +1077,92 @@ public class AdminController : Controller
             : normalized;
     }
 
+    private void ValidateItemImageUpload(IFormFile? imageFile, string modelField)
+    {
+        if (imageFile is null || imageFile.Length == 0)
+        {
+            return;
+        }
+
+        if (imageFile.Length > MaxItemImageUploadBytes)
+        {
+            ModelState.AddModelError(modelField, "รูปสินค้าต้องมีขนาดไม่เกิน 5MB");
+            return;
+        }
+
+        var extension = Path.GetExtension(imageFile.FileName);
+        if (string.IsNullOrWhiteSpace(extension) ||
+            !AllowedItemImageUploadExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
+        {
+            ModelState.AddModelError(modelField, "รองรับเฉพาะไฟล์ .jpg, .jpeg, .png, .webp หรือ .gif");
+        }
+    }
+
+    private bool TryApplyUploadedItemImage(AdminItemEditorViewModel form, string modelField)
+    {
+        if (form.ImageFile is null || form.ImageFile.Length == 0)
+        {
+            form.ImagePath = NormalizeInventoryImagePath(form.ImagePath);
+            return true;
+        }
+
+        try
+        {
+            form.ImagePath = SaveItemImageUpload(form.ImageFile);
+            return true;
+        }
+        catch (IOException)
+        {
+            ModelState.AddModelError(modelField, "บันทึกรูปสินค้าไม่สำเร็จ กรุณาลองใหม่");
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            ModelState.AddModelError(modelField, "ระบบไม่มีสิทธิ์บันทึกรูปสินค้าในโฟลเดอร์ wwwroot");
+            return false;
+        }
+    }
+
+    private string SaveItemImageUpload(IFormFile imageFile)
+    {
+        var extension = Path.GetExtension(imageFile.FileName).ToLowerInvariant();
+        var webRootPath = string.IsNullOrWhiteSpace(_environment.WebRootPath)
+            ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")
+            : _environment.WebRootPath;
+        var uploadDirectory = Path.Combine(webRootPath, "images", "products");
+        Directory.CreateDirectory(uploadDirectory);
+
+        var safeName = BuildSafeImageFileNameStem(imageFile.FileName);
+        var fileNameStem = $"{safeName}-{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}";
+        if (fileNameStem.Length > 72)
+        {
+            fileNameStem = fileNameStem[..72].TrimEnd('-');
+        }
+
+        var fileName = fileNameStem + extension;
+        var filePath = Path.Combine(uploadDirectory, fileName);
+
+        using var stream = System.IO.File.Create(filePath);
+        imageFile.CopyTo(stream);
+
+        return $"/images/products/{fileName}";
+    }
+
+    private static string BuildSafeImageFileNameStem(string fileName)
+    {
+        var stem = Path.GetFileNameWithoutExtension(fileName);
+        var characters = stem
+            .Select(character =>
+            {
+                var lower = char.ToLowerInvariant(character);
+                return (lower >= 'a' && lower <= 'z') || (lower >= '0' && lower <= '9') ? lower : '-';
+            })
+            .ToArray();
+        var normalized = string.Join("-", new string(characters).Split('-', StringSplitOptions.RemoveEmptyEntries));
+
+        return string.IsNullOrWhiteSpace(normalized) ? "item-image" : normalized;
+    }
+
     private IReadOnlyList<AccountRecord> GetAllAccounts()
     {
         return _dbContext.Users
@@ -1029,20 +1223,33 @@ public class AdminController : Controller
 
     private bool UpdateAccount(int accountId, AccountInput input)
     {
-        var user = _dbContext.Users.FirstOrDefault(entry => entry.Id == accountId);
+        var user = _dbContext.Users
+            .Include(entry => entry.Role)
+            .FirstOrDefault(entry => entry.Id == accountId);
         if (user is null)
         {
             return false;
         }
 
-        var role = ResolveRole(input.Role);
+        var isProtectedAdmin = IsProtectedAdminRoleKey(user.Role?.RoleKey);
+        var normalizedStatus = NormalizeAccountStatusValue(input.Status);
+        if (isProtectedAdmin && normalizedStatus != "active")
+        {
+            return false;
+        }
+
+        var role = isProtectedAdmin ? null : ResolveRole(input.Role);
 
         user.FullName = NormalizeAccountText(input.FullName);
         user.Email = NormalizeAccountEmail(input.Email);
         user.Phone = NormalizeOptionalAccountText(input.PhoneNumber);
-        user.RoleId = role.Id;
-        user.Status = NormalizeAccountStatusValue(input.Status);
+        user.Status = isProtectedAdmin ? "active" : normalizedStatus;
         user.Notes = NormalizeOptionalAccountText(input.Notes);
+
+        if (role is not null)
+        {
+            user.RoleId = role.Id;
+        }
 
         if (!string.IsNullOrWhiteSpace(input.Password))
         {
@@ -1055,8 +1262,15 @@ public class AdminController : Controller
 
     private bool CloseAccountRecord(int accountId)
     {
-        var user = _dbContext.Users.FirstOrDefault(entry => entry.Id == accountId);
+        var user = _dbContext.Users
+            .Include(entry => entry.Role)
+            .FirstOrDefault(entry => entry.Id == accountId);
         if (user is null)
+        {
+            return false;
+        }
+
+        if (IsProtectedAdminRoleKey(user.Role?.RoleKey))
         {
             return false;
         }
@@ -1136,6 +1350,21 @@ public class AdminController : Controller
         };
     }
 
+    private static bool IsActiveAccountStatus(string value)
+    {
+        return string.Equals(NormalizeAccountStatusValue(value), "active", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsProtectedAdminAccount(AccountRecord account)
+    {
+        return IsProtectedAdminRoleKey(account.RoleKey);
+    }
+
+    private static bool IsProtectedAdminRoleKey(string? roleKey)
+    {
+        return (roleKey ?? string.Empty).Trim().ToLowerInvariant() is "admin" or "owner";
+    }
+
     private static string NormalizeAccountStatusLabel(string value)
     {
         return value.Trim().ToLowerInvariant() switch
@@ -1195,6 +1424,13 @@ public class AdminController : Controller
             CreatedAtLabel = order.CreatedAt.ToString("dd MMM yyyy, HH:mm"),
             CustomerName = order.CustomerName,
             TotalAmountLabel = $"{order.TotalAmount:0.##} ฿",
+            SubtotalLabel = $"{order.Subtotal:0.##} ฿",
+            DeliveryFeeLabel = $"{order.DeliveryFee:0.##} ฿",
+            DiscountAmountLabel = order.DiscountAmount > 0 ? $"-{order.DiscountAmount:0.##} ฿" : "0 ฿",
+            ShippingDiscountAmountLabel = order.ShippingDiscountAmount > 0 ? $"-{order.ShippingDiscountAmount:0.##} ฿" : "0 ฿",
+            DiscountCode = order.DiscountCode ?? string.Empty,
+            PointsEarnedLabel = $"+{order.PointsEarned:0} P",
+            PointsRedeemedLabel = order.PointsRedeemed > 0 ? $"-{order.PointsRedeemed:0} P" : "0 P",
             PaymentMethodLabel = $"{FormatPaymentMethod(order.PaymentMethod)} / {paymentStatus.Label}",
             PaymentStatus = paymentStatus.Label,
             PaymentStatusKey = paymentStatus.Key,
@@ -1202,7 +1438,53 @@ public class AdminController : Controller
             OrderStatusKey = orderStatus.Key,
             Phone = order.Phone,
             Address = order.Address,
-            Note = order.Note ?? string.Empty
+            Note = order.Note ?? string.Empty,
+            Items = order.OrderItems
+                .OrderBy(item => item.Id)
+                .Select(item => new AdminOrderItemRecordViewModel
+                {
+                    ProductName = item.ProductName,
+                    Quantity = item.Qty,
+                    UnitPriceLabel = $"{item.Price:0.##} ฿",
+                    LineTotalLabel = $"{item.LineTotal:0.##} ฿"
+                })
+                .ToList(),
+            Benefits = order.OrderPromotions
+                .OrderBy(item => item.Id)
+                .Select(MapOrderBenefit)
+                .ToList()
+        };
+    }
+
+    private static AdminOrderBenefitRecordViewModel MapOrderBenefit(OrderPromotion benefit)
+    {
+        var valueParts = new List<string>();
+
+        if (benefit.DiscountAmount > 0)
+        {
+            valueParts.Add($"-{benefit.DiscountAmount:0.##} ฿");
+        }
+
+        if (benefit.ShippingDiscountAmount > 0)
+        {
+            valueParts.Add($"ส่งฟรี {benefit.ShippingDiscountAmount:0.##} ฿");
+        }
+
+        if (benefit.PointsEarned > 0)
+        {
+            valueParts.Add($"+{benefit.PointsEarned:0} P");
+        }
+
+        if (benefit.PointsRedeemed > 0)
+        {
+            valueParts.Add($"-{benefit.PointsRedeemed:0} P");
+        }
+
+        return new AdminOrderBenefitRecordViewModel
+        {
+            Title = benefit.PromotionTitle,
+            Description = benefit.Note ?? string.Empty,
+            ValueLabel = valueParts.Count == 0 ? "-" : string.Join(" | ", valueParts)
         };
     }
 
@@ -1301,22 +1583,21 @@ public class AdminController : Controller
         return orderNumber;
     }
 
-    private AdminCustomersViewModel BuildCustomersModel()
+    private AdminStaffViewModel BuildStaffModel()
     {
-        var customers = _dbContext.Users
+        var staffMembers = _dbContext.Users
             .AsNoTracking()
             .Include(user => user.Role)
-            .Include(user => user.Orders)
-            .Where(user => user.Role.RoleKey == "user")
+            .Where(user => user.Role.RoleKey == "staff")
             .OrderByDescending(user => user.LastActiveAt ?? user.CreatedAt)
             .ThenBy(user => user.FullName)
             .ToList();
 
-        return new AdminCustomersViewModel
+        return new AdminStaffViewModel
         {
-            DateRangeLabel = $"Customer sync {DateTime.Now:dd MMM yyyy}",
-            Metrics = BuildCustomerMetrics(customers),
-            Customers = customers.Select(MapCustomer).ToList()
+            DateRangeLabel = $"Staff sync {DateTime.Now:dd MMM yyyy}",
+            Metrics = BuildStaffMetrics(staffMembers),
+            StaffMembers = staffMembers.Select(MapStaff).ToList()
         };
     }
 
@@ -1430,7 +1711,7 @@ public class AdminController : Controller
         };
     }
 
-    private AdminCodesViewModel BuildCodesModel()
+    private AdminCodesViewModel BuildCodesModel(AdminPromoCodeEditorViewModel? createForm = null, string activeModal = "")
     {
         var promotions = _dbContext.Promotions
             .AsNoTracking()
@@ -1445,22 +1726,30 @@ public class AdminController : Controller
             .ThenBy(promotion => promotion.Title)
             .ToList();
 
+        var standalonePromoCodes = _dbContext.PromoCodes
+            .AsNoTracking()
+            .Where(code => code.PromotionId == null)
+            .OrderByDescending(code => code.CreatedAt)
+            .ToList();
+
         var promotionRows = promotions
             .SelectMany(BuildPromotionRows)
+            .Concat(standalonePromoCodes.Select(MapStandalonePromoCodeRecord))
             .OrderBy(record => record.StatusKey == "active" ? 0 : 1)
-            .ThenBy(record => record.Title, StringComparer.OrdinalIgnoreCase)
+            .ThenByDescending(record => record.CreatedAtSort)
             .ThenBy(record => record.Code, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         var activePromotions = promotions.Count(promotion => NormalizePromotionStatusKey(promotion.Status) == "active");
         var autoPromotions = promotions.Count(promotion => promotion.AutoApply && !promotion.RequiresCode);
-        var codeBasedPromotions = promotions.Count(promotion => promotion.RequiresCode || promotion.PromoCodes.Count > 0);
+        var codeBasedPromotions = promotions.Count(promotion => promotion.RequiresCode || promotion.PromoCodes.Count > 0) + standalonePromoCodes.Count;
         var loyaltyPromotions = promotions.Count(promotion => string.Equals(promotion.CampaignType, "loyalty", StringComparison.OrdinalIgnoreCase));
         var stackablePromotions = promotions.Count(promotion => promotion.CanStack);
         var freeShippingPromotions = promotions.Count(promotion => promotion.FreeShipping);
         var rewardPromotions = promotions.Count(promotion => (promotion.RewardQty ?? 0) > 0 || (promotion.PointsCost ?? 0) > 0);
         var totalCodeUses = promotions
             .SelectMany(promotion => promotion.PromoCodes)
+            .Concat(standalonePromoCodes)
             .Sum(code => code.UsedCount);
         var totalAppliedOrders = promotions.Sum(promotion => promotion.OrderPromotions.Count);
         var loyaltyWalletCount = _dbContext.LoyaltyWallets.AsNoTracking().Count();
@@ -1489,7 +1778,7 @@ public class AdminController : Controller
                 new AdminMetricCardViewModel
                 {
                     Label = "Promo Codes",
-                    Value = promotions.SelectMany(promotion => promotion.PromoCodes).Count().ToString(CultureInfo.InvariantCulture),
+                    Value = (promotions.SelectMany(promotion => promotion.PromoCodes).Count() + standalonePromoCodes.Count).ToString(CultureInfo.InvariantCulture),
                     Delta = $"{totalCodeUses} ครั้งที่ถูกใช้",
                     PositiveTrend = totalCodeUses > 0,
                     AccentKey = "blue"
@@ -1534,8 +1823,201 @@ public class AdminController : Controller
                     AccentKey = totalAppliedOrders > 0 ? "green" : "gold"
                 }
             ],
-            Promotions = promotionRows
+            Promotions = promotionRows,
+            PromotionOptions = BuildPromotionSelectOptions(promotions),
+            DiscountTypeOptions = BuildPromoCodeDiscountTypeOptions(),
+            StatusOptions = GetPromotionStatusOptions(),
+            CreateForm = createForm ?? new AdminPromoCodeEditorViewModel
+            {
+                DiscountType = "percent",
+                DiscountValue = 10,
+                Status = "Active"
+            },
+            ActiveModal = activeModal
         };
+    }
+
+    private void ValidatePromoCodeForm(AdminPromoCodeEditorViewModel form)
+    {
+        var normalizedCode = NormalizePromoCodeValue(form.Code);
+        form.Code = normalizedCode;
+
+        if (string.IsNullOrWhiteSpace(normalizedCode))
+        {
+            ModelState.AddModelError(PromoCodeField(nameof(form.Code)), "กรุณากรอกโค้ด");
+        }
+        else if (!IsPromoCodeFormatValid(normalizedCode))
+        {
+            ModelState.AddModelError(PromoCodeField(nameof(form.Code)), "โค้ดใช้ได้เฉพาะ A-Z, 0-9, - และ _");
+        }
+        else if (_dbContext.PromoCodes.Any(code => code.Code == normalizedCode))
+        {
+            ModelState.AddModelError(PromoCodeField(nameof(form.Code)), "โค้ดนี้มีอยู่ในระบบแล้ว");
+        }
+
+        if (form.PromotionId is int promotionId &&
+            !_dbContext.Promotions.AsNoTracking().Any(promotion => promotion.Id == promotionId))
+        {
+            ModelState.AddModelError(PromoCodeField(nameof(form.PromotionId)), "ไม่พบ campaign ที่เลือก");
+        }
+
+        var discountType = NormalizeDiscountType(form.DiscountType);
+        if (!GetPromoCodeDiscountTypes().Contains(discountType, StringComparer.OrdinalIgnoreCase))
+        {
+            ModelState.AddModelError(PromoCodeField(nameof(form.DiscountType)), "ประเภทส่วนลดไม่ถูกต้อง");
+        }
+
+        if (discountType == "percent" && (form.DiscountValue <= 0 || form.DiscountValue > 100))
+        {
+            ModelState.AddModelError(PromoCodeField(nameof(form.DiscountValue)), "ส่วนลดแบบเปอร์เซ็นต์ต้องอยู่ระหว่าง 1-100");
+        }
+        else if (discountType == "amount" && form.DiscountValue <= 0)
+        {
+            ModelState.AddModelError(PromoCodeField(nameof(form.DiscountValue)), "ส่วนลดแบบจำนวนเงินต้องมากกว่า 0");
+        }
+        else if (discountType == "shipping" && form.DiscountValue < 0)
+        {
+            ModelState.AddModelError(PromoCodeField(nameof(form.DiscountValue)), "ส่วนลดค่าส่งต้องไม่ติดลบ");
+        }
+
+        if (form.StartsAt.HasValue && form.ExpiresAt.HasValue && form.ExpiresAt <= form.StartsAt)
+        {
+            ModelState.AddModelError(PromoCodeField(nameof(form.ExpiresAt)), "วันหมดอายุต้องอยู่หลังวันเริ่มใช้");
+        }
+
+        var status = NormalizePromotionStatusKey(form.Status);
+        if (!GetPromotionStatusValues().Contains(status, StringComparer.OrdinalIgnoreCase))
+        {
+            ModelState.AddModelError(PromoCodeField(nameof(form.Status)), "สถานะโค้ดไม่ถูกต้อง");
+        }
+        else if (status == "active" && ConvertStoreLocalToUtc(form.ExpiresAt) is DateTime expiresAtUtc && expiresAtUtc <= DateTime.UtcNow)
+        {
+            ModelState.AddModelError(PromoCodeField(nameof(form.ExpiresAt)), "โค้ด Active ต้องมีวันหมดอายุที่ยังไม่ผ่าน");
+        }
+    }
+
+    private PromoCode CreatePromoCodeRecord(AdminPromoCodeEditorViewModel form)
+    {
+        var discountType = NormalizeDiscountType(form.DiscountType);
+        var promoCode = new PromoCode
+        {
+            PromotionId = form.PromotionId,
+            Code = NormalizePromoCodeValue(form.Code),
+            Title = NormalizeAccountText(form.Title),
+            Description = NormalizeOptionalAccountText(form.Description),
+            DiscountType = discountType,
+            DiscountValue = discountType == "shipping" && form.DiscountValue <= 0 ? 0 : form.DiscountValue,
+            MinOrderAmount = NormalizePositiveAmount(form.MinOrderAmount),
+            MaxDiscountAmount = NormalizePositiveAmount(form.MaxDiscountAmount),
+            UsageLimit = form.UsageLimit,
+            UsedCount = 0,
+            StartsAt = ConvertStoreLocalToUtc(form.StartsAt),
+            ExpiresAt = ConvertStoreLocalToUtc(form.ExpiresAt),
+            Status = NormalizePromotionStatusKey(form.Status),
+            Note = NormalizeOptionalAccountText(form.Note),
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.PromoCodes.Add(promoCode);
+        _dbContext.SaveChanges();
+
+        return promoCode;
+    }
+
+    private static IReadOnlyList<AdminSelectOptionViewModel> BuildPromotionSelectOptions(IReadOnlyList<Promotion> promotions)
+    {
+        return promotions
+            .OrderBy(promotion => promotion.Title, StringComparer.OrdinalIgnoreCase)
+            .Select(promotion => new AdminSelectOptionViewModel
+            {
+                Value = promotion.Id.ToString(CultureInfo.InvariantCulture),
+                Label = $"{promotion.PromotionKey} - {promotion.Title}",
+                SecondaryLabel = $"{BuildPromotionDiscountLabel(promotion, null)} | {FormatPromotionStatusLabel(promotion.Status)}",
+                DataValue = NormalizePromotionStatusKey(promotion.Status),
+                DataExtra = BuildPromotionRuleLabel(promotion, null)
+            })
+            .ToList();
+    }
+
+    private static IReadOnlyList<AdminSelectOptionViewModel> BuildPromoCodeDiscountTypeOptions()
+    {
+        return
+        [
+            new AdminSelectOptionViewModel { Value = "percent", Label = "ลดเป็นเปอร์เซ็นต์", SecondaryLabel = "เช่น ลด 10%" },
+            new AdminSelectOptionViewModel { Value = "amount", Label = "ลดเป็นจำนวนเงิน", SecondaryLabel = "เช่น ลด 50 ฿" },
+            new AdminSelectOptionViewModel { Value = "shipping", Label = "ลดค่าส่ง / ส่งฟรี", SecondaryLabel = "ใส่ 0 เพื่อฟรีค่าส่งเต็มจำนวน" }
+        ];
+    }
+
+    private static IReadOnlyList<string> GetPromoCodeDiscountTypes()
+    {
+        return ["percent", "amount", "shipping"];
+    }
+
+    private static IReadOnlyList<string> GetPromotionStatusOptions()
+    {
+        return ["Active", "Draft", "Paused"];
+    }
+
+    private static IReadOnlyList<string> GetPromotionStatusValues()
+    {
+        return ["active", "draft", "paused"];
+    }
+
+    private static string PromoCodeField(string propertyName)
+    {
+        return $"{nameof(AdminCodesViewModel.CreateForm)}.{propertyName}";
+    }
+
+    private static string NormalizePromoCodeValue(string? value)
+    {
+        return string.Concat((value ?? string.Empty)
+            .Trim()
+            .ToUpperInvariant()
+            .Where(character => !char.IsWhiteSpace(character)));
+    }
+
+    private static bool IsPromoCodeFormatValid(string value)
+    {
+        return value.All(character =>
+            (character >= 'A' && character <= 'Z') ||
+            (character >= '0' && character <= '9') ||
+            character is '-' or '_');
+    }
+
+    private static decimal? NormalizePositiveAmount(decimal? value)
+    {
+        return value.HasValue && value.Value > 0 ? value.Value : null;
+    }
+
+    private static DateTime? ConvertStoreLocalToUtc(DateTime? value)
+    {
+        if (!value.HasValue)
+        {
+            return null;
+        }
+
+        var localTimestamp = DateTime.SpecifyKind(value.Value, DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(localTimestamp, GetStoreTimeZone());
+    }
+
+    private static TimeZoneInfo GetStoreTimeZone()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Asia/Bangkok");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                return TimeZoneInfo.Local;
+            }
+        }
     }
 
     private static IReadOnlyList<AdminPromotionRecordViewModel> BuildPromotionRows(Promotion promotion)
@@ -1560,8 +2042,11 @@ public class AdminController : Controller
 
         return new AdminPromotionRecordViewModel
         {
+            PromoCodeId = promoCode?.Id,
+            IsPromoCode = promoCode is not null,
+            CreatedAtSort = (promoCode?.CreatedAt ?? promotion.CreatedAt).Ticks,
             Code = BuildPromotionCodeLabel(promotion, promoCode),
-            Title = promotion.Title,
+            Title = string.IsNullOrWhiteSpace(promoCode?.Title) ? promotion.Title : promoCode!.Title.Trim(),
             DiscountLabel = BuildPromotionDiscountLabel(promotion, promoCode),
             RuleLabel = BuildPromotionRuleLabel(promotion, promoCode),
             Status = FormatPromotionStatusLabel(statusSource),
@@ -1569,6 +2054,25 @@ public class AdminController : Controller
             UsageLabel = BuildPromotionUsageLabel(promotion, promoCode),
             ExpiryLabel = BuildPromotionExpiryLabel(promotion, promoCode),
             Note = BuildPromotionNote(promotion, promoCode)
+        };
+    }
+
+    private static AdminPromotionRecordViewModel MapStandalonePromoCodeRecord(PromoCode promoCode)
+    {
+        return new AdminPromotionRecordViewModel
+        {
+            PromoCodeId = promoCode.Id,
+            IsPromoCode = true,
+            CreatedAtSort = promoCode.CreatedAt.Ticks,
+            Code = promoCode.Code,
+            Title = promoCode.Title,
+            DiscountLabel = BuildStandalonePromoCodeDiscountLabel(promoCode),
+            RuleLabel = BuildStandalonePromoCodeRuleLabel(promoCode),
+            Status = FormatPromotionStatusLabel(promoCode.Status),
+            StatusKey = NormalizePromotionStatusKey(promoCode.Status),
+            UsageLabel = BuildStandalonePromoCodeUsageLabel(promoCode),
+            ExpiryLabel = BuildStandalonePromoCodeExpiryLabel(promoCode),
+            Note = string.IsNullOrWhiteSpace(promoCode.Note) ? "Standalone code" : promoCode.Note.Trim()
         };
     }
 
@@ -1641,6 +2145,21 @@ public class AdminController : Controller
             : string.Join(" / ", parts);
     }
 
+    private static string BuildStandalonePromoCodeDiscountLabel(PromoCode promoCode)
+    {
+        return NormalizeDiscountType(promoCode.DiscountType) switch
+        {
+            "percent" => promoCode.MaxDiscountAmount is decimal maxDiscount
+                ? $"ลด {promoCode.DiscountValue:0.##}% สูงสุด {maxDiscount:0.##} ฿"
+                : $"ลด {promoCode.DiscountValue:0.##}%",
+            "amount" => $"ลด {promoCode.DiscountValue:0.##} ฿",
+            "shipping" => promoCode.DiscountValue <= 0
+                ? "ส่งฟรี"
+                : $"ลดค่าส่ง {promoCode.DiscountValue:0.##} ฿",
+            _ => promoCode.Title
+        };
+    }
+
     private static string BuildPromotionRuleLabel(Promotion promotion, PromoCode? promoCode)
     {
         var parts = new List<string>();
@@ -1691,6 +2210,18 @@ public class AdminController : Controller
             : string.Join(" | ", parts);
     }
 
+    private static string BuildStandalonePromoCodeRuleLabel(PromoCode promoCode)
+    {
+        var parts = new List<string> { "กรอกโค้ด" };
+
+        if (promoCode.MinOrderAmount is decimal minOrderAmount)
+        {
+            parts.Add($"ขั้นต่ำ {minOrderAmount:0.##} ฿");
+        }
+
+        return string.Join(" | ", parts);
+    }
+
     private static string BuildPromotionUsageLabel(Promotion promotion, PromoCode? promoCode)
     {
         if (promoCode is not null)
@@ -1701,6 +2232,13 @@ public class AdminController : Controller
         }
 
         return $"{promotion.OrderPromotions.Count:0} ออเดอร์";
+    }
+
+    private static string BuildStandalonePromoCodeUsageLabel(PromoCode promoCode)
+    {
+        return promoCode.UsageLimit is int usageLimit
+            ? $"{promoCode.UsedCount:0}/{usageLimit:0} ครั้ง"
+            : $"{promoCode.UsedCount:0} ครั้ง";
     }
 
     private static string BuildPromotionExpiryLabel(Promotion promotion, PromoCode? promoCode)
@@ -1724,6 +2262,18 @@ public class AdminController : Controller
         if (!string.IsNullOrWhiteSpace(weekdayLabel))
         {
             return weekdayLabel;
+        }
+
+        return "ไม่กำหนดวันหมดอายุ";
+    }
+
+    private static string BuildStandalonePromoCodeExpiryLabel(PromoCode promoCode)
+    {
+        if (promoCode.StartsAt.HasValue || promoCode.ExpiresAt.HasValue)
+        {
+            var startLabel = promoCode.StartsAt?.ToString("dd MMM yyyy") ?? "-";
+            var endLabel = promoCode.ExpiresAt?.ToString("dd MMM yyyy") ?? "ไม่กำหนด";
+            return $"{startLabel} -> {endLabel}";
         }
 
         return "ไม่กำหนดวันหมดอายุ";
@@ -1942,43 +2492,37 @@ public class AdminController : Controller
             .ToList();
     }
 
-    private static IReadOnlyList<AdminMetricCardViewModel> BuildCustomerMetrics(IReadOnlyList<User> customers)
+    private static IReadOnlyList<AdminMetricCardViewModel> BuildStaffMetrics(IReadOnlyList<User> staffMembers)
     {
-        var activeCount = customers.Count(customer => NormalizeStatusKey(customer.Status) == "active");
-        var orderingCustomers = customers.Count(customer => customer.Orders.Count > 0);
-        var totalRevenue = customers.Sum(customer => customer.Orders.Sum(order => order.TotalAmount));
+        var activeCount = staffMembers.Count(staff => NormalizeStatusKey(staff.Status) == "active");
+        var inactiveCount = staffMembers.Count - activeCount;
+        var recentlyActiveCount = staffMembers.Count(staff =>
+            (staff.LastActiveAt ?? staff.CreatedAt) >= DateTime.UtcNow.AddDays(-7));
 
         return
         [
-            new AdminMetricCardViewModel { Label = "Customers", Value = customers.Count.ToString(), Delta = $"{orderingCustomers} with orders", PositiveTrend = customers.Count > 0, AccentKey = "orange" },
-            new AdminMetricCardViewModel { Label = "Active", Value = activeCount.ToString(), Delta = $"{customers.Count - activeCount} need review", PositiveTrend = activeCount > 0, AccentKey = "green" },
-            new AdminMetricCardViewModel { Label = "Revenue", Value = $"{totalRevenue:0.##} ฿", Delta = "รวมยอดซื้อจากลูกค้าทั้งหมด", PositiveTrend = totalRevenue > 0, AccentKey = "gold" },
-            new AdminMetricCardViewModel { Label = "No Orders Yet", Value = (customers.Count - orderingCustomers).ToString(), Delta = "กลุ่มที่ยังไม่เคยสั่งซื้อ", PositiveTrend = orderingCustomers == customers.Count, AccentKey = "blue" }
+            new AdminMetricCardViewModel { Label = "Staff", Value = staffMembers.Count.ToString(), Delta = "บัญชีพนักงานในระบบ", PositiveTrend = staffMembers.Count > 0, AccentKey = "orange" },
+            new AdminMetricCardViewModel { Label = "Active", Value = activeCount.ToString(), Delta = $"{inactiveCount} suspended or closed", PositiveTrend = activeCount > 0, AccentKey = "green" },
+            new AdminMetricCardViewModel { Label = "Recent", Value = recentlyActiveCount.ToString(), Delta = "ใช้งานภายใน 7 วัน", PositiveTrend = recentlyActiveCount > 0, AccentKey = "gold" },
+            new AdminMetricCardViewModel { Label = "Need Review", Value = inactiveCount.ToString(), Delta = "บัญชีที่ไม่ active", PositiveTrend = inactiveCount == 0, AccentKey = "blue" }
         ];
     }
 
-    private static AdminCustomerRecordViewModel MapCustomer(User customer)
+    private static AdminStaffRecordViewModel MapStaff(User staff)
     {
-        var orderCount = customer.Orders.Count;
-        var totalSpend = customer.Orders.Sum(order => order.TotalAmount);
-        var lastOrderAt = customer.Orders
-            .OrderByDescending(order => order.CreatedAt)
-            .Select(order => (DateTime?)order.CreatedAt)
-            .FirstOrDefault();
-
-        return new AdminCustomerRecordViewModel
+        return new AdminStaffRecordViewModel
         {
-            CustomerId = customer.Id,
-            CustomerCode = $"CUS-{customer.Id:0000}",
-            FullName = customer.FullName,
-            Email = customer.Email,
-            PhoneNumber = string.IsNullOrWhiteSpace(customer.Phone) ? "-" : customer.Phone,
-            Status = FormatStatusLabel(customer.Status),
-            StatusKey = NormalizeStatusKey(customer.Status),
-            OrderCountLabel = orderCount == 1 ? "1 order" : $"{orderCount} orders",
-            TotalSpendLabel = $"{totalSpend:0.##} ฿",
-            LastOrderLabel = lastOrderAt.HasValue ? lastOrderAt.Value.ToString("dd MMM yyyy") : "ยังไม่มีออเดอร์",
-            LastActiveLabel = FormatLastActive(customer.LastActiveAt ?? customer.CreatedAt)
+            StaffId = staff.Id,
+            StaffCode = $"STF-{staff.Id:0000}",
+            FullName = staff.FullName,
+            Email = staff.Email,
+            PhoneNumber = string.IsNullOrWhiteSpace(staff.Phone) ? "-" : staff.Phone,
+            RoleLabel = FormatRoleLabel(staff.Role?.RoleName, staff.Role?.RoleKey),
+            Status = FormatStatusLabel(staff.Status),
+            StatusKey = NormalizeStatusKey(staff.Status),
+            LastActiveLabel = FormatLastActive(staff.LastActiveAt ?? staff.CreatedAt),
+            CreatedLabel = staff.CreatedAt.ToString("dd MMM yyyy"),
+            Notes = string.IsNullOrWhiteSpace(staff.Notes) ? "-" : staff.Notes!
         };
     }
 
@@ -2227,6 +2771,7 @@ public class AdminController : Controller
             Role = account.Role,
             Status = account.Status,
             StatusKey = account.Status.ToLowerInvariant(),
+            IsProtectedAdminAccount = IsProtectedAdminAccount(account),
             LastActive = FormatLastActive(account.LastActiveAt),
             LastActiveSort = account.LastActiveAt.Ticks,
             Notes = account.Notes
@@ -2322,10 +2867,11 @@ public class AdminController : Controller
             .FirstOrDefault(message => !string.IsNullOrWhiteSpace(message));
     }
 
-    private static IReadOnlyList<string> BuildImageOptions(IReadOnlyList<InventoryItemRecord> items, params string?[] extraImagePaths)
+    private IReadOnlyList<string> BuildImageOptions(IReadOnlyList<InventoryItemRecord> items, params string?[] extraImagePaths)
     {
         return items
             .Select(item => item.ImagePath)
+            .Concat(GetUploadedItemImageOptions())
             .Concat(
             [
                 "/images/theme-cake.svg",
@@ -2338,6 +2884,25 @@ public class AdminController : Controller
             .Concat(extraImagePaths.Where(path => !string.IsNullOrWhiteSpace(path)).Select(path => path!))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private IReadOnlyList<string> GetUploadedItemImageOptions()
+    {
+        var webRootPath = string.IsNullOrWhiteSpace(_environment.WebRootPath)
+            ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")
+            : _environment.WebRootPath;
+        var uploadDirectory = Path.Combine(webRootPath, "images", "products");
+
+        if (!Directory.Exists(uploadDirectory))
+        {
+            return [];
+        }
+
+        return Directory
+            .EnumerateFiles(uploadDirectory)
+            .Where(path => AllowedItemImageUploadExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
+            .Select(path => $"/images/products/{Path.GetFileName(path)}")
             .ToList();
     }
 

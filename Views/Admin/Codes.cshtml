@@ -7,6 +7,18 @@
     ViewData["AdminSection"] = "Codes";
 }
 
+<div class="admin-codes-page" data-admin-codes data-active-modal="@Model.ActiveModal">
+<section class="admin-page-banner admin-page-banner-compact">
+    <div>
+        <p class="admin-page-kicker">Promo Code</p>
+        <h2>สร้างโค้ดส่วนลด</h2>
+        <span>สร้าง coupon code ที่บันทึกลงฐานข้อมูลจริงและใช้ได้ใน checkout ทันที</span>
+    </div>
+    <button type="button" class="admin-primary-button" data-bs-toggle="modal" data-bs-target="#createPromoCodeModal">
+        Create Code
+    </button>
+</section>
+
 <section class="admin-metrics-grid">
     @foreach (var metric in Model.Metrics)
     {
@@ -106,6 +118,7 @@
                             <th>การใช้งาน</th>
                             <th>ช่วงเวลา</th>
                             <th>โน้ต</th>
+                            <th>จัดการ</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -124,6 +137,25 @@
                                 <td>@code.UsageLabel</td>
                                 <td>@code.ExpiryLabel</td>
                                 <td>@code.Note</td>
+                                <td>
+                                    @if (code.IsPromoCode && code.PromoCodeId.HasValue)
+                                    {
+                                        var nextStatus = code.StatusKey == "active" ? "paused" : "active";
+                                        var actionLabel = code.StatusKey == "active" ? "Pause" : "Activate";
+                                        <form asp-action="UpdatePromoCodeStatus" method="post" class="admin-inline-form">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="promoCodeId" value="@code.PromoCodeId" />
+                                            <input type="hidden" name="targetStatus" value="@nextStatus" />
+                                            <button type="submit" class="admin-row-action-button">
+                                                @actionLabel
+                                            </button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <span class="admin-muted-text">Auto rule</span>
+                                    }
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -132,3 +164,154 @@
         }
     </article>
 </section>
+
+<div class="modal fade admin-modal" id="createPromoCodeModal" tabindex="-1" aria-labelledby="createPromoCodeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <p class="admin-modal-kicker">Create Promo Code</p>
+                    <h2 class="modal-title" id="createPromoCodeModalLabel">สร้างโค้ดส่วนลดใหม่</h2>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <form asp-action="CreatePromoCode" method="post" class="admin-item-form admin-code-create-form">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+
+                    <div class="admin-form-section">
+                        <div class="admin-form-section-head">
+                            <h3>ข้อมูลหลักของโค้ด</h3>
+                            <p>เลือกได้ว่าจะผูกกับ campaign ที่มีอยู่ หรือสร้างเป็น standalone code สำหรับ checkout โดยตรง</p>
+                        </div>
+
+                        <div class="admin-form-grid">
+                            <div class="admin-form-span-full">
+                                <label asp-for="CreateForm.PromotionId" class="form-label">Campaign ที่เกี่ยวข้อง</label>
+                                <select asp-for="CreateForm.PromotionId" class="form-select bakery-field" data-promo-campaign-select>
+                                    <option value="">Standalone code ไม่ผูก campaign</option>
+                                    @foreach (var promotion in Model.PromotionOptions)
+                                    {
+                                        <option value="@promotion.Value"
+                                                data-status="@promotion.DataValue"
+                                                data-rule="@promotion.DataExtra"
+                                                data-benefit="@promotion.SecondaryLabel">
+                                            @promotion.Label
+                                        </option>
+                                    }
+                                </select>
+                                <small class="admin-field-note" data-promo-campaign-hint>ถ้าเลือก campaign ระบบจะใช้เงื่อนไขของ campaign นั้นร่วมกับโค้ดนี้</small>
+                                <span asp-validation-for="CreateForm.PromotionId" class="text-danger small"></span>
+                            </div>
+
+                            <div>
+                                <label asp-for="CreateForm.Code" class="form-label">โค้ด</label>
+                                <input asp-for="CreateForm.Code" class="form-control bakery-field" placeholder="WELCOME10" data-promo-code-input />
+                                <small class="admin-field-note">ใช้ A-Z, 0-9, - หรือ _ เท่านั้น ระบบจะปรับเป็นตัวพิมพ์ใหญ่ให้อัตโนมัติ</small>
+                                <span asp-validation-for="CreateForm.Code" class="text-danger small"></span>
+                            </div>
+
+                            <div>
+                                <label asp-for="CreateForm.Title" class="form-label">ชื่อโค้ด</label>
+                                <input asp-for="CreateForm.Title" class="form-control bakery-field" placeholder="ลดต้อนรับสมาชิกใหม่" />
+                                <span asp-validation-for="CreateForm.Title" class="text-danger small"></span>
+                            </div>
+
+                            <div class="admin-form-span-full">
+                                <label asp-for="CreateForm.Description" class="form-label">คำอธิบาย</label>
+                                <textarea asp-for="CreateForm.Description" class="form-control bakery-field bakery-field-area admin-field-area" placeholder="รายละเอียดที่ลูกค้าควรรู้ก่อนใช้โค้ด"></textarea>
+                                <span asp-validation-for="CreateForm.Description" class="text-danger small"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="admin-form-section">
+                        <div class="admin-form-section-head">
+                            <h3>ส่วนลดและเงื่อนไข</h3>
+                            <p>กำหนดมูลค่าส่วนลด ยอดขั้นต่ำ จำนวนครั้งที่ใช้ได้ และช่วงเวลาใช้งาน</p>
+                        </div>
+
+                        <div class="admin-form-grid">
+                            <div>
+                                <label asp-for="CreateForm.DiscountType" class="form-label">ประเภทส่วนลด</label>
+                                <select asp-for="CreateForm.DiscountType" class="form-select bakery-field" data-promo-discount-type>
+                                    @foreach (var option in Model.DiscountTypeOptions)
+                                    {
+                                        <option value="@option.Value" data-help="@option.SecondaryLabel">@option.Label</option>
+                                    }
+                                </select>
+                                <small class="admin-field-note" data-promo-discount-help>เช่น ลด 10%</small>
+                                <span asp-validation-for="CreateForm.DiscountType" class="text-danger small"></span>
+                            </div>
+
+                            <div>
+                                <label asp-for="CreateForm.DiscountValue" class="form-label">มูลค่าส่วนลด</label>
+                                <input asp-for="CreateForm.DiscountValue" class="form-control bakery-field" type="number" min="0" step="0.01" />
+                                <span asp-validation-for="CreateForm.DiscountValue" class="text-danger small"></span>
+                            </div>
+
+                            <div>
+                                <label asp-for="CreateForm.MinOrderAmount" class="form-label">ยอดขั้นต่ำ</label>
+                                <input asp-for="CreateForm.MinOrderAmount" class="form-control bakery-field" type="number" min="0" step="0.01" placeholder="ไม่กำหนด" />
+                                <span asp-validation-for="CreateForm.MinOrderAmount" class="text-danger small"></span>
+                            </div>
+
+                            <div>
+                                <label asp-for="CreateForm.MaxDiscountAmount" class="form-label">ส่วนลดสูงสุด</label>
+                                <input asp-for="CreateForm.MaxDiscountAmount" class="form-control bakery-field" type="number" min="0" step="0.01" placeholder="ไม่กำหนด" />
+                                <span asp-validation-for="CreateForm.MaxDiscountAmount" class="text-danger small"></span>
+                            </div>
+
+                            <div>
+                                <label asp-for="CreateForm.UsageLimit" class="form-label">จำนวนครั้งที่ใช้ได้</label>
+                                <input asp-for="CreateForm.UsageLimit" class="form-control bakery-field" type="number" min="1" step="1" placeholder="ไม่จำกัด" />
+                                <span asp-validation-for="CreateForm.UsageLimit" class="text-danger small"></span>
+                            </div>
+
+                            <div>
+                                <label asp-for="CreateForm.Status" class="form-label">สถานะ</label>
+                                <select asp-for="CreateForm.Status" class="form-select bakery-field">
+                                    @foreach (var status in Model.StatusOptions)
+                                    {
+                                        <option value="@status">@status</option>
+                                    }
+                                </select>
+                                <span asp-validation-for="CreateForm.Status" class="text-danger small"></span>
+                            </div>
+
+                            <div>
+                                <label asp-for="CreateForm.StartsAt" class="form-label">เริ่มใช้</label>
+                                <input asp-for="CreateForm.StartsAt" asp-format="{0:yyyy-MM-ddTHH:mm}" class="form-control bakery-field" type="datetime-local" />
+                                <span asp-validation-for="CreateForm.StartsAt" class="text-danger small"></span>
+                            </div>
+
+                            <div>
+                                <label asp-for="CreateForm.ExpiresAt" class="form-label">หมดอายุ</label>
+                                <input asp-for="CreateForm.ExpiresAt" asp-format="{0:yyyy-MM-ddTHH:mm}" class="form-control bakery-field" type="datetime-local" />
+                                <span asp-validation-for="CreateForm.ExpiresAt" class="text-danger small"></span>
+                            </div>
+
+                            <div class="admin-form-span-full">
+                                <label asp-for="CreateForm.Note" class="form-label">หมายเหตุหลังบ้าน</label>
+                                <textarea asp-for="CreateForm.Note" class="form-control bakery-field bakery-field-area admin-field-area" placeholder="เช่น ใช้เฉพาะ campaign เดือนนี้ หรือเงื่อนไขภายในทีม"></textarea>
+                                <span asp-validation-for="CreateForm.Note" class="text-danger small"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="admin-form-actions">
+                        <button type="button" class="admin-secondary-button" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="admin-primary-button">Create Promo Code</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

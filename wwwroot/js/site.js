@@ -107,6 +107,114 @@ if (!isStorefrontUserSignedIn && loginPromptModalElement && window.bootstrap) {
   });
 }
 
+const checkoutFormElement = document.querySelector("[data-checkout-form]");
+const checkoutReviewModalElement = document.querySelector("[data-checkout-review-modal]");
+const checkoutReviewConfirmButton = checkoutReviewModalElement?.querySelector("[data-checkout-review-confirm]");
+const checkoutSubmitButton = checkoutFormElement?.querySelector("[data-checkout-submit]");
+let checkoutReviewConfirmed = false;
+
+if (checkoutFormElement instanceof HTMLFormElement) {
+  const getCheckoutFieldValue = (selector, fallback = "ไม่ระบุ") => {
+    const field = checkoutFormElement.querySelector(selector);
+    const value = field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement
+      ? field.value.trim()
+      : "";
+
+    return value || fallback;
+  };
+
+  const setCheckoutReviewText = (selector, value, fallback = "ไม่ระบุ") => {
+    const target = checkoutReviewModalElement?.querySelector(selector);
+    if (!target) {
+      return;
+    }
+
+    target.textContent = value || fallback;
+  };
+
+  const getSelectedPaymentText = () => {
+    const selectedPayment = checkoutFormElement.querySelector("[data-checkout-payment-field]:checked");
+    const paymentOption = selectedPayment?.closest("[data-payment-option-label]");
+    if (!(paymentOption instanceof HTMLElement)) {
+      return "ไม่ระบุ";
+    }
+
+    const label = paymentOption.dataset.paymentOptionLabel || "";
+    const description = paymentOption.dataset.paymentOptionDescription || "";
+    return [label, description].filter(Boolean).join(" - ") || "ไม่ระบุ";
+  };
+
+  const isCheckoutFormValid = () => {
+    const jquery = window.jQuery;
+    if (jquery && typeof jquery.fn?.valid === "function") {
+      return jquery(checkoutFormElement).valid();
+    }
+
+    if (typeof checkoutFormElement.reportValidity === "function") {
+      return checkoutFormElement.reportValidity();
+    }
+
+    return true;
+  };
+
+  const updateCheckoutReview = () => {
+    const promoCode = getCheckoutFieldValue("[data-checkout-promo-field]", "ไม่มี").toUpperCase();
+    const pointsToRedeem = getCheckoutFieldValue("[data-checkout-points-field]", "0");
+    const rewardCheckbox = checkoutFormElement.querySelector("[name='Checkout.UsePointsReward']");
+    const isUsingReward = rewardCheckbox instanceof HTMLInputElement && rewardCheckbox.checked;
+
+    setCheckoutReviewText("[data-checkout-review-promo]", promoCode, "ไม่มี");
+    setCheckoutReviewText("[data-checkout-review-reward]", isUsingReward ? "ใช้พอยต์แลกของรางวัล" : "ไม่ใช้", "ไม่ใช้");
+    setCheckoutReviewText("[data-checkout-review-points]", pointsToRedeem === "0" ? "ไม่ใช้" : `${pointsToRedeem} P`, "ไม่ใช้");
+    setCheckoutReviewText("[data-checkout-review-customer]", getCheckoutFieldValue("[data-checkout-customer-field]"));
+    setCheckoutReviewText("[data-checkout-review-phone]", getCheckoutFieldValue("[data-checkout-phone-field]"));
+    setCheckoutReviewText("[data-checkout-review-address]", getCheckoutFieldValue("[data-checkout-address-field]"));
+    setCheckoutReviewText("[data-checkout-review-payment]", getSelectedPaymentText());
+    setCheckoutReviewText("[data-checkout-review-notes]", getCheckoutFieldValue("[data-checkout-notes-field]", "ไม่มี"), "ไม่มี");
+  };
+
+  checkoutFormElement.addEventListener("submit", (event) => {
+    const submitter = event.submitter;
+    if (submitter instanceof HTMLElement && submitter.matches("[data-checkout-preview-submit]")) {
+      return;
+    }
+
+    if (checkoutReviewConfirmed) {
+      checkoutReviewConfirmed = false;
+      return;
+    }
+
+    if (!isCheckoutFormValid()) {
+      event.preventDefault();
+      return;
+    }
+
+    if (!checkoutReviewModalElement || !window.bootstrap) {
+      if (!window.confirm("ตรวจสอบข้อมูลครบถ้วนแล้ว ต้องการยืนยันการชำระเงินใช่ไหม")) {
+        event.preventDefault();
+      }
+
+      return;
+    }
+
+    event.preventDefault();
+    updateCheckoutReview();
+    window.bootstrap.Modal.getOrCreateInstance(checkoutReviewModalElement).show();
+  });
+
+  checkoutReviewConfirmButton?.addEventListener("click", () => {
+    checkoutReviewConfirmed = true;
+    window.bootstrap?.Modal.getOrCreateInstance(checkoutReviewModalElement)?.hide();
+
+    if (checkoutSubmitButton instanceof HTMLButtonElement && typeof checkoutFormElement.requestSubmit === "function") {
+      checkoutFormElement.requestSubmit(checkoutSubmitButton);
+      return;
+    }
+
+    checkoutFormElement.submit();
+  });
+}
+
 if (searchRoot) {
   const searchInput = searchRoot.querySelector("[data-search-input]");
   const categoryInput = searchRoot.querySelector("[data-category-input]");
@@ -186,6 +294,106 @@ if (adminItemsRoot && window.bootstrap) {
     field.checked = isChecked;
   };
 
+  const setupItemImagePicker = (modalElement) => {
+    const pickerElement = modalElement?.querySelector("[data-item-image-picker]");
+    if (!(pickerElement instanceof HTMLElement)) {
+      return null;
+    }
+
+    const pathInput = pickerElement.querySelector("[data-item-image-path]");
+    const fileInput = pickerElement.querySelector("[data-item-image-upload]");
+    const previewImage = pickerElement.querySelector("[data-item-image-preview]");
+    const selectedLabel = pickerElement.querySelector("[data-item-image-label]");
+    const optionButtons = [...pickerElement.querySelectorAll("[data-item-image-option]")];
+    let previewObjectUrl = "";
+
+    const normalizePath = (imagePath) => imagePath || "/images/theme-cake.svg";
+
+    const setSelectedButton = (imagePath) => {
+      optionButtons.forEach((button) => {
+        if (!(button instanceof HTMLButtonElement)) {
+          return;
+        }
+
+        const isSelected = button.dataset.itemImageOption === imagePath;
+        button.classList.toggle("is-selected", isSelected);
+        button.setAttribute("aria-pressed", isSelected ? "true" : "false");
+      });
+    };
+
+    const revokePreviewObjectUrl = () => {
+      if (previewObjectUrl) {
+        URL.revokeObjectURL(previewObjectUrl);
+        previewObjectUrl = "";
+      }
+    };
+
+    const setPath = (imagePath, shouldClearFile = true) => {
+      const normalizedPath = normalizePath(imagePath);
+
+      if (pathInput instanceof HTMLInputElement) {
+        pathInput.value = normalizedPath;
+      }
+
+      if (previewImage instanceof HTMLImageElement) {
+        revokePreviewObjectUrl();
+        previewImage.src = normalizedPath;
+      }
+
+      if (selectedLabel) {
+        selectedLabel.textContent = normalizedPath;
+      }
+
+      if (shouldClearFile && fileInput instanceof HTMLInputElement) {
+        fileInput.value = "";
+      }
+
+      setSelectedButton(normalizedPath);
+    };
+
+    optionButtons.forEach((button) => {
+      if (!(button instanceof HTMLButtonElement)) {
+        return;
+      }
+
+      button.addEventListener("click", () => {
+        setPath(button.dataset.itemImageOption);
+      });
+    });
+
+    fileInput?.addEventListener("change", () => {
+      if (!(fileInput instanceof HTMLInputElement)) {
+        return;
+      }
+
+      const file = fileInput.files?.[0];
+      if (!file) {
+        setPath(pathInput instanceof HTMLInputElement ? pathInput.value : "", false);
+        return;
+      }
+
+      revokePreviewObjectUrl();
+      previewObjectUrl = URL.createObjectURL(file);
+
+      if (previewImage instanceof HTMLImageElement) {
+        previewImage.src = previewObjectUrl;
+      }
+
+      if (selectedLabel) {
+        selectedLabel.textContent = file.name;
+      }
+
+      setSelectedButton("");
+    });
+
+    setPath(pathInput instanceof HTMLInputElement ? pathInput.value : "", false);
+
+    return { setPath };
+  };
+
+  const addImagePicker = setupItemImagePicker(addModalElement);
+  const editImagePicker = setupItemImagePicker(editModalElement);
+
   const getOrCreateAdminNotice = () => {
     let notice = document.querySelector(".admin-site-notice");
     if (notice) {
@@ -226,29 +434,47 @@ if (adminItemsRoot && window.bootstrap) {
   };
 
   const appendCategoryOption = (categoryName) => {
-    if (!categoryListElement || !categoryName) {
+    if (!categoryName) {
       return;
     }
 
-    const hasExistingOption = [...categoryListElement.querySelectorAll("option")]
-      .some((option) => (option.value || "").trim().toLowerCase() === categoryName.trim().toLowerCase());
+    const normalizedCategoryName = categoryName.trim();
 
-    if (hasExistingOption) {
-      return;
+    if (categoryListElement) {
+      const hasExistingOption = [...categoryListElement.querySelectorAll("option")]
+        .some((option) => (option.value || "").trim().toLowerCase() === normalizedCategoryName.toLowerCase());
+
+      if (!hasExistingOption) {
+        const option = document.createElement("option");
+        option.value = normalizedCategoryName;
+        categoryListElement.append(option);
+      }
     }
 
-    const option = document.createElement("option");
-    option.value = categoryName;
-    categoryListElement.append(option);
+    adminItemsRoot.querySelectorAll("[data-category-select]").forEach((selectElement) => {
+      if (!(selectElement instanceof HTMLSelectElement)) {
+        return;
+      }
+
+      const hasExistingFormOption = [...selectElement.options]
+        .some((selectOption) => (selectOption.value || "").trim().toLowerCase() === normalizedCategoryName.toLowerCase());
+
+      if (!hasExistingFormOption) {
+        const selectOption = document.createElement("option");
+        selectOption.value = normalizedCategoryName;
+        selectOption.textContent = normalizedCategoryName;
+        selectElement.append(selectOption);
+      }
+    });
 
     if (itemsCategoryFilter instanceof HTMLSelectElement) {
       const hasExistingSelectOption = [...itemsCategoryFilter.options]
-        .some((selectOption) => (selectOption.value || "").trim().toLowerCase() === categoryName.trim().toLowerCase());
+        .some((selectOption) => (selectOption.value || "").trim().toLowerCase() === normalizedCategoryName.toLowerCase());
 
       if (!hasExistingSelectOption) {
         const selectOption = document.createElement("option");
-        selectOption.value = categoryName;
-        selectOption.textContent = categoryName;
+        selectOption.value = normalizedCategoryName;
+        selectOption.textContent = normalizedCategoryName;
         itemsCategoryFilter.append(selectOption);
       }
     }
@@ -281,7 +507,10 @@ if (adminItemsRoot && window.bootstrap) {
 
     setFieldValue("CategoryForm_TargetFieldId", targetFieldId);
     setFieldValue("CategoryForm_ReturnModalId", returnModalId);
-    setFieldValue("CategoryForm_Name", targetField instanceof HTMLInputElement ? targetField.value : "");
+    setFieldValue(
+      "CategoryForm_Name",
+      targetField instanceof HTMLInputElement || targetField instanceof HTMLSelectElement ? targetField.value : ""
+    );
     setCategoryValidation("");
 
     pendingReturnModalId = returnModalId;
@@ -567,9 +796,10 @@ if (adminItemsRoot && window.bootstrap) {
 
       const targetFieldId = (categoryFormElement.querySelector("#CategoryForm_TargetFieldId")?.value || "").trim();
       const targetField = targetFieldId ? document.getElementById(targetFieldId) : null;
-      if (targetField instanceof HTMLInputElement && payload.categoryName) {
+      if ((targetField instanceof HTMLInputElement || targetField instanceof HTMLSelectElement) && payload.categoryName) {
         targetField.value = payload.categoryName;
         targetField.dispatchEvent(new Event("input", { bubbles: true }));
+        targetField.dispatchEvent(new Event("change", { bubbles: true }));
       }
 
       showAdminNotice(payload.message || "เพิ่มหมวดสินค้าแล้ว");
@@ -606,6 +836,7 @@ if (adminItemsRoot && window.bootstrap) {
     setFieldValue("EditForm_Tagline", trigger.dataset.tagline);
     setFieldValue("EditForm_Notes", trigger.dataset.notes);
     setFieldValue("EditForm_ImagePath", trigger.dataset.imagePath);
+    editImagePicker?.setPath(trigger.dataset.imagePath || "/images/theme-cake.svg");
     setFieldValue("EditStockDisplay", `${trigger.dataset.stockQuantity || 0} units`);
     setCheckboxValue("EditForm_IsPublished", trigger.dataset.isPublished === "true");
   });
@@ -886,6 +1117,33 @@ if (adminAccountsRoot && window.bootstrap) {
       field.value = value ?? "";
   };
 
+  const setProtectedAdminMode = (isProtected) => {
+    const roleField = document.getElementById("EditForm_Role");
+    const statusField = document.getElementById("EditForm_Status");
+    const protectedNote = document.querySelector("[data-protected-admin-note]");
+
+    if (roleField instanceof HTMLSelectElement) {
+      const selectedRole = (roleField.value || "").trim().toLowerCase();
+      [...roleField.options].forEach((option) => {
+        const optionValue = (option.value || "").trim().toLowerCase();
+        option.disabled = isProtected && optionValue !== selectedRole;
+      });
+    }
+
+    if (statusField instanceof HTMLSelectElement) {
+      [...statusField.options].forEach((option) => {
+        const optionValue = (option.value || "").trim().toLowerCase();
+        option.disabled = isProtected && optionValue !== "active";
+      });
+
+      if (isProtected) {
+        statusField.value = "Active";
+      }
+    }
+
+    protectedNote?.classList.toggle("d-none", !isProtected);
+  };
+
   const compareAccountText = (leftValue, rightValue) =>
     leftValue.localeCompare(rightValue, "th", { sensitivity: "base" });
 
@@ -994,6 +1252,7 @@ if (adminAccountsRoot && window.bootstrap) {
     setAccountFieldValue("EditForm_PhoneNumber", trigger.dataset.phoneNumber);
     setAccountRoleValue(trigger.dataset.role);
     setAccountFieldValue("EditForm_Status", trigger.dataset.status);
+    setProtectedAdminMode(trigger.dataset.protectedAdmin === "true");
     setAccountFieldValue("EditForm_LastActiveDisplay", trigger.dataset.lastActive);
     setAccountFieldValue("EditForm_Notes", trigger.dataset.notes);
     setAccountFieldValue("EditForm_Password", "");
@@ -1009,6 +1268,65 @@ if (adminAccountsRoot && window.bootstrap) {
   }
 
   filterAccountRows();
+}
+
+const adminCodesRoot = document.querySelector("[data-admin-codes]");
+
+if (adminCodesRoot && window.bootstrap) {
+  const createPromoCodeModalElement = document.getElementById("createPromoCodeModal");
+  const promoCodeInput = adminCodesRoot.querySelector("[data-promo-code-input]");
+  const discountTypeSelect = adminCodesRoot.querySelector("[data-promo-discount-type]");
+  const discountValueInput = document.getElementById("CreateForm_DiscountValue");
+  const discountHelp = adminCodesRoot.querySelector("[data-promo-discount-help]");
+  const campaignSelect = adminCodesRoot.querySelector("[data-promo-campaign-select]");
+  const campaignHint = adminCodesRoot.querySelector("[data-promo-campaign-hint]");
+
+  promoCodeInput?.addEventListener("input", () => {
+    promoCodeInput.value = promoCodeInput.value
+      .toUpperCase()
+      .replace(/\s+/g, "")
+      .replace(/[^A-Z0-9_-]/g, "");
+  });
+
+  const syncDiscountHelp = () => {
+    if (!(discountTypeSelect instanceof HTMLSelectElement) || !discountHelp) {
+      return;
+    }
+
+    const selectedOption = discountTypeSelect.selectedOptions[0];
+    discountHelp.textContent = selectedOption?.dataset.help || "";
+
+    if (discountValueInput instanceof HTMLInputElement) {
+      if (discountTypeSelect.value === "shipping" && (!discountValueInput.value || discountValueInput.value === "10")) {
+        discountValueInput.value = "0";
+      } else if (discountTypeSelect.value !== "shipping" && discountValueInput.value === "0") {
+        discountValueInput.value = "10";
+      }
+    }
+  };
+
+  const syncCampaignHint = () => {
+    if (!(campaignSelect instanceof HTMLSelectElement) || !campaignHint) {
+      return;
+    }
+
+    const selectedOption = campaignSelect.selectedOptions[0];
+    const benefit = selectedOption?.dataset.benefit || "";
+    const rule = selectedOption?.dataset.rule || "";
+    campaignHint.textContent = campaignSelect.value
+      ? [benefit, rule].filter(Boolean).join(" | ")
+      : "ถ้าเลือก campaign ระบบจะใช้เงื่อนไขของ campaign นั้นร่วมกับโค้ดนี้";
+  };
+
+  discountTypeSelect?.addEventListener("change", syncDiscountHelp);
+  campaignSelect?.addEventListener("change", syncCampaignHint);
+
+  syncDiscountHelp();
+  syncCampaignHint();
+
+  if (adminCodesRoot.dataset.activeModal === "code-create" && createPromoCodeModalElement) {
+    window.bootstrap.Modal.getOrCreateInstance(createPromoCodeModalElement).show();
+  }
 }
 
 const adminOrdersRoot = document.querySelector("[data-admin-orders]");

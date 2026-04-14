@@ -14,11 +14,6 @@
 }
 
 <section class="admin-page-banner admin-page-banner-compact">
-    <div>
-        <p class="admin-page-kicker">Accounts</p>
-        <h2>Manage system accounts</h2>
-        <span>สมัครจากหน้าเว็บจะได้แค่ User ส่วน role อื่นให้สร้างจากหน้านี้ผ่านแอดมินเท่านั้น</span>
-    </div>
     <button type="button" class="admin-primary-button" data-bs-toggle="modal" data-bs-target="#addAccountModal">
         Add Account
     </button>
@@ -104,6 +99,7 @@
                             data-account-role="@account.Role"
                             data-account-status="@account.Status"
                             data-account-last-active="@account.LastActiveSort"
+                            data-account-protected-admin="@(account.IsProtectedAdminAccount ? "true" : "false")"
                             data-account-id="@account.AccountId">
                             <td>
                                 <div class="admin-order-stack">
@@ -138,7 +134,8 @@
                                             data-role="@account.Role"
                                             data-status="@account.Status"
                                             data-last-active="@account.LastActive"
-                                            data-notes="@account.Notes">
+                                            data-notes="@account.Notes"
+                                            data-protected-admin="@(account.IsProtectedAdminAccount ? "true" : "false")">
                                         Edit
                                     </button>
 
@@ -147,8 +144,9 @@
                                         <input type="hidden" name="accountId" value="@account.AccountId" />
                                         <button type="submit"
                                                 class="admin-row-action-button is-danger"
-                                                @(account.Status == "Closed" ? "disabled" : null)>
-                                            Close Account
+                                                title="@(account.IsProtectedAdminAccount ? "บัญชี Admin ไม่สามารถปิดได้" : null)"
+                                                @(account.Status == "Closed" || account.IsProtectedAdminAccount ? "disabled" : null)>
+                                            @(account.IsProtectedAdminAccount ? "Protected" : "Close Account")
                                         </button>
                                     </form>
                                 </div>
@@ -323,6 +321,7 @@
                                     <option value="@status">@status</option>
                                 }
                             </select>
+                            <small class="admin-protected-account-note d-none" data-protected-admin-note>บัญชี Admin ถูกล็อกให้เป็น Active เพื่อป้องกันการปิดระบบหลังบ้าน</small>
                             <span asp-validation-for="EditForm.Status" class="text-danger small"></span>
                         </div>
 

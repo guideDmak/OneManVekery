@@ -16,6 +16,8 @@ public class HomeController : Controller
     private const string CartSessionKey = "one-man-vekery-cart";
     private const string PromoCodeSessionKey = "one-man-vekery-promo-code";
     private const decimal DeliveryFeeAmount = 45m;
+    private const int PointDiscountPointStep = 10;
+    private const decimal PointDiscountValuePerStep = 1m;
     private readonly OneManVekeryDBContext _dbContext;
     private readonly StorefrontContentOptions _storefrontContent;
 
@@ -34,7 +36,8 @@ public class HomeController : Controller
         return View(new HomeIndexViewModel
         {
             Categories = BuildCategoryCards(products),
-            Products = products
+            Products = products,
+            NewArrivals = GetNewArrivalProducts()
         });
     }
 
@@ -68,13 +71,31 @@ public class HomeController : Controller
     }
 
     [HttpGet]
+    public IActionResult MyOrders()
+    {
+        if (!IsStorefrontUserSignedIn())
+        {
+            TempData["SiteNotice"] = "กรุณาเข้าสู่ระบบก่อนดูคำสั่งซื้อของคุณ";
+            return RedirectToAction("Login", "Account");
+        }
+
+        return View(BuildMyOrdersPageModel());
+    }
+
+    [HttpGet]
     public IActionResult OrderStatus(string orderNumber)
     {
-        var order = GetOrder(orderNumber);
+        if (!IsStorefrontUserSignedIn())
+        {
+            TempData["SiteNotice"] = "กรุณาเข้าสู่ระบบก่อนดูสถานะคำสั่งซื้อ";
+            return RedirectToAction("Login", "Account");
+        }
+
+        var order = GetOrderForCurrentUser(orderNumber);
         if (order is null)
         {
             TempData["SiteNotice"] = "ไม่พบออเดอร์ที่ต้องการ";
-            return RedirectToAction(nameof(Shop));
+            return RedirectToAction(nameof(MyOrders));
         }
 
         return View(BuildOrderStatusPageModel(order));
@@ -172,6 +193,11 @@ public class HomeController : Controller
             AddCheckoutFieldError(nameof(CartCheckoutViewModel.UsePointsReward), $"ต้องมีอย่างน้อย {pricing.RewardPointCost} พอยต์ก่อนจึงจะแลกของรางวัลนี้ได้");
         }
 
+        if (checkout.PointsToRedeem > pricing.MaxPointDiscountRedeem)
+        {
+            AddCheckoutFieldError(nameof(CartCheckoutViewModel.PointsToRedeem), $"ใช้พอยต์ลดราคาได้สูงสุด {pricing.MaxPointDiscountRedeem} P สำหรับออเดอร์นี้");
+        }
+
         if (!TryValidateCartInventory(cartItems, out var inventoryMessage))
         {
             ModelState.AddModelError(string.Empty, inventoryMessage);
@@ -189,13 +215,13 @@ public class HomeController : Controller
                 signedInUserId,
                 new CartCheckoutSnapshot
                 {
-                    PromoCode = pricing.Promo.IsApplied ? pricing.Promo.Code : checkout.PromoCode,
+                    PromoCode = pricing.Promo.IsApplied ? pricing.Promo.Code : checkout.PromoCode ?? string.Empty,
                     UsePointsReward = checkout.UsePointsReward,
                     CustomerName = checkout.CustomerName,
                     PhoneNumber = checkout.PhoneNumber,
                     DeliveryAddress = checkout.DeliveryAddress,
                     PaymentMethodCode = checkout.PaymentMethod,
-                    Notes = checkout.Notes
+                    Notes = checkout.Notes ?? string.Empty
                 },
                 cartItems,
                 pricing,
@@ -234,11 +260,12 @@ public class HomeController : Controller
 
         var pricing = BuildPricingSummary(cartItems, checkout);
         var hadPersistedPromoCode = !string.IsNullOrWhiteSpace(ReadPersistedPromoCode());
+        var previewAction = Request.Form["checkoutPreviewAction"].ToString();
 
         if (string.IsNullOrWhiteSpace(checkout.PromoCode))
         {
             PersistPromoCode(null);
-            if (!hadPersistedPromoCode)
+            if (!hadPersistedPromoCode && string.Equals(previewAction, "promo", StringComparison.OrdinalIgnoreCase))
             {
                 AddCheckoutFieldError(nameof(CartCheckoutViewModel.PromoCode), "กรุณากรอกโค้ดส่วนลด");
             }
@@ -251,6 +278,11 @@ public class HomeController : Controller
         else
         {
             PersistPromoCode(pricing.Promo.Code);
+        }
+
+        if (checkout.PointsToRedeem > pricing.MaxPointDiscountRedeem)
+        {
+            AddCheckoutFieldError(nameof(CartCheckoutViewModel.PointsToRedeem), $"ใช้พอยต์ลดราคาได้สูงสุด {pricing.MaxPointDiscountRedeem} P สำหรับออเดอร์นี้");
         }
 
         return View("Cart", BuildCartPageModel(checkout));
@@ -428,6 +460,9 @@ public class HomeController : Controller
             CurrentPoints = pricing.CurrentPoints,
             PointsEarned = pricing.PointsEarned,
             PointsRedeemed = pricing.PointsRedeemed,
+            PointsDiscountAmount = pricing.PointsDiscountAmount,
+            MaxPointDiscountRedeem = pricing.MaxPointDiscountRedeem,
+            PointDiscountRateLabel = $"{PointDiscountPointStep} P = {PointDiscountValuePerStep:0.##} ฿",
             ProjectedPointsBalance = pricing.ProjectedPointsBalance,
             PointsNeededForFreeItem = Math.Max(0, pricing.RewardPointCost - pricing.CurrentPoints),
             RewardPointCost = pricing.RewardPointCost,
@@ -484,6 +519,65 @@ public class HomeController : Controller
         };
     }
 
+    private MyOrdersPageViewModel BuildMyOrdersPageModel()
+    {
+        var accountId = GetSignedInStorefrontUserId();
+        if (accountId is null)
+        {
+            return new MyOrdersPageViewModel();
+        }
+
+        var orders = _dbContext.Orders
+            .AsNoTracking()
+            .Include(order => order.OrderItems)
+            .Where(order => order.UserId == accountId.Value)
+            .OrderByDescending(order => order.CreatedAt)
+            .ToList();
+
+        return new MyOrdersPageViewModel
+        {
+            Orders = orders.Select(MapMyOrderCard).ToList(),
+            OrderCount = orders.Count,
+            TotalSpendLabel = $"{orders.Sum(order => order.TotalAmount):0.##} ฿",
+            LastOrderLabel = orders.Count == 0
+                ? "ยังไม่มีคำสั่งซื้อ"
+                : ConvertToStoreTime(orders[0].CreatedAt).ToString("dd MMM yyyy, HH:mm")
+        };
+    }
+
+    private MyOrderCardViewModel MapMyOrderCard(Order order)
+    {
+        var status = ResolveOrderStatus(order.OrderStatus);
+        var firstItem = order.OrderItems
+            .OrderBy(item => item.Id)
+            .FirstOrDefault();
+        var totalQuantity = order.OrderItems.Sum(item => item.Qty);
+        var extraItems = Math.Max(0, order.OrderItems.Count - 1);
+        var productSummary = firstItem is null
+            ? "ไม่มีรายการสินค้า"
+            : extraItems > 0
+                ? $"{firstItem.ProductName} และอีก {extraItems} รายการ"
+                : firstItem.ProductName;
+
+        return new MyOrderCardViewModel
+        {
+            OrderNumber = order.OrderNo,
+            CreatedAt = ConvertToStoreTime(order.CreatedAt),
+            ProductSummary = productSummary,
+            ItemCountLabel = totalQuantity <= 0 ? "0 ชิ้น" : $"{totalQuantity} ชิ้น",
+            TotalAmountLabel = $"{order.TotalAmount:0.##} ฿",
+            PaymentMethodLabel = ResolvePaymentLabel(order.PaymentMethod),
+            StatusLabel = status.Title,
+            StatusDescription = status.Description,
+            StatusKey = NormalizeOrderStatusKey(order.OrderStatus),
+            PromoLabel = string.IsNullOrWhiteSpace(order.DiscountCode)
+                ? string.Empty
+                : order.DiscountCode,
+            PointsEarned = order.PointsEarned,
+            PointsRedeemed = order.PointsRedeemed
+        };
+    }
+
     private IReadOnlyList<ProductCardViewModel> GetProducts()
     {
         return _dbContext.Products
@@ -491,6 +585,20 @@ public class HomeController : Controller
             .Include(product => product.Category)
             .Where(product => product.IsActive)
             .OrderBy(product => product.Name)
+            .ToList()
+            .Select(MapProduct)
+            .ToList();
+    }
+
+    private IReadOnlyList<ProductCardViewModel> GetNewArrivalProducts()
+    {
+        return _dbContext.Products
+            .AsNoTracking()
+            .Include(product => product.Category)
+            .Where(product => product.IsActive)
+            .OrderByDescending(product => product.CreatedAt)
+            .ThenByDescending(product => product.Id)
+            .Take(3)
             .ToList()
             .Select(MapProduct)
             .ToList();
@@ -752,9 +860,15 @@ public class HomeController : Controller
         return true;
     }
 
-    private Order? GetOrder(string orderNumber)
+    private Order? GetOrderForCurrentUser(string orderNumber)
     {
         if (string.IsNullOrWhiteSpace(orderNumber))
+        {
+            return null;
+        }
+
+        var accountId = GetSignedInStorefrontUserId();
+        if (accountId is null)
         {
             return null;
         }
@@ -769,7 +883,7 @@ public class HomeController : Controller
                     .ThenInclude(product => product!.Category)
             .Include(order => order.OrderPromotions)
             .Include(order => order.LoyaltyPointsLedgers)
-            .FirstOrDefault(order => order.OrderNo == normalizedOrderNumber);
+            .FirstOrDefault(order => order.OrderNo == normalizedOrderNumber && order.UserId == accountId.Value);
     }
 
     private bool IsStorefrontUserSignedIn()
@@ -1111,6 +1225,29 @@ public class HomeController : Controller
             }
         }
 
+        var maxPointDiscountRedeem = CalculateMaxPointDiscountRedeem(currentPoints - pointsRedeemed, remainingSubtotal);
+        var (pointDiscountRedeemed, pointDiscountAmount) = ResolvePointDiscount(checkout.PointsToRedeem, maxPointDiscountRedeem);
+        if (pointDiscountRedeemed > 0 && pointDiscountAmount > 0)
+        {
+            pointsRedeemed += pointDiscountRedeemed;
+            discountAmount += pointDiscountAmount;
+            remainingSubtotal -= pointDiscountAmount;
+            appliedBenefits.Add(new PricingBenefit(
+                "ใช้พอยต์ลดราคา",
+                $"ใช้ {pointDiscountRedeemed} P ลดราคา {pointDiscountAmount:0.##} ฿",
+                pointDiscountAmount,
+                0,
+                0,
+                pointDiscountRedeemed,
+                "success",
+                "points_discount",
+                loyaltyPromotion?.Id,
+                null,
+                null,
+                string.Empty,
+                null));
+        }
+
         var pointsEarned = CalculateEarnedPoints(loyaltyPromotion, remainingSubtotal);
         if (pointsEarned > 0)
         {
@@ -1138,6 +1275,8 @@ public class HomeController : Controller
             currentPoints,
             pointsEarned,
             pointsRedeemed,
+            pointDiscountAmount,
+            maxPointDiscountRedeem,
             currentPoints - pointsRedeemed + pointsEarned,
             rewardPointCost,
             rewardQty,
@@ -1146,6 +1285,25 @@ public class HomeController : Controller
             loyaltyPromotion?.Id,
             appliedBenefits,
             promo);
+    }
+
+    private static int CalculateMaxPointDiscountRedeem(int availablePoints, decimal discountableSubtotal)
+    {
+        if (availablePoints <= 0 || discountableSubtotal <= 0)
+        {
+            return 0;
+        }
+
+        var pointsBySubtotal = (int)Math.Floor(discountableSubtotal / PointDiscountValuePerStep * PointDiscountPointStep);
+        return Math.Min(availablePoints, Math.Max(0, pointsBySubtotal));
+    }
+
+    private static (int PointsRedeemed, decimal DiscountAmount) ResolvePointDiscount(int requestedPoints, int maxRedeemablePoints)
+    {
+        var pointsRedeemed = Math.Min(Math.Max(0, requestedPoints), Math.Max(0, maxRedeemablePoints));
+        var discountAmount = Math.Round(pointsRedeemed / (decimal)PointDiscountPointStep * PointDiscountValuePerStep, 2, MidpointRounding.AwayFromZero);
+
+        return (pointsRedeemed, discountAmount);
     }
 
     private static CheckoutBenefitViewModel MapBenefit(PricingBenefit benefit)
@@ -1269,7 +1427,7 @@ public class HomeController : Controller
                 EntryType = "redeem",
                 PointsDelta = -pricing.PointsRedeemed,
                 BalanceAfter = wallet.CurrentPoints,
-                Note = $"แลกของรางวัลจากออเดอร์ {order.OrderNo}",
+                Note = $"ใช้พอยต์กับออเดอร์ {order.OrderNo}",
                 CreatedAt = createdAt
             });
         }
@@ -1799,6 +1957,7 @@ public class HomeController : Controller
         RemoveCheckoutFieldErrors(nameof(CartCheckoutViewModel.DeliveryAddress));
         RemoveCheckoutFieldErrors(nameof(CartCheckoutViewModel.PaymentMethod));
         RemoveCheckoutFieldErrors(nameof(CartCheckoutViewModel.UsePointsReward));
+        RemoveCheckoutFieldErrors(nameof(CartCheckoutViewModel.PointsToRedeem));
     }
 
     private void RemoveCheckoutFieldErrors(string fieldName)
@@ -1999,11 +2158,39 @@ public class HomeController : Controller
 
     private IReadOnlyList<OrderProgressStepViewModel> BuildOrderProgressSteps(string currentStatusCode)
     {
+        var normalizedStatus = NormalizeOrderStatusKey(currentStatusCode);
+        if (normalizedStatus is "refunded" or "cancelled")
+        {
+            var specialTitle = normalizedStatus == "refunded" ? "คืนเงินแล้ว" : "ยกเลิกออเดอร์";
+            var specialDescription = normalizedStatus == "refunded"
+                ? "ร้านดำเนินการคืนเงินสำหรับคำสั่งซื้อนี้แล้ว"
+                : "คำสั่งซื้อนี้ถูกยกเลิกและจะไม่เข้าสู่ขั้นตอนจัดส่ง";
+            var specialMarker = normalizedStatus == "refunded" ? "RF" : "CN";
+
+            return
+            [
+                new OrderProgressStepViewModel
+                {
+                    Title = "รับคำสั่งซื้อ",
+                    Description = "คำสั่งซื้อถูกบันทึกในระบบเรียบร้อยแล้ว",
+                    Marker = "01",
+                    State = "complete"
+                },
+                new OrderProgressStepViewModel
+                {
+                    Title = specialTitle,
+                    Description = specialDescription,
+                    Marker = specialMarker,
+                    State = normalizedStatus
+                }
+            ];
+        }
+
         var steps = _storefrontContent.OrderStatusSteps
             .Select(step => (step.Code, step.Title, step.Description, step.Marker))
             .ToArray();
 
-        var currentIndex = Array.FindIndex(steps, step => step.Item1 == currentStatusCode);
+        var currentIndex = Array.FindIndex(steps, step => string.Equals(step.Item1, currentStatusCode, StringComparison.OrdinalIgnoreCase));
         if (currentIndex < 0)
         {
             currentIndex = 0;
@@ -2024,6 +2211,17 @@ public class HomeController : Controller
 
     private (string Title, string Description) ResolveOrderStatus(string currentStatusCode)
     {
+        var normalizedStatus = NormalizeOrderStatusKey(currentStatusCode);
+        if (normalizedStatus == "refunded")
+        {
+            return ("คืนเงินแล้ว", "ร้านดำเนินการคืนเงินให้คำสั่งซื้อนี้แล้ว หากมีคำถามเพิ่มเติมสามารถติดต่อร้านได้");
+        }
+
+        if (normalizedStatus == "cancelled")
+        {
+            return ("ยกเลิกออเดอร์", "คำสั่งซื้อนี้ถูกยกเลิกแล้ว และจะไม่เข้าสู่ขั้นตอนจัดส่ง");
+        }
+
         var status = _storefrontContent.OrderStatusSteps
             .FirstOrDefault(step => string.Equals(step.Code, currentStatusCode, StringComparison.OrdinalIgnoreCase))
             ?? _storefrontContent.OrderStatusSteps.FirstOrDefault();
@@ -2031,6 +2229,21 @@ public class HomeController : Controller
         return status is null
             ? ("สถานะคำสั่งซื้อ", "ระบบกำลังอัปเดตสถานะล่าสุดของออเดอร์นี้")
             : (status.Title, status.CurrentDescription);
+    }
+
+    private static string NormalizeOrderStatusKey(string? status)
+    {
+        var normalized = status?.Trim().ToLowerInvariant() ?? string.Empty;
+
+        return normalized switch
+        {
+            "paid" or "pending" => "paid",
+            "shipping" or "shipped" => "shipping",
+            "delivered" or "complete" or "completed" => "delivered",
+            "refunded" => "refunded",
+            "cancelled" or "canceled" => "cancelled",
+            _ => "paid"
+        };
     }
 
     private static IReadOnlyList<CategoryCardViewModel> BuildCategoryCards(IReadOnlyList<ProductCardViewModel> products)
@@ -2063,6 +2276,8 @@ public class HomeController : Controller
         int CurrentPoints,
         int PointsEarned,
         int PointsRedeemed,
+        decimal PointsDiscountAmount,
+        int MaxPointDiscountRedeem,
         int ProjectedPointsBalance,
         int RewardPointCost,
         int RewardQty,

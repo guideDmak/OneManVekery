@@ -3,6 +3,8 @@
     var adminDateRange = ViewData["AdminDateRange"]?.ToString();
     var adminSignedInName = ViewData["AdminSignedInName"]?.ToString() ?? "Bakery Team";
     var adminSignedInRole = ViewData["AdminSignedInRole"]?.ToString() ?? "Staff";
+    var adminSignedInRoleKey = ViewData["AdminSignedInRoleKey"]?.ToString() ?? string.Empty;
+    var canManageStaffDirectory = AdminPortalAuth.CanManageStaffDirectory(adminSignedInRoleKey);
 }
 
 <!DOCTYPE html>
@@ -24,8 +26,6 @@
                         <a class="admin-brand" asp-controller="Admin" asp-action="Index">One Man Vekery</a>
                         <p>Admin workspace</p>
                     </div>
-
-                    <span class="admin-sidebar-badge">OVK</span>
                 </div>
 
                 <nav class="admin-nav">
@@ -37,10 +37,13 @@
                         <span class="admin-nav-glyph is-orders" aria-hidden="true"></span>
                         <span>Orders</span>
                     </a>
-                    <a class="admin-nav-item @(adminSection == "Customers" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Customers" aria-label="Customers" title="Customers">
-                        <span class="admin-nav-glyph is-customers" aria-hidden="true"></span>
-                        <span>Customers</span>
-                    </a>
+                    @if (canManageStaffDirectory)
+                    {
+                        <a class="admin-nav-item @(adminSection == "Staff" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Staff" aria-label="Staff" title="Staff">
+                            <span class="admin-nav-glyph is-customers" aria-hidden="true"></span>
+                            <span>Staff</span>
+                        </a>
+                    }
                     <a class="admin-nav-item @(adminSection == "Products" ? "active" : string.Empty)" asp-controller="Admin" asp-action="Products" aria-label="Products" title="Products">
                         <span class="admin-nav-glyph is-products" aria-hidden="true"></span>
                         <span>Products</span>

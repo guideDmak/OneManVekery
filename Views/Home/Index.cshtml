@@ -2,7 +2,9 @@
 
 @{
     ViewData["Title"] = "หน้าแรก";
-    var heroProducts = Model.Products.Take(3).ToList();
+    var heroProducts = (Model.NewArrivals.Count > 0
+        ? Model.NewArrivals
+        : Model.Products.Take(3)).ToList();
 }
 
 <section class="store-hero">
@@ -11,7 +13,53 @@
             <div class="store-hero-art">
                 <span class="hero-floating hero-floating-top">อบสดใหม่</span>
                 <div class="store-hero-visual-shell">
-                    <img src="@Url.Content("~/images/hero-bakery.svg")" alt="Bakery collection" class="hero-main-image" />
+                    @if (heroProducts.Count == 0)
+                    {
+                        <img src="@Url.Content("~/images/hero-bakery.svg")" alt="Bakery collection" class="hero-main-image" />
+                    }
+                    else
+                    {
+                        <div id="newArrivalCarousel" class="carousel slide hero-arrival-carousel" data-bs-ride="carousel" data-bs-interval="4200">
+                            <div class="carousel-indicators hero-arrival-indicators">
+                                @for (var index = 0; index < heroProducts.Count; index++)
+                                {
+                                    <button type="button"
+                                            data-bs-target="#newArrivalCarousel"
+                                            data-bs-slide-to="@index"
+                                            class="@(index == 0 ? "active" : string.Empty)"
+                                            aria-current="@(index == 0 ? "true" : null)"
+                                            aria-label="สินค้าใหม่ @(index + 1)"></button>
+                                }
+                            </div>
+
+                            <div class="carousel-inner hero-arrival-inner">
+                                @for (var index = 0; index < heroProducts.Count; index++)
+                                {
+                                    var heroProduct = heroProducts[index];
+                                    <article class="carousel-item hero-arrival-slide @(index == 0 ? "active" : string.Empty)">
+                                        <img src="@Url.Content(heroProduct.ImagePath)"
+                                             alt="@heroProduct.Name"
+                                             class="hero-main-image hero-arrival-image"
+                                             onerror="this.src='@Url.Content("~/images/hero-bakery.svg")';" />
+                                        <div class="hero-arrival-caption">
+                                            <span>New Arrival</span>
+                                            <strong>@heroProduct.Name</strong>
+                                            <small>@heroProduct.Category • @heroProduct.Price.ToString("0") ฿</small>
+                                        </div>
+                                    </article>
+                                }
+                            </div>
+
+                            <button class="carousel-control-prev hero-arrival-control" type="button" data-bs-target="#newArrivalCarousel" data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">ก่อนหน้า</span>
+                            </button>
+                            <button class="carousel-control-next hero-arrival-control" type="button" data-bs-target="#newArrivalCarousel" data-bs-slide="next">
+                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">ถัดไป</span>
+                            </button>
+                        </div>
+                    }
 
                     <div class="hero-sweet-board">
                         @foreach (var heroProduct in heroProducts)

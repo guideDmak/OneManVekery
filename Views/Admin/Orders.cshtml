@@ -15,11 +15,6 @@
 }
 
 <section class="admin-page-banner admin-page-banner-compact">
-    <div>
-        <p class="admin-page-kicker">Orders</p>
-        <h2>Manage bakery orders</h2>
-        <span>สร้างออเดอร์จากหลังบ้าน เลือกลูกค้า เลือกสินค้า และอัปเดตสถานะได้จากหน้าเดียว</span>
-    </div>
     <button type="button" class="admin-primary-button" data-bs-toggle="modal" data-bs-target="#addOrderModal">
         Add Order
     </button>
@@ -141,6 +136,13 @@
                             <td>
                                 <div class="admin-actions">
                                     <button type="button"
+                                            class="admin-row-action-button is-receipt"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#orderReceiptModal-@order.OrderId">
+                                        Receipt
+                                    </button>
+                                    <button type="button"
+                                            class="admin-row-action-button is-manage"
                                             data-bs-toggle="modal"
                                             data-bs-target="#editOrderModal"
                                             data-order-id="@order.OrderId"
@@ -458,6 +460,145 @@
     </tr>
 </template>
 
+@foreach (var order in Model.Orders)
+{
+    <div class="modal fade admin-modal admin-order-receipt-modal" id="orderReceiptModal-@order.OrderId" tabindex="-1" aria-labelledby="orderReceiptModalLabel-@order.OrderId" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <p class="admin-modal-kicker">Order Receipt</p>
+                        <h2 class="modal-title" id="orderReceiptModalLabel-@order.OrderId">ใบเสร็จ @order.OrderNumber</h2>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="admin-receipt-grid">
+                        <section class="admin-receipt-card">
+                            <h3>ข้อมูลลูกค้า</h3>
+                            <dl class="admin-receipt-details">
+                                <div>
+                                    <dt>ชื่อลูกค้า</dt>
+                                    <dd>@order.CustomerName</dd>
+                                </div>
+                                <div>
+                                    <dt>เบอร์โทร</dt>
+                                    <dd>@order.Phone</dd>
+                                </div>
+                                <div>
+                                    <dt>วันที่สั่ง</dt>
+                                    <dd>@order.CreatedAtLabel</dd>
+                                </div>
+                                <div>
+                                    <dt>วิธีชำระเงิน</dt>
+                                    <dd>@order.PaymentMethodLabel</dd>
+                                </div>
+                                <div>
+                                    <dt>สถานะ</dt>
+                                    <dd>@order.OrderStatus / @order.PaymentStatus</dd>
+                                </div>
+                                <div>
+                                    <dt>ที่อยู่จัดส่ง</dt>
+                                    <dd>@order.Address</dd>
+                                </div>
+                                <div>
+                                    <dt>หมายเหตุ</dt>
+                                    <dd>@(string.IsNullOrWhiteSpace(order.Note) ? "-" : order.Note)</dd>
+                                </div>
+                            </dl>
+                        </section>
+
+                        <section class="admin-receipt-card">
+                            <h3>สรุปยอด</h3>
+                            <div class="admin-receipt-total-list">
+                                <div>
+                                    <span>ค่าสินค้า</span>
+                                    <strong>@order.SubtotalLabel</strong>
+                                </div>
+                                <div>
+                                    <span>ค่าส่ง</span>
+                                    <strong>@order.DeliveryFeeLabel</strong>
+                                </div>
+                                <div>
+                                    <span>ส่วนลดสินค้า</span>
+                                    <strong>@order.DiscountAmountLabel</strong>
+                                </div>
+                                <div>
+                                    <span>ส่วนลดค่าส่ง</span>
+                                    <strong>@order.ShippingDiscountAmountLabel</strong>
+                                </div>
+                                <div>
+                                    <span>โค้ดส่วนลด</span>
+                                    <strong>@(string.IsNullOrWhiteSpace(order.DiscountCode) ? "-" : order.DiscountCode)</strong>
+                                </div>
+                                <div>
+                                    <span>พอยต์ที่ได้รับ</span>
+                                    <strong>@order.PointsEarnedLabel</strong>
+                                </div>
+                                <div>
+                                    <span>พอยต์ที่ใช้</span>
+                                    <strong>@order.PointsRedeemedLabel</strong>
+                                </div>
+                                <div class="is-grand">
+                                    <span>รวมสุทธิ</span>
+                                    <strong>@order.TotalAmountLabel</strong>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    <section class="admin-receipt-card admin-receipt-items-card">
+                        <h3>รายการสินค้าที่สั่ง</h3>
+                        <div class="admin-table-wrap">
+                            <table class="admin-table admin-receipt-table">
+                                <thead>
+                                    <tr>
+                                        <th>สินค้า</th>
+                                        <th>จำนวน</th>
+                                        <th>ราคาต่อชิ้น</th>
+                                        <th>รวมรายการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in order.Items)
+                                    {
+                                        <tr>
+                                            <td>@item.ProductName</td>
+                                            <td>@item.Quantity</td>
+                                            <td>@item.UnitPriceLabel</td>
+                                            <td>@item.LineTotalLabel</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    @if (order.Benefits.Count > 0)
+                    {
+                        <section class="admin-receipt-card admin-receipt-benefits-card">
+                            <h3>โปรโมชันและพอยต์ที่ใช้กับออเดอร์</h3>
+                            <div class="admin-receipt-benefits">
+                                @foreach (var benefit in order.Benefits)
+                                {
+                                    <article>
+                                        <div>
+                                            <strong>@benefit.Title</strong>
+                                            <span>@(string.IsNullOrWhiteSpace(benefit.Description) ? "-" : benefit.Description)</span>
+                                        </div>
+                                        <em>@benefit.ValueLabel</em>
+                                    </article>
+                                }
+                            </div>
+                        </section>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 <div class="modal fade admin-modal" id="editOrderModal" tabindex="-1" aria-labelledby="editOrderModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -534,7 +675,8 @@
 
                         <div>
                             <label asp-for="EditForm.Note" class="form-label">Note</label>
-                            <input asp-for="EditForm.Note" class="form-control bakery-field admin-readonly-field" readonly />
+                            <textarea asp-for="EditForm.Note" class="form-control bakery-field bakery-field-area admin-field-area" placeholder="เพิ่มหมายเหตุสำหรับออเดอร์นี้"></textarea>
+                            <span asp-validation-for="EditForm.Note" class="text-danger small"></span>
                         </div>
 
                         <div class="admin-form-span-full">

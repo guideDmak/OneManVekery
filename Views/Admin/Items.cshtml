@@ -25,13 +25,6 @@
     }
 </datalist>
 
-<datalist id="adminItemImages">
-    @foreach (var imagePath in Model.ImageOptions)
-    {
-        <option value="@imagePath"></option>
-    }
-</datalist>
-
 <section class="admin-items-page" data-admin-items data-active-modal="@Model.ActiveModal">
     <article class="admin-card admin-items-toolbar">
         <div class="admin-items-toolbar-head">
@@ -208,7 +201,7 @@
             </div>
 
             <div class="modal-body">
-                <form asp-action="AddItem" method="post" class="admin-item-form">
+                <form asp-action="AddItem" method="post" enctype="multipart/form-data" class="admin-item-form">
                     @Html.AntiForgeryToken()
 
                     <div class="admin-readonly-note">
@@ -224,23 +217,30 @@
 
                         <div>
                             <div class="admin-inline-label-row">
-                                <label asp-for="AddForm.Category" class="form-label">Category</label>
+                                <label asp-for="AddForm.Category" class="form-label">หมวดสินค้า</label>
                                 <button type="button"
                                         class="admin-inline-link-button"
                                         data-open-category-modal
                                         data-category-target="AddForm_Category"
                                         data-return-modal-id="addItemModal">
-                                    Add Category
+                                    เพิ่มหมวด
                                 </button>
                             </div>
-                            <input asp-for="AddForm.Category" class="form-control bakery-field" list="adminItemCategories" placeholder="Cake" />
-                            <span class="admin-field-note">ถ้ายังไม่มีหมวดที่ต้องการ กด Add Category ได้เลย</span>
+                            <select asp-for="AddForm.Category" class="form-select bakery-field admin-category-select" data-category-select>
+                                <option value="">เลือกหมวดสินค้า</option>
+                                @foreach (var category in Model.Categories)
+                                {
+                                    <option value="@category">@category</option>
+                                }
+                            </select>
+                            <span class="admin-field-note">เลือกหมวดที่มีอยู่ หรือกด เพิ่มหมวด เพื่อสร้างหมวดใหม่</span>
                             <span asp-validation-for="AddForm.Category" class="text-danger small"></span>
                         </div>
 
                         <div>
-                            <label asp-for="AddForm.Sku" class="form-label">SKU</label>
-                            <input asp-for="AddForm.Sku" class="form-control bakery-field" placeholder="CK-STRAW-07" />
+                            <label asp-for="AddForm.Sku" class="form-label">รหัสสินค้า (SKU)</label>
+                            <input asp-for="AddForm.Sku" class="form-control bakery-field" placeholder="เช่น BRD-CRO-001" />
+                            <span class="admin-field-note">ใช้รหัสสั้น จำง่าย และไม่ซ้ำ เช่น หมวด-ชื่อสินค้า-ลำดับ</span>
                             <span asp-validation-for="AddForm.Sku" class="text-danger small"></span>
                         </div>
 
@@ -262,9 +262,46 @@
                             <span asp-validation-for="AddForm.ReorderLevel" class="text-danger small"></span>
                         </div>
 
-                        <div class="admin-form-span-full">
-                            <label asp-for="AddForm.ImagePath" class="form-label">Image path</label>
-                            <input asp-for="AddForm.ImagePath" class="form-control bakery-field" list="adminItemImages" placeholder="/images/theme-cake.svg" />
+                        <div class="admin-form-span-full admin-image-upload-field" data-item-image-picker>
+                            <label asp-for="AddForm.ImageFile" class="form-label">รูปสินค้า</label>
+                            <input asp-for="AddForm.ImageFile"
+                                   class="form-control bakery-field"
+                                   type="file"
+                                   accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif"
+                                   data-item-image-upload />
+                            <input asp-for="AddForm.ImagePath" type="hidden" data-item-image-path />
+
+                            <div class="admin-image-preview-row">
+                                <div class="admin-image-preview-card">
+                                    <img src="@Url.Content(Model.AddForm.ImagePath)"
+                                         alt="ตัวอย่างรูปสินค้า"
+                                         data-item-image-preview
+                                         onerror="this.src='@Url.Content("~/images/theme-cake.svg")';" />
+                                </div>
+                                <div>
+                                    <strong>อัปโหลดรูปใหม่ หรือเลือกรูปที่มีอยู่ด้านล่าง</strong>
+                                    <small data-item-image-label>@Model.AddForm.ImagePath</small>
+                                </div>
+                            </div>
+
+                            <div class="admin-image-option-strip" data-item-image-strip>
+                                @foreach (var imagePath in Model.ImageOptions)
+                                {
+                                    var isSelected = string.Equals(Model.AddForm.ImagePath, imagePath, StringComparison.OrdinalIgnoreCase);
+                                    <button type="button"
+                                            class="admin-image-option-button @(isSelected ? "is-selected" : string.Empty)"
+                                            data-item-image-option="@imagePath"
+                                            aria-pressed="@(isSelected ? "true" : "false")">
+                                        <img src="@Url.Content(imagePath)"
+                                             alt="@imagePath"
+                                             onerror="this.src='@Url.Content("~/images/theme-cake.svg")';" />
+                                        <span>@System.IO.Path.GetFileNameWithoutExtension(imagePath)</span>
+                                    </button>
+                                }
+                            </div>
+
+                            <span class="admin-field-note">รองรับไฟล์ JPG, PNG, WEBP หรือ GIF ขนาดไม่เกิน 5MB</span>
+                            <span asp-validation-for="AddForm.ImageFile" class="text-danger small"></span>
                             <span asp-validation-for="AddForm.ImagePath" class="text-danger small"></span>
                         </div>
 
@@ -308,7 +345,7 @@
             </div>
 
             <div class="modal-body">
-                <form asp-action="UpdateItem" method="post" class="admin-item-form">
+                <form asp-action="UpdateItem" method="post" enctype="multipart/form-data" class="admin-item-form">
                     @Html.AntiForgeryToken()
                     <input asp-for="EditForm.ItemId" type="hidden" />
                     <input asp-for="EditForm.StockQuantity" type="hidden" />
@@ -332,23 +369,30 @@
 
                         <div>
                             <div class="admin-inline-label-row">
-                                <label asp-for="EditForm.Category" class="form-label">Category</label>
+                                <label asp-for="EditForm.Category" class="form-label">หมวดสินค้า</label>
                                 <button type="button"
                                         class="admin-inline-link-button"
                                         data-open-category-modal
                                         data-category-target="EditForm_Category"
                                         data-return-modal-id="editItemModal">
-                                    Add Category
+                                    เพิ่มหมวด
                                 </button>
                             </div>
-                            <input asp-for="EditForm.Category" class="form-control bakery-field" list="adminItemCategories" />
-                            <span class="admin-field-note">ถ้ายังไม่มีหมวดที่ต้องการ กด Add Category ได้เลย</span>
+                            <select asp-for="EditForm.Category" class="form-select bakery-field admin-category-select" data-category-select>
+                                <option value="">เลือกหมวดสินค้า</option>
+                                @foreach (var category in Model.Categories)
+                                {
+                                    <option value="@category">@category</option>
+                                }
+                            </select>
+                            <span class="admin-field-note">เลือกหมวดที่มีอยู่ หรือกด เพิ่มหมวด เพื่อสร้างหมวดใหม่</span>
                             <span asp-validation-for="EditForm.Category" class="text-danger small"></span>
                         </div>
 
                         <div>
-                            <label asp-for="EditForm.Sku" class="form-label">SKU</label>
-                            <input asp-for="EditForm.Sku" class="form-control bakery-field" />
+                            <label asp-for="EditForm.Sku" class="form-label">รหัสสินค้า (SKU)</label>
+                            <input asp-for="EditForm.Sku" class="form-control bakery-field" placeholder="เช่น BRD-CRO-001" />
+                            <span class="admin-field-note">ใช้รหัสสั้น จำง่าย และไม่ซ้ำ เช่น หมวด-ชื่อสินค้า-ลำดับ</span>
                             <span asp-validation-for="EditForm.Sku" class="text-danger small"></span>
                         </div>
 
@@ -364,9 +408,46 @@
                             <span asp-validation-for="EditForm.ReorderLevel" class="text-danger small"></span>
                         </div>
 
-                        <div class="admin-form-span-full">
-                            <label asp-for="EditForm.ImagePath" class="form-label">Image path</label>
-                            <input asp-for="EditForm.ImagePath" class="form-control bakery-field" list="adminItemImages" />
+                        <div class="admin-form-span-full admin-image-upload-field" data-item-image-picker>
+                            <label asp-for="EditForm.ImageFile" class="form-label">รูปสินค้า</label>
+                            <input asp-for="EditForm.ImageFile"
+                                   class="form-control bakery-field"
+                                   type="file"
+                                   accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif"
+                                   data-item-image-upload />
+                            <input asp-for="EditForm.ImagePath" type="hidden" data-item-image-path />
+
+                            <div class="admin-image-preview-row">
+                                <div class="admin-image-preview-card">
+                                    <img src="@Url.Content(Model.EditForm.ImagePath)"
+                                         alt="ตัวอย่างรูปสินค้า"
+                                         data-item-image-preview
+                                         onerror="this.src='@Url.Content("~/images/theme-cake.svg")';" />
+                                </div>
+                                <div>
+                                    <strong>อัปโหลดรูปใหม่ หรือเลือกรูปที่มีอยู่ด้านล่าง</strong>
+                                    <small data-item-image-label>@Model.EditForm.ImagePath</small>
+                                </div>
+                            </div>
+
+                            <div class="admin-image-option-strip" data-item-image-strip>
+                                @foreach (var imagePath in Model.ImageOptions)
+                                {
+                                    var isSelected = string.Equals(Model.EditForm.ImagePath, imagePath, StringComparison.OrdinalIgnoreCase);
+                                    <button type="button"
+                                            class="admin-image-option-button @(isSelected ? "is-selected" : string.Empty)"
+                                            data-item-image-option="@imagePath"
+                                            aria-pressed="@(isSelected ? "true" : "false")">
+                                        <img src="@Url.Content(imagePath)"
+                                             alt="@imagePath"
+                                             onerror="this.src='@Url.Content("~/images/theme-cake.svg")';" />
+                                        <span>@System.IO.Path.GetFileNameWithoutExtension(imagePath)</span>
+                                    </button>
+                                }
+                            </div>
+
+                            <span class="admin-field-note">อัปโหลดเฉพาะเมื่อต้องการเปลี่ยนรูป ถ้าไม่เลือกไฟล์ใหม่ระบบจะใช้รูปเดิม</span>
+                            <span asp-validation-for="EditForm.ImageFile" class="text-danger small"></span>
                             <span asp-validation-for="EditForm.ImagePath" class="text-danger small"></span>
                         </div>
 

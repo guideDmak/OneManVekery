@@ -146,7 +146,7 @@
                         </div>
                     }
 
-                    <form asp-action="Checkout" method="post" class="cart-checkout-form">
+                    <form asp-action="Checkout" method="post" class="cart-checkout-form" data-checkout-form>
                         @Html.AntiForgeryToken()
                         <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
 
@@ -154,7 +154,7 @@
                             <div class="cart-promo-copy">
                                 <div>
                                     <p class="section-overline">โค้ดส่วนลด</p>
-                                    <h3>ใส่โค้ดก่อนยืนยันออเดอร์</h3>
+                                    <h3>มีโค้ดค่อยใส่ก่อนยืนยันออเดอร์</h3>
                                 </div>
                                 @if (Model.HasAppliedPromotion)
                                 {
@@ -163,9 +163,10 @@
                             </div>
 
                             <div class="cart-promo-entry">
-                                <input asp-for="Checkout.PromoCode" class="form-control bakery-field" placeholder="เช่น WELCOME10" />
-                                <button type="submit" class="btn store-outline-btn cart-promo-button" asp-action="ApplyPromoCode">ใช้โค้ด</button>
+                                <input asp-for="Checkout.PromoCode" class="form-control bakery-field" placeholder="เช่น WELCOME10" data-checkout-promo-field />
+                                <button type="submit" class="btn store-outline-btn cart-promo-button" asp-action="ApplyPromoCode" name="checkoutPreviewAction" value="promo" formnovalidate data-checkout-preview-submit>ใช้โค้ด</button>
                             </div>
+                            <small class="cart-promo-helper">ไม่มีโค้ดสามารถเว้นว่างและยืนยันการชำระเงินได้เลย</small>
                             <span asp-validation-for="Checkout.PromoCode" class="text-danger small"></span>
 
                             @if (Model.HasPromoMessage)
@@ -197,6 +198,29 @@
                                 </div>
                             </div>
 
+                            <div class="cart-point-redeem-box">
+                                <div>
+                                    <label asp-for="Checkout.PointsToRedeem" class="form-label">ใช้พอยต์ลดราคา</label>
+                                    <small>เรต @Model.PointDiscountRateLabel ใช้ได้สูงสุด @Model.MaxPointDiscountRedeem P กรอกแล้วกดอัปเดตยอด</small>
+                                </div>
+                                <div class="cart-point-redeem-entry">
+                                    <input asp-for="Checkout.PointsToRedeem"
+                                           class="form-control bakery-field"
+                                           type="number"
+                                           min="0"
+                                           max="@Model.MaxPointDiscountRedeem"
+                                           step="1"
+                                           placeholder="0"
+                                           data-checkout-points-field />
+                                    <button type="submit" class="btn store-outline-btn cart-promo-button" asp-action="ApplyPromoCode" name="checkoutPreviewAction" value="points" formnovalidate data-checkout-preview-submit>อัปเดตยอด</button>
+                                </div>
+                                @if (Model.PointsDiscountAmount > 0)
+                                {
+                                    <p class="cart-loyalty-note">ใช้พอยต์ลดราคาแล้ว @Model.PointsDiscountAmount.ToString("0.##") ฿</p>
+                                }
+                                <span asp-validation-for="Checkout.PointsToRedeem" class="text-danger small"></span>
+                            </div>
+
                             @if (Model.RewardPointCost > 0 && Model.CanRedeemFreeItem)
                             {
                                 <label class="cart-reward-toggle">
@@ -217,8 +241,8 @@
                         <div class="cart-payment-options">
                             @foreach (var option in Model.PaymentOptions)
                             {
-                                <label class="cart-payment-option @(Model.Checkout.PaymentMethod == option.Code ? "is-selected" : string.Empty)">
-                                    <input asp-for="Checkout.PaymentMethod" type="radio" value="@option.Code" />
+                                <label class="cart-payment-option @(Model.Checkout.PaymentMethod == option.Code ? "is-selected" : string.Empty)" data-payment-option-label="@option.Label" data-payment-option-description="@option.Description">
+                                    <input asp-for="Checkout.PaymentMethod" type="radio" value="@option.Code" data-checkout-payment-field />
                                     <div>
                                         <strong>@option.Label</strong>
                                         <span>@option.Description</span>
@@ -231,35 +255,168 @@
                         <div class="cart-form-grid">
                             <div class="cart-form-span-full">
                                 <label asp-for="Checkout.CustomerName" class="form-label">ชื่อผู้รับ</label>
-                                <input asp-for="Checkout.CustomerName" class="form-control bakery-field" placeholder="ชื่อ-นามสกุล" />
+                                <input asp-for="Checkout.CustomerName" class="form-control bakery-field" placeholder="ชื่อ-นามสกุล" data-checkout-customer-field />
                                 <span asp-validation-for="Checkout.CustomerName" class="text-danger small"></span>
                             </div>
 
                             <div class="cart-form-span-full">
                                 <label asp-for="Checkout.PhoneNumber" class="form-label">เบอร์โทร</label>
-                                <input asp-for="Checkout.PhoneNumber" class="form-control bakery-field" placeholder="089-000-1122" />
+                                <input asp-for="Checkout.PhoneNumber" class="form-control bakery-field" placeholder="089-000-1122" data-checkout-phone-field />
                                 <span asp-validation-for="Checkout.PhoneNumber" class="text-danger small"></span>
                             </div>
 
                             <div class="cart-form-span-full">
                                 <label asp-for="Checkout.DeliveryAddress" class="form-label">ที่อยู่จัดส่ง</label>
-                                <textarea asp-for="Checkout.DeliveryAddress" class="form-control bakery-field bakery-field-area cart-address-field" placeholder="บ้านเลขที่ ถนน แขวง เขต จังหวัด"></textarea>
+                                <textarea asp-for="Checkout.DeliveryAddress" class="form-control bakery-field bakery-field-area cart-address-field" placeholder="บ้านเลขที่ ถนน แขวง เขต จังหวัด" data-checkout-address-field></textarea>
                                 <span asp-validation-for="Checkout.DeliveryAddress" class="text-danger small"></span>
                             </div>
 
                             <div class="cart-form-span-full">
                                 <label asp-for="Checkout.Notes" class="form-label">หมายเหตุ</label>
-                                <textarea asp-for="Checkout.Notes" class="form-control bakery-field bakery-field-area cart-note-field" placeholder="เวลาที่สะดวกรับ, เทียนวันเกิด, การ์ดอวยพร ฯลฯ"></textarea>
+                                <textarea asp-for="Checkout.Notes" class="form-control bakery-field bakery-field-area cart-note-field" placeholder="เวลาที่สะดวกรับ, เทียนวันเกิด, การ์ดอวยพร ฯลฯ" data-checkout-notes-field></textarea>
                             </div>
                         </div>
 
-                        <button type="submit" class="btn store-primary-btn cart-checkout-button">ยืนยันการชำระเงิน</button>
+                        <button type="submit" class="btn store-primary-btn cart-checkout-button" data-checkout-submit>ยืนยันการชำระเงิน</button>
                     </form>
                 </aside>
             </div>
         }
     </div>
 </section>
+
+@if (Model.HasItems)
+{
+    <div class="modal fade checkout-review-modal" id="checkoutReviewModal" tabindex="-1" aria-labelledby="checkoutReviewTitle" aria-hidden="true" data-checkout-review-modal>
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg checkout-review-dialog">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <div class="checkout-review-head">
+                        <p class="section-overline">ตรวจสอบคำสั่งซื้อ</p>
+                        <h2 id="checkoutReviewTitle">ยืนยันรายละเอียดก่อนชำระเงิน</h2>
+                        <p>ตรวจสอบข้อมูลให้ถูกต้องก่อนสร้างออเดอร์ ถ้าต้องแก้ไขให้กด “ไม่” เพื่อกลับไปแก้ข้อมูล</p>
+                    </div>
+
+                    <div class="checkout-review-grid">
+                        <section class="checkout-review-section">
+                            <h3>รายการสินค้า</h3>
+                            <div class="checkout-review-lines">
+                                @foreach (var item in Model.Items)
+                                {
+                                    <div class="checkout-review-line">
+                                        <span>@item.Name <small>x @item.Quantity</small></span>
+                                        <strong>@item.LineTotalLabel</strong>
+                                    </div>
+                                }
+                            </div>
+                        </section>
+
+                        <section class="checkout-review-section">
+                            <h3>ยอดชำระ</h3>
+                            <div class="checkout-review-lines">
+                                <div class="checkout-review-line">
+                                    <span>ค่าสินค้า</span>
+                                    <strong>@Model.Subtotal.ToString("0.##") ฿</strong>
+                                </div>
+                                <div class="checkout-review-line">
+                                    <span>ค่าส่ง</span>
+                                    <strong>@Model.DeliveryFee.ToString("0.##") ฿</strong>
+                                </div>
+                                @if (Model.DiscountAmount > 0)
+                                {
+                                    <div class="checkout-review-line is-discount">
+                                        <span>ส่วนลดสินค้า</span>
+                                        <strong>-@Model.DiscountAmount.ToString("0.##") ฿</strong>
+                                    </div>
+                                }
+                                @if (Model.ShippingDiscountAmount > 0)
+                                {
+                                    <div class="checkout-review-line is-discount">
+                                        <span>ส่วนลดค่าส่ง</span>
+                                        <strong>-@Model.ShippingDiscountAmount.ToString("0.##") ฿</strong>
+                                    </div>
+                                }
+                                <div class="checkout-review-line is-total">
+                                    <span>รวมทั้งหมด</span>
+                                    <strong>@Model.Total.ToString("0.##") ฿</strong>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="checkout-review-section">
+                            <h3>โปรโมชันและพอยต์</h3>
+                            <div class="checkout-review-lines">
+                                <div class="checkout-review-line">
+                                    <span>โค้ดส่วนลด</span>
+                                    <strong data-checkout-review-promo>@(Model.HasAppliedPromotion ? Model.AppliedPromoCode : "ไม่มี")</strong>
+                                </div>
+                                <div class="checkout-review-line">
+                                    <span>แลกพอยต์</span>
+                                    <strong data-checkout-review-reward>@(Model.Checkout.UsePointsReward ? "ใช้พอยต์แลกของรางวัล" : "ไม่ใช้")</strong>
+                                </div>
+                                <div class="checkout-review-line">
+                                    <span>พอยต์ลดราคา</span>
+                                    <strong data-checkout-review-points>@(Model.Checkout.PointsToRedeem > 0 ? $"{Model.Checkout.PointsToRedeem} P" : "ไม่ใช้")</strong>
+                                </div>
+                                <div class="checkout-review-line">
+                                    <span>ได้รับพอยต์</span>
+                                    <strong>+@Model.PointsEarned P</strong>
+                                </div>
+                                <div class="checkout-review-line">
+                                    <span>พอยต์หลังสั่งซื้อ</span>
+                                    <strong>@Model.ProjectedPointsBalance P</strong>
+                                </div>
+                            </div>
+                            @if (Model.AppliedBenefits.Count > 0)
+                            {
+                                <div class="checkout-review-benefits">
+                                    @foreach (var benefit in Model.AppliedBenefits)
+                                    {
+                                        <div>
+                                            <strong>@benefit.Title</strong>
+                                            <span>@benefit.Description</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </section>
+
+                        <section class="checkout-review-section">
+                            <h3>ข้อมูลผู้รับ</h3>
+                            <dl class="checkout-review-details">
+                                <div>
+                                    <dt>ชื่อผู้รับ</dt>
+                                    <dd data-checkout-review-customer>ไม่ระบุ</dd>
+                                </div>
+                                <div>
+                                    <dt>เบอร์โทร</dt>
+                                    <dd data-checkout-review-phone>ไม่ระบุ</dd>
+                                </div>
+                                <div>
+                                    <dt>วิธีชำระเงิน</dt>
+                                    <dd data-checkout-review-payment>ไม่ระบุ</dd>
+                                </div>
+                                <div>
+                                    <dt>ที่อยู่จัดส่ง</dt>
+                                    <dd data-checkout-review-address>ไม่ระบุ</dd>
+                                </div>
+                                <div>
+                                    <dt>หมายเหตุ</dt>
+                                    <dd data-checkout-review-notes>ไม่มี</dd>
+                                </div>
+                            </dl>
+                        </section>
+                    </div>
+
+                    <div class="checkout-review-actions">
+                        <button type="button" class="btn store-outline-btn checkout-review-secondary" data-bs-dismiss="modal">ไม่</button>
+                        <button type="button" class="btn store-primary-btn checkout-review-primary" data-checkout-review-confirm>ใช่</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

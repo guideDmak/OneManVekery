@@ -60,6 +60,7 @@
     var profileAction = isStorefrontUser ? "Profile" : "Profile";
     var profileIsActive = (isStorefrontUser && currentController == "Account" && currentAction == "Profile")
         || (!isStorefrontUser && currentController == "Admin" && currentAction == "Profile");
+    var ordersIsActive = currentController == "Home" && (currentAction == "MyOrders" || currentAction == "OrderStatus");
     var profileInitial = signedInDisplayName[..1];
     var currentPoints = 0;
 
@@ -94,7 +95,6 @@
             <nav class="navbar navbar-expand-lg bakery-nav">
                 <div class="container bakery-container">
                     <a class="navbar-brand bakery-brand" asp-area="" asp-controller="Home" asp-action="Index">
-                        <span class="bakery-brand-mark">OV</span>
                         <span>
                             One Man Vekery
                             <small>@layoutContent.BrandTagline</small>
@@ -124,12 +124,6 @@
                             @if (isStorefrontUser)
                             {
                                 <li class="nav-item">
-                                    <span class="bakery-points-pill">P @currentPoints</span>
-                                </li>
-                            }
-                            @if (isStorefrontUser)
-                            {
-                                <li class="nav-item">
                                     <a class="bakery-icon-button bakery-cart-link @(currentAction == "Cart" ? "active" : string.Empty)"
                                        asp-area=""
                                        asp-controller="Home"
@@ -144,6 +138,25 @@
                                         <span class="bakery-cart-count">@cartCount</span>
                                         <span class="visually-hidden">ตะกร้า</span>
                                     </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="bakery-icon-button @(ordersIsActive ? "active" : string.Empty)"
+                                       asp-area=""
+                                       asp-controller="Home"
+                                       asp-action="MyOrders"
+                                       aria-label="คำสั่งซื้อของฉัน"
+                                       title="คำสั่งซื้อของฉัน">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M7.25 4.75h9.5A1.5 1.5 0 0 1 18.25 6.25v13l-2.25-1.2-2 1.2-2-1.2-2 1.2-2.25-1.2V6.25a1.5 1.5 0 0 1 1.5-1.5Z" />
+                                            <path d="M9.75 8.5h4.5" />
+                                            <path d="M9.75 12h4.5" />
+                                            <path d="M9.75 15.5h2.5" />
+                                        </svg>
+                                        <span class="visually-hidden">คำสั่งซื้อของฉัน</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <span class="bakery-points-pill">P @currentPoints</span>
                                 </li>
                             }
                             @if (isSignedIn)
@@ -242,6 +255,7 @@
                             @if (isStorefrontUser)
                             {
                                 <a asp-controller="Home" asp-action="Cart">ตะกร้า</a>
+                                <a asp-controller="Home" asp-action="MyOrders">คำสั่งซื้อของฉัน</a>
                             }
                             <a asp-controller="Home" asp-action="About">เกี่ยวกับร้าน</a>
                             <a asp-controller="Home" asp-action="Contact">ติดต่อ</a>
@@ -295,6 +309,7 @@
                             @if (isStorefrontUser)
                             {
                                 <a asp-controller="Account" asp-action="Profile">โปรไฟล์ของฉัน</a>
+                                <a asp-controller="Home" asp-action="MyOrders">คำสั่งซื้อของฉัน</a>
                             }
                             else
                             {

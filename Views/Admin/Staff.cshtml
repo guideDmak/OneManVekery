@@ -1,19 +1,14 @@
-@model AdminCustomersViewModel
+@model AdminStaffViewModel
 
 @{
     Layout = "_AdminLayout";
-    ViewData["Title"] = "Customers";
+    ViewData["Title"] = "จัดการ Staff";
     ViewData["AdminDateRange"] = Model.DateRangeLabel;
-    ViewData["AdminSection"] = "Customers";
+    ViewData["AdminSection"] = "Staff";
 }
 
 <section class="admin-page-banner admin-page-banner-compact">
-    <div>
-        <p class="admin-page-kicker">Customers</p>
-        <h2>Customer directory</h2>
-        <span>แสดงข้อมูลลูกค้าจริงจากฐานข้อมูล พร้อมยอดซื้อและสถานะการใช้งาน</span>
-    </div>
-    <span class="admin-pill-tag">@Model.Customers.Count accounts</span>
+    <span class="admin-pill-tag">@Model.StaffMembers.Count staff accounts</span>
 </section>
 
 <section class="admin-metrics-grid">
@@ -39,14 +34,14 @@
     <article class="admin-card">
         <div class="admin-card-head">
             <div>
-                <h2>Customer List</h2>
-                <p>ไม่มีข้อมูลตัวอย่างแล้ว หน้านี้แสดงเฉพาะลูกค้าที่มีอยู่จริงในระบบ</p>
+                <h2>Staff List</h2>
+                <p>หน้านี้แสดงเฉพาะบัญชี Staff จริงจากฐานข้อมูล และเปิดให้ Admin ดูเท่านั้น</p>
             </div>
         </div>
 
-        @if (Model.Customers.Count == 0)
+        @if (Model.StaffMembers.Count == 0)
         {
-            <div class="admin-empty-state">ยังไม่มีบัญชีลูกค้าในระบบ</div>
+            <div class="admin-empty-state">ยังไม่มีบัญชี Staff ในระบบ</div>
         }
         else
         {
@@ -54,34 +49,34 @@
                 <table class="admin-table">
                     <thead>
                         <tr>
-                            <th>Customer ID</th>
+                            <th>Staff ID</th>
                             <th>Name</th>
                             <th>Contact</th>
-                            <th>Orders</th>
-                            <th>Total Spend</th>
-                            <th>Last Order</th>
+                            <th>Role</th>
                             <th>Last Active</th>
+                            <th>Created</th>
+                            <th>Note</th>
                             <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var customer in Model.Customers)
+                        @foreach (var staff in Model.StaffMembers)
                         {
                             <tr>
-                                <td>@customer.CustomerCode</td>
-                                <td>@customer.FullName</td>
+                                <td>@staff.StaffCode</td>
+                                <td>@staff.FullName</td>
                                 <td>
                                     <div class="admin-order-stack">
-                                        <strong>@customer.Email</strong>
-                                        <span>@customer.PhoneNumber</span>
+                                        <strong>@staff.Email</strong>
+                                        <span>@staff.PhoneNumber</span>
                                     </div>
                                 </td>
-                                <td>@customer.OrderCountLabel</td>
-                                <td>@customer.TotalSpendLabel</td>
-                                <td>@customer.LastOrderLabel</td>
-                                <td>@customer.LastActiveLabel</td>
+                                <td>@staff.RoleLabel</td>
+                                <td>@staff.LastActiveLabel</td>
+                                <td>@staff.CreatedLabel</td>
+                                <td>@staff.Notes</td>
                                 <td>
-                                    <span class="admin-status-badge @($"is-{customer.StatusKey}")">@customer.Status</span>
+                                    <span class="admin-status-badge @($"is-{staff.StatusKey}")">@staff.Status</span>
                                 </td>
                             </tr>
                         }

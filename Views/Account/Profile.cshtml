@@ -2,6 +2,7 @@
 
 @{
     ViewData["Title"] = "โปรไฟล์";
+    var newAddressPhoneNumber = Model.PhoneNumber == "-" ? string.Empty : Model.PhoneNumber;
 }
 
 <section class="page-banner">
@@ -19,12 +20,19 @@
     </div>
 </section>
 
-<section class="account-profile-section">
+<section class="account-profile-section" data-account-profile data-active-modal="@Model.ActiveModal">
     <div class="container bakery-container">
         <div class="account-profile-grid">
             <article class="account-profile-card">
-                <p class="section-overline">บัญชีผู้ใช้</p>
-                <h2>@Model.FullName</h2>
+                <div class="account-profile-card-head">
+                    <div>
+                        <p class="section-overline">บัญชีผู้ใช้</p>
+                        <h2>@Model.FullName</h2>
+                    </div>
+                    <button type="button" class="btn store-outline-btn account-edit-button" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                        แก้ไขข้อมูล
+                    </button>
+                </div>
 
                 <div class="account-profile-meta">
                     <div class="account-profile-row">
@@ -69,7 +77,10 @@
                     </div>
                 </div>
 
-                <a class="btn store-outline-btn" asp-controller="Home" asp-action="Shop">เลือกสินค้าต่อ</a>
+                <div class="account-profile-actions">
+                    <a class="btn store-outline-btn" asp-controller="Home" asp-action="MyOrders">คำสั่งซื้อของฉัน</a>
+                    <a class="btn store-outline-btn" asp-controller="Home" asp-action="Shop">เลือกสินค้าต่อ</a>
+                </div>
             </aside>
         </div>
 
@@ -78,6 +89,20 @@
                 <p class="section-overline">ที่อยู่ของฉัน</p>
                 <h2>ที่อยู่จัดส่ง</h2>
             </div>
+            <button
+                type="button"
+                class="btn store-outline-btn account-address-add-button"
+                data-bs-toggle="modal"
+                data-bs-target="#editAddressModal"
+                data-address-id="0"
+                data-address-label="บ้าน"
+                data-address-recipient="@Model.FullName"
+                data-address-phone="@newAddressPhoneNumber"
+                data-address-line=""
+                data-address-postal=""
+                data-address-default="@(Model.Addresses.Count == 0 ? "true" : "false")">
+                เพิ่มที่อยู่
+            </button>
         </div>
 
         <div class="account-address-grid">
@@ -95,10 +120,26 @@
                     <article class="account-address-card">
                         <div class="account-address-head">
                             <h3>@address.Label</h3>
-                            @if (address.IsDefault)
-                            {
-                                <span class="account-address-badge">ค่าเริ่มต้น</span>
-                            }
+                            <div class="account-address-actions">
+                                @if (address.IsDefault)
+                                {
+                                    <span class="account-address-badge">ค่าเริ่มต้น</span>
+                                }
+                                <button
+                                    type="button"
+                                    class="account-address-edit-button"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#editAddressModal"
+                                    data-address-id="@address.AddressId"
+                                    data-address-label="@address.Label"
+                                    data-address-recipient="@address.RecipientName"
+                                    data-address-phone="@address.PhoneNumber"
+                                    data-address-line="@address.AddressLine"
+                                    data-address-postal="@address.PostalCode"
+                                    data-address-default="@(address.IsDefault ? "true" : "false")">
+                                    แก้ไข
+                                </button>
+                            </div>
                         </div>
 
                         <strong>@address.RecipientName</strong>
@@ -114,3 +155,158 @@
         </div>
     </div>
 </section>
+
+<div class="modal fade site-confirm-modal account-profile-modal" id="editProfileModal" tabindex="-1" aria-labelledby="editProfileModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered site-confirm-dialog">
+        <div class="modal-content">
+            <div class="modal-body">
+                <div class="site-confirm-copy">
+                    <p class="site-confirm-kicker">Edit Profile</p>
+                    <h2 class="site-confirm-title" id="editProfileModalLabel">แก้ไขข้อมูลบัญชี</h2>
+                    <p class="site-confirm-message">ข้อมูลนี้จะใช้แสดงในโปรไฟล์และเติมข้อมูลตอนสั่งซื้อครั้งถัดไป</p>
+                </div>
+
+                <form asp-action="UpdateProfile" method="post" class="account-profile-edit-form">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+
+                    <div>
+                        <label asp-for="EditForm.FullName" class="form-label">ชื่อ - นามสกุล</label>
+                        <input asp-for="EditForm.FullName" class="form-control bakery-field" placeholder="ชื่อ - นามสกุล" />
+                        <span asp-validation-for="EditForm.FullName" class="text-danger small"></span>
+                    </div>
+
+                    <div>
+                        <label asp-for="EditForm.Email" class="form-label">อีเมล</label>
+                        <input asp-for="EditForm.Email" class="form-control bakery-field" placeholder="example@email.com" />
+                        <span asp-validation-for="EditForm.Email" class="text-danger small"></span>
+                    </div>
+
+                    <div>
+                        <label asp-for="EditForm.PhoneNumber" class="form-label">เบอร์โทร</label>
+                        <input asp-for="EditForm.PhoneNumber" class="form-control bakery-field" placeholder="089-000-1122" />
+                        <span asp-validation-for="EditForm.PhoneNumber" class="text-danger small"></span>
+                    </div>
+
+                    <div class="site-confirm-actions account-profile-modal-actions">
+                        <button type="button" class="btn store-outline-btn site-confirm-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                        <button type="submit" class="btn store-primary-btn site-confirm-primary">บันทึกข้อมูล</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade site-confirm-modal account-profile-modal" id="editAddressModal" tabindex="-1" aria-labelledby="editAddressModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered site-confirm-dialog">
+        <div class="modal-content">
+            <div class="modal-body">
+                <div class="site-confirm-copy">
+                    <p class="site-confirm-kicker">Delivery Address</p>
+                    <h2 class="site-confirm-title" id="editAddressModalLabel">จัดการที่อยู่จัดส่ง</h2>
+                    <p class="site-confirm-message">แก้ไขหรือเพิ่มที่อยู่ที่ใช้สำหรับจัดส่งสินค้าในคำสั่งซื้อครั้งถัดไป</p>
+                </div>
+
+                <form asp-action="SaveAddress" method="post" class="account-profile-edit-form">
+                    @Html.AntiForgeryToken()
+                    <input asp-for="AddressForm.AddressId" type="hidden" data-address-id-field />
+                    <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+
+                    <div>
+                        <label asp-for="AddressForm.Label" class="form-label">ชื่อที่อยู่</label>
+                        <input asp-for="AddressForm.Label" class="form-control bakery-field" placeholder="บ้าน / ที่ทำงาน" />
+                        <span asp-validation-for="AddressForm.Label" class="text-danger small"></span>
+                    </div>
+
+                    <div>
+                        <label asp-for="AddressForm.RecipientName" class="form-label">ชื่อผู้รับ</label>
+                        <input asp-for="AddressForm.RecipientName" class="form-control bakery-field" placeholder="ชื่อผู้รับสินค้า" />
+                        <span asp-validation-for="AddressForm.RecipientName" class="text-danger small"></span>
+                    </div>
+
+                    <div>
+                        <label asp-for="AddressForm.PhoneNumber" class="form-label">เบอร์โทรจัดส่ง</label>
+                        <input asp-for="AddressForm.PhoneNumber" class="form-control bakery-field" placeholder="089-000-1122" />
+                        <span asp-validation-for="AddressForm.PhoneNumber" class="text-danger small"></span>
+                    </div>
+
+                    <div>
+                        <label asp-for="AddressForm.AddressLine" class="form-label">ที่อยู่จัดส่ง</label>
+                        <textarea asp-for="AddressForm.AddressLine" class="form-control bakery-field bakery-field-area account-address-textarea" placeholder="บ้านเลขที่ ถนน แขวง/ตำบล เขต/อำเภอ จังหวัด"></textarea>
+                        <span asp-validation-for="AddressForm.AddressLine" class="text-danger small"></span>
+                    </div>
+
+                    <div>
+                        <label asp-for="AddressForm.PostalCode" class="form-label">รหัสไปรษณีย์</label>
+                        <input asp-for="AddressForm.PostalCode" class="form-control bakery-field" placeholder="10110" />
+                        <span asp-validation-for="AddressForm.PostalCode" class="text-danger small"></span>
+                    </div>
+
+                    <label class="account-address-default-toggle">
+                        <input asp-for="AddressForm.IsDefault" type="checkbox" data-address-default-field />
+                        <span>
+                            <strong>ตั้งเป็นที่อยู่หลัก</strong>
+                            <small>ใช้ที่อยู่นี้เป็นค่าเริ่มต้นเมื่อลูกค้าสั่งซื้อสินค้า</small>
+                        </span>
+                    </label>
+
+                    <div class="site-confirm-actions account-profile-modal-actions">
+                        <button type="button" class="btn store-outline-btn site-confirm-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                        <button type="submit" class="btn store-primary-btn site-confirm-primary">บันทึกที่อยู่</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const root = document.querySelector("[data-account-profile]");
+            const profileModal = document.getElementById("editProfileModal");
+            const addressModal = document.getElementById("editAddressModal");
+            const openModal = (modal) => {
+                if (modal && window.bootstrap) {
+                    window.bootstrap.Modal.getOrCreateInstance(modal).show();
+                }
+            };
+
+            if (root?.dataset.activeModal === "profile-edit") {
+                openModal(profileModal);
+            }
+
+            if (root?.dataset.activeModal === "address-edit") {
+                openModal(addressModal);
+            }
+
+            addressModal?.addEventListener("show.bs.modal", (event) => {
+                const trigger = event.relatedTarget;
+                if (!(trigger instanceof HTMLElement)) {
+                    return;
+                }
+
+                const setValue = (selector, value) => {
+                    const field = document.querySelector(selector);
+                    if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+                        field.value = value ?? "";
+                    }
+                };
+
+                setValue("[data-address-id-field]", trigger.dataset.addressId || "0");
+                setValue("#AddressForm_Label", trigger.dataset.addressLabel || "บ้าน");
+                setValue("#AddressForm_RecipientName", trigger.dataset.addressRecipient || "");
+                setValue("#AddressForm_PhoneNumber", trigger.dataset.addressPhone || "");
+                setValue("#AddressForm_AddressLine", trigger.dataset.addressLine || "");
+                setValue("#AddressForm_PostalCode", trigger.dataset.addressPostal || "");
+
+                const defaultField = document.querySelector("[data-address-default-field]");
+                if (defaultField instanceof HTMLInputElement) {
+                    defaultField.checked = trigger.dataset.addressDefault === "true";
+                }
+            });
+        })();
+    </script>
+}

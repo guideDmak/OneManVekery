@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace OneManVekery.ViewModel;
 
@@ -58,13 +59,13 @@ public class AdminOrdersViewModel
     public string ActiveModal { get; init; } = string.Empty;
 }
 
-public class AdminCustomersViewModel
+public class AdminStaffViewModel
 {
     public string DateRangeLabel { get; init; } = string.Empty;
 
     public IReadOnlyList<AdminMetricCardViewModel> Metrics { get; init; } = [];
 
-    public IReadOnlyList<AdminCustomerRecordViewModel> Customers { get; init; } = [];
+    public IReadOnlyList<AdminStaffRecordViewModel> StaffMembers { get; init; } = [];
 }
 
 public class AdminProductsViewModel
@@ -87,10 +88,26 @@ public class AdminCodesViewModel
     public IReadOnlyList<AdminInfoItemViewModel> SummaryItems { get; init; } = [];
 
     public IReadOnlyList<AdminPromotionRecordViewModel> Promotions { get; init; } = [];
+
+    public IReadOnlyList<AdminSelectOptionViewModel> PromotionOptions { get; init; } = [];
+
+    public IReadOnlyList<AdminSelectOptionViewModel> DiscountTypeOptions { get; init; } = [];
+
+    public IReadOnlyList<string> StatusOptions { get; init; } = [];
+
+    public AdminPromoCodeEditorViewModel CreateForm { get; init; } = new();
+
+    public string ActiveModal { get; init; } = string.Empty;
 }
 
 public class AdminPromotionRecordViewModel
 {
+    public int? PromoCodeId { get; init; }
+
+    public bool IsPromoCode { get; init; }
+
+    public long CreatedAtSort { get; init; }
+
     public string Code { get; init; } = string.Empty;
 
     public string Title { get; init; } = string.Empty;
@@ -108,6 +125,47 @@ public class AdminPromotionRecordViewModel
     public string ExpiryLabel { get; init; } = string.Empty;
 
     public string Note { get; init; } = string.Empty;
+}
+
+public class AdminPromoCodeEditorViewModel
+{
+    public int? PromotionId { get; set; }
+
+    [Required(ErrorMessage = "กรุณากรอกโค้ด")]
+    [StringLength(40, ErrorMessage = "โค้ดต้องไม่เกิน 40 ตัวอักษร")]
+    public string Code { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "กรุณากรอกชื่อโค้ด")]
+    [StringLength(120, ErrorMessage = "ชื่อโค้ดต้องไม่เกิน 120 ตัวอักษร")]
+    public string Title { get; set; } = string.Empty;
+
+    [StringLength(255, ErrorMessage = "รายละเอียดต้องไม่เกิน 255 ตัวอักษร")]
+    public string Description { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "กรุณาเลือกประเภทส่วนลด")]
+    public string DiscountType { get; set; } = "percent";
+
+    [Range(0, 100000, ErrorMessage = "มูลค่าส่วนลดต้องไม่ติดลบ")]
+    public decimal DiscountValue { get; set; } = 10;
+
+    [Range(0, 1000000, ErrorMessage = "ยอดขั้นต่ำต้องไม่ติดลบ")]
+    public decimal? MinOrderAmount { get; set; }
+
+    [Range(0, 1000000, ErrorMessage = "ส่วนลดสูงสุดต้องไม่ติดลบ")]
+    public decimal? MaxDiscountAmount { get; set; }
+
+    [Range(1, 100000, ErrorMessage = "จำนวนครั้งที่ใช้ได้ต้องมากกว่า 0")]
+    public int? UsageLimit { get; set; }
+
+    public DateTime? StartsAt { get; set; }
+
+    public DateTime? ExpiresAt { get; set; }
+
+    [Required(ErrorMessage = "กรุณาเลือกสถานะ")]
+    public string Status { get; set; } = "Active";
+
+    [StringLength(255, ErrorMessage = "หมายเหตุต้องไม่เกิน 255 ตัวอักษร")]
+    public string Note { get; set; } = string.Empty;
 }
 
 public class AdminProductShowcaseViewModel
@@ -183,11 +241,11 @@ public class AdminDashboardTopProductViewModel
     public string RevenueLabel { get; init; } = string.Empty;
 }
 
-public class AdminCustomerRecordViewModel
+public class AdminStaffRecordViewModel
 {
-    public int CustomerId { get; init; }
+    public int StaffId { get; init; }
 
-    public string CustomerCode { get; init; } = string.Empty;
+    public string StaffCode { get; init; } = string.Empty;
 
     public string FullName { get; init; } = string.Empty;
 
@@ -195,17 +253,17 @@ public class AdminCustomerRecordViewModel
 
     public string PhoneNumber { get; init; } = string.Empty;
 
+    public string RoleLabel { get; init; } = string.Empty;
+
     public string Status { get; init; } = string.Empty;
 
     public string StatusKey { get; init; } = string.Empty;
 
-    public string OrderCountLabel { get; init; } = string.Empty;
-
-    public string TotalSpendLabel { get; init; } = string.Empty;
-
-    public string LastOrderLabel { get; init; } = string.Empty;
-
     public string LastActiveLabel { get; init; } = string.Empty;
+
+    public string CreatedLabel { get; init; } = string.Empty;
+
+    public string Notes { get; init; } = string.Empty;
 }
 
 public class AdminAccountsViewModel
@@ -335,9 +393,10 @@ public class AdminItemEditorViewModel
     [StringLength(240, ErrorMessage = "หมายเหตุต้องไม่เกิน 240 ตัวอักษร")]
     public string Notes { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "กรุณากรอก path รูปสินค้า")]
     [StringLength(160, ErrorMessage = "path รูปสินค้าต้องไม่เกิน 160 ตัวอักษร")]
     public string ImagePath { get; set; } = "/images/theme-cake.svg";
+
+    public IFormFile? ImageFile { get; set; }
 
     public bool IsPublished { get; set; } = true;
 }
@@ -359,6 +418,8 @@ public class AdminAccountRecordViewModel
     public string Status { get; init; } = string.Empty;
 
     public string StatusKey { get; init; } = string.Empty;
+
+    public bool IsProtectedAdminAccount { get; init; }
 
     public string LastActive { get; init; } = string.Empty;
 
@@ -449,6 +510,20 @@ public class AdminOrderRecordViewModel
 
     public string TotalAmountLabel { get; init; } = string.Empty;
 
+    public string SubtotalLabel { get; init; } = string.Empty;
+
+    public string DeliveryFeeLabel { get; init; } = string.Empty;
+
+    public string DiscountAmountLabel { get; init; } = string.Empty;
+
+    public string ShippingDiscountAmountLabel { get; init; } = string.Empty;
+
+    public string DiscountCode { get; init; } = string.Empty;
+
+    public string PointsEarnedLabel { get; init; } = string.Empty;
+
+    public string PointsRedeemedLabel { get; init; } = string.Empty;
+
     public string PaymentMethodLabel { get; init; } = string.Empty;
 
     public string PaymentStatus { get; init; } = string.Empty;
@@ -464,6 +539,30 @@ public class AdminOrderRecordViewModel
     public string Address { get; init; } = string.Empty;
 
     public string Note { get; init; } = string.Empty;
+
+    public IReadOnlyList<AdminOrderItemRecordViewModel> Items { get; init; } = [];
+
+    public IReadOnlyList<AdminOrderBenefitRecordViewModel> Benefits { get; init; } = [];
+}
+
+public class AdminOrderItemRecordViewModel
+{
+    public string ProductName { get; init; } = string.Empty;
+
+    public int Quantity { get; init; }
+
+    public string UnitPriceLabel { get; init; } = string.Empty;
+
+    public string LineTotalLabel { get; init; } = string.Empty;
+}
+
+public class AdminOrderBenefitRecordViewModel
+{
+    public string Title { get; init; } = string.Empty;
+
+    public string Description { get; init; } = string.Empty;
+
+    public string ValueLabel { get; init; } = string.Empty;
 }
 
 public class AdminOrderEditorViewModel
@@ -492,6 +591,7 @@ public class AdminOrderEditorViewModel
 
     public string Address { get; set; } = string.Empty;
 
+    [StringLength(200, ErrorMessage = "หมายเหตุต้องไม่เกิน 200 ตัวอักษร")]
     public string Note { get; set; } = string.Empty;
 }
 

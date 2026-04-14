@@ -7,6 +7,8 @@ public class HomeIndexViewModel
     public IReadOnlyList<CategoryCardViewModel> Categories { get; init; } = [];
 
     public IReadOnlyList<ProductCardViewModel> Products { get; init; } = [];
+
+    public IReadOnlyList<ProductCardViewModel> NewArrivals { get; init; } = [];
 }
 
 public class ShopPageViewModel
@@ -51,6 +53,12 @@ public class CartPageViewModel
     public int PointsEarned { get; init; }
 
     public int PointsRedeemed { get; init; }
+
+    public decimal PointsDiscountAmount { get; init; }
+
+    public int MaxPointDiscountRedeem { get; init; }
+
+    public string PointDiscountRateLabel { get; init; } = string.Empty;
 
     public int ProjectedPointsBalance { get; init; }
 
@@ -126,6 +134,46 @@ public class OrderStatusPageViewModel
     public decimal Total => Math.Max(0, Subtotal + DeliveryFee - TotalSavings);
 
     public bool HasAppliedPromotion => !string.IsNullOrWhiteSpace(AppliedPromoCode) && TotalSavings > 0;
+}
+
+public class MyOrdersPageViewModel
+{
+    public IReadOnlyList<MyOrderCardViewModel> Orders { get; init; } = [];
+
+    public int OrderCount { get; init; }
+
+    public string TotalSpendLabel { get; init; } = string.Empty;
+
+    public string LastOrderLabel { get; init; } = string.Empty;
+
+    public bool HasOrders => Orders.Count > 0;
+}
+
+public class MyOrderCardViewModel
+{
+    public string OrderNumber { get; init; } = string.Empty;
+
+    public DateTimeOffset CreatedAt { get; init; }
+
+    public string ProductSummary { get; init; } = string.Empty;
+
+    public string ItemCountLabel { get; init; } = string.Empty;
+
+    public string TotalAmountLabel { get; init; } = string.Empty;
+
+    public string PaymentMethodLabel { get; init; } = string.Empty;
+
+    public string StatusLabel { get; init; } = string.Empty;
+
+    public string StatusDescription { get; init; } = string.Empty;
+
+    public string StatusKey { get; init; } = string.Empty;
+
+    public string PromoLabel { get; init; } = string.Empty;
+
+    public int PointsEarned { get; init; }
+
+    public int PointsRedeemed { get; init; }
 }
 
 public class AboutPageViewModel
@@ -289,10 +337,14 @@ public class ContactFormViewModel
 public class CartCheckoutViewModel
 {
     [Display(Name = "โค้ดส่วนลด")]
-    public string PromoCode { get; set; } = string.Empty;
+    public string? PromoCode { get; set; }
 
     [Display(Name = "ใช้พอยต์แลกขนมฟรี")]
     public bool UsePointsReward { get; set; }
+
+    [Display(Name = "ใช้พอยต์ลดราคา")]
+    [Range(0, int.MaxValue, ErrorMessage = "จำนวนพอยต์ต้องไม่ติดลบ")]
+    public int PointsToRedeem { get; set; }
 
     [Required(ErrorMessage = "กรุณากรอกชื่อผู้รับ")]
     public string CustomerName { get; set; } = string.Empty;
@@ -307,5 +359,5 @@ public class CartCheckoutViewModel
     [Required(ErrorMessage = "กรุณาเลือกวิธีชำระเงิน")]
     public string PaymentMethod { get; set; } = "promptpay";
 
-    public string Notes { get; set; } = string.Empty;
+    public string? Notes { get; set; }
 }

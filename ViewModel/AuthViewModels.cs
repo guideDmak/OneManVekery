@@ -84,10 +84,35 @@ public class AccountProfileViewModel
     public int LifetimeRedeemedPoints { get; init; }
 
     public IReadOnlyList<AccountAddressCardViewModel> Addresses { get; init; } = [];
+
+    public AccountProfileEditViewModel EditForm { get; init; } = new();
+
+    public AccountAddressEditViewModel AddressForm { get; init; } = new();
+
+    public string ActiveModal { get; init; } = string.Empty;
+}
+
+public class AccountProfileEditViewModel
+{
+    [Required(ErrorMessage = "กรุณากรอกชื่อ")]
+    [StringLength(120, ErrorMessage = "ชื่อต้องไม่เกิน 120 ตัวอักษร")]
+    public string FullName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "กรุณากรอกอีเมล")]
+    [EmailAddress(ErrorMessage = "รูปแบบอีเมลไม่ถูกต้อง")]
+    [StringLength(120, ErrorMessage = "อีเมลต้องไม่เกิน 120 ตัวอักษร")]
+    public string Email { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "กรุณากรอกเบอร์โทร")]
+    [Phone(ErrorMessage = "รูปแบบเบอร์โทรไม่ถูกต้อง")]
+    [StringLength(20, ErrorMessage = "เบอร์โทรต้องไม่เกิน 20 ตัวอักษร")]
+    public string PhoneNumber { get; set; } = string.Empty;
 }
 
 public class AccountAddressCardViewModel
 {
+    public int AddressId { get; init; }
+
     public string Label { get; init; } = string.Empty;
 
     public string RecipientName { get; init; } = string.Empty;
@@ -99,4 +124,29 @@ public class AccountAddressCardViewModel
     public string PostalCode { get; init; } = string.Empty;
 
     public bool IsDefault { get; init; }
+}
+
+public class AccountAddressEditViewModel
+{
+    public int AddressId { get; set; }
+
+    [StringLength(40, ErrorMessage = "ชื่อที่อยู่ต้องไม่เกิน 40 ตัวอักษร")]
+    public string Label { get; set; } = "บ้าน";
+
+    [Required(ErrorMessage = "กรุณากรอกชื่อผู้รับ")]
+    [StringLength(100, ErrorMessage = "ชื่อผู้รับต้องไม่เกิน 100 ตัวอักษร")]
+    public string RecipientName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "กรุณากรอกเบอร์โทรจัดส่ง")]
+    [Phone(ErrorMessage = "รูปแบบเบอร์โทรไม่ถูกต้อง")]
+    [StringLength(20, ErrorMessage = "เบอร์โทรต้องไม่เกิน 20 ตัวอักษร")]
+    public string PhoneNumber { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "กรุณากรอกที่อยู่จัดส่ง")]
+    public string AddressLine { get; set; } = string.Empty;
+
+    [StringLength(12, ErrorMessage = "รหัสไปรษณีย์ต้องไม่เกิน 12 ตัวอักษร")]
+    public string PostalCode { get; set; } = string.Empty;
+
+    public bool IsDefault { get; set; }
 }
