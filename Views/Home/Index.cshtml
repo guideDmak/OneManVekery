@@ -92,7 +92,7 @@
         <div class="section-heading section-heading-center">
             <p class="section-overline">หมวดขนมแนะนำ</p>
             <h2>เลือกดูตามสไตล์ที่ชอบ</h2>
-            <p>เลือกหมวดที่อยากดูได้ทันทีจากด้านล่าง</p>
+            <p>ดูหมวดทั้งหมดของร้าน พร้อมเมนูขายดีในแต่ละหมวด</p>
         </div>
 
         <div class="range-grid">
@@ -100,10 +100,19 @@
             {
                 <article class="range-card theme-@category.ThemeKey">
                     <div class="range-visual">
-                        <img src="@Url.Content(category.ImagePath)" alt="@category.Title" class="range-image" />
+                        <img src="@Url.Content(category.ImagePath)" alt="@category.FeaturedProductName" class="range-image" />
+                        <span class="range-badge">@category.FeaturedProductBadge</span>
                     </div>
-                    <h3>@category.Title</h3>
-                    <p>@category.Subtitle</p>
+                    <div class="range-card-copy">
+                        <span class="range-category-label">@category.Subtitle</span>
+                        <h3>@category.Title</h3>
+                        <p>@category.FeaturedProductDescription</p>
+                    </div>
+                    <div class="range-best-seller">
+                        <span>ขายดีในหมวดนี้</span>
+                        <strong>@category.FeaturedProductName</strong>
+                        <small>@category.FeaturedProductPriceLabel · @category.FeaturedProductSalesLabel</small>
+                    </div>
                 </article>
             }
         </div>
@@ -113,7 +122,8 @@
 <section class="catalog-section">
     <div class="container bakery-container">
         <div class="section-heading section-heading-center">
-            <h2>สินค้าแนะนำ</h2>
+            <h2>สินค้าขายดี</h2>
+            <p>รวม 8 เมนูที่ลูกค้าสั่งบ่อยที่สุดของร้าน</p>
         </div>
 
         <div class="catalog-grid">

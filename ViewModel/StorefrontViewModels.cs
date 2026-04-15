@@ -203,6 +203,18 @@ public class CategoryCardViewModel
     public string ThemeKey { get; init; } = string.Empty;
 
     public string ImagePath { get; init; } = string.Empty;
+
+    public int ItemCount { get; init; }
+
+    public string FeaturedProductName { get; init; } = string.Empty;
+
+    public string FeaturedProductDescription { get; init; } = string.Empty;
+
+    public string FeaturedProductPriceLabel { get; init; } = string.Empty;
+
+    public string FeaturedProductSalesLabel { get; init; } = string.Empty;
+
+    public string FeaturedProductBadge { get; init; } = string.Empty;
 }
 
 public class ProductCardViewModel

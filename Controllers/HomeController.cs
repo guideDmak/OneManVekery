@@ -32,11 +32,13 @@ public class HomeController : Controller
     public IActionResult Index()
     {
         var products = GetProducts();
+        var salesLookup = BuildProductSalesLookup();
+        var bestSellingProducts = BuildBestSellingProducts(products, salesLookup, 8);
 
         return View(new HomeIndexViewModel
         {
-            Categories = BuildCategoryCards(products),
-            Products = products,
+            Categories = BuildCategoryCards(products, salesLookup),
+            Products = bestSellingProducts,
             NewArrivals = GetNewArrivalProducts()
         });
     }
@@ -602,6 +604,29 @@ public class HomeController : Controller
             .ToList()
             .Select(MapProduct)
             .ToList();
+    }
+
+    private IReadOnlyDictionary<string, ProductSalesSummary> BuildProductSalesLookup()
+    {
+        return _dbContext.OrderItems
+            .AsNoTracking()
+            .Where(item => item.ProductId.HasValue)
+            .Select(item => new
+            {
+                ProductId = item.ProductId!.Value,
+                item.Qty,
+                item.LineTotal,
+                item.Order.OrderStatus
+            })
+            .ToList()
+            .Where(item => NormalizeOrderStatusKey(item.OrderStatus) is not ("refunded" or "cancelled"))
+            .GroupBy(item => item.ProductId)
+            .ToDictionary(
+                group => group.Key.ToString(CultureInfo.InvariantCulture),
+                group => new ProductSalesSummary(
+                    group.Sum(item => item.Qty),
+                    group.Sum(item => item.LineTotal)),
+                StringComparer.OrdinalIgnoreCase);
     }
 
     private ProductCardViewModel? GetProductById(string productId)
@@ -2246,7 +2271,9 @@ public class HomeController : Controller
         };
     }
 
-    private static IReadOnlyList<CategoryCardViewModel> BuildCategoryCards(IReadOnlyList<ProductCardViewModel> products)
+    private static IReadOnlyList<CategoryCardViewModel> BuildCategoryCards(
+        IReadOnlyList<ProductCardViewModel> products,
+        IReadOnlyDictionary<string, ProductSalesSummary> salesLookup)
     {
         return products
             .Where(product => !string.IsNullOrWhiteSpace(product.Category))
@@ -2255,18 +2282,74 @@ public class HomeController : Controller
             .ThenBy(group => group.Key)
             .Select(group =>
             {
-                var preview = group.FirstOrDefault(product => !string.IsNullOrWhiteSpace(product.ImagePath)) ?? group.First();
+                var rankedProducts = group
+                    .Select(product =>
+                    {
+                        var sales = salesLookup.TryGetValue(product.ProductId, out var summary)
+                            ? summary
+                            : new ProductSalesSummary(0, 0);
+
+                        return new
+                        {
+                            Product = product,
+                            Sales = sales
+                        };
+                    })
+                    .OrderByDescending(item => item.Sales.UnitsSold)
+                    .ThenByDescending(item => item.Sales.Revenue)
+                    .ThenBy(item => item.Product.IsSoldOut)
+                    .ThenBy(item => item.Product.Name)
+                    .ToList();
+                var featured = rankedProducts.First();
+                var itemCount = group.Count();
 
                 return new CategoryCardViewModel
                 {
                     Title = group.First().Category,
-                    Subtitle = $"{group.Count()} รายการที่พร้อมแสดงบนหน้าร้าน",
-                    ThemeKey = preview.ThemeKey,
-                    ImagePath = preview.ImagePath
+                    Subtitle = $"{itemCount} เมนูในหมวดนี้",
+                    ThemeKey = featured.Product.ThemeKey,
+                    ImagePath = featured.Product.ImagePath,
+                    ItemCount = itemCount,
+                    FeaturedProductName = featured.Product.Name,
+                    FeaturedProductDescription = featured.Product.Description,
+                    FeaturedProductPriceLabel = $"{featured.Product.Price:0.##} ฿",
+                    FeaturedProductSalesLabel = featured.Sales.UnitsSold > 0
+                        ? $"ขายแล้ว {featured.Sales.UnitsSold:N0} ชิ้น"
+                        : "เมนูเด่นของหมวดนี้",
+                    FeaturedProductBadge = featured.Sales.UnitsSold > 0 ? "ขายดี" : "แนะนำ"
                 };
             })
             .ToList();
     }
+
+    private static IReadOnlyList<ProductCardViewModel> BuildBestSellingProducts(
+        IReadOnlyList<ProductCardViewModel> products,
+        IReadOnlyDictionary<string, ProductSalesSummary> salesLookup,
+        int take)
+    {
+        return products
+            .Select(product =>
+            {
+                var sales = salesLookup.TryGetValue(product.ProductId, out var summary)
+                    ? summary
+                    : new ProductSalesSummary(0, 0);
+
+                return new
+                {
+                    Product = product,
+                    Sales = sales
+                };
+            })
+            .OrderByDescending(item => item.Sales.UnitsSold)
+            .ThenByDescending(item => item.Sales.Revenue)
+            .ThenBy(item => item.Product.IsSoldOut)
+            .ThenBy(item => item.Product.Name)
+            .Take(take)
+            .Select(item => item.Product)
+            .ToList();
+    }
+
+    private sealed record ProductSalesSummary(int UnitsSold, decimal Revenue);
 
     private sealed record PricingSummary(
         decimal Subtotal,

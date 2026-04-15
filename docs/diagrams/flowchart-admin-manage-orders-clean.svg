@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1250" viewBox="0 0 1500 1250" role="img" aria-labelledby="title desc">
+  <title id="title">Admin Manage Orders Flowchart</title>
+  <desc id="desc">Clean flowchart for admin order management in One Man Vekery.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#f2f2f2"/>
+    </marker>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M 24 0 H 0 V 24" fill="none" stroke="#2d2d2d" stroke-width="1"/>
+    </pattern>
+    <style>
+      .bg { fill: #101010; }
+      .grid { fill: url(#grid); opacity: .85; }
+      .title { font-family: Arial, Helvetica, sans-serif; font-size: 42px; font-weight: 700; fill: #f5f5f5; }
+      .shape { fill: #151515; stroke: #f2f2f2; stroke-width: 2.4; }
+      .flow { stroke: #f2f2f2; stroke-width: 2.4; fill: none; marker-end: url(#arrow); }
+      .text { font-family: Arial, Helvetica, sans-serif; font-size: 22px; fill: #f5f5f5; }
+      .small { font-family: Arial, Helvetica, sans-serif; font-size: 17px; fill: #f5f5f5; stroke: #101010; stroke-width: 5; paint-order: stroke fill; }
+      .center { text-anchor: middle; dominant-baseline: middle; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1500" height="1250"/>
+  <rect class="grid" width="1500" height="1250"/>
+  <text class="title center" x="750" y="70">Admin Manage Orders</text>
+
+  <rect class="shape" x="650" y="120" width="200" height="64" rx="32"/>
+  <text class="text center" x="750" y="152">เริ่ม</text>
+
+  <rect class="shape" x="570" y="235" width="360" height="82"/>
+  <text class="text center" x="750" y="276">เข้าสู่ระบบหลังบ้าน</text>
+
+  <path class="shape" d="M 750 375 L 930 470 L 750 565 L 570 470 Z"/>
+  <text class="text center" x="750" y="458">สิทธิ์ถูกต้อง</text>
+  <text class="text center" x="750" y="488">หรือไม่</text>
+
+  <rect class="shape" x="1010" y="425" width="300" height="90"/>
+  <text class="text center" x="1160" y="470">ปฏิเสธการเข้าใช้งาน</text>
+
+  <rect class="shape" x="570" y="625" width="360" height="82"/>
+  <text class="text center" x="750" y="666">เปิดหน้า Orders</text>
+
+  <path class="shape" d="M 750 760 L 935 855 L 750 950 L 565 855 Z"/>
+  <text class="text center" x="750" y="842">ต้องการทำอะไร</text>
+  <text class="text center" x="750" y="872">กับออเดอร์</text>
+
+  <rect class="shape" x="125" y="1015" width="300" height="92"/>
+  <text class="text center" x="275" y="1048">เพิ่มออเดอร์</text>
+  <text class="small center" x="275" y="1080">เลือกลูกค้าและสินค้า</text>
+
+  <rect class="shape" x="600" y="1015" width="300" height="92"/>
+  <text class="text center" x="750" y="1048">แก้สถานะออเดอร์</text>
+  <text class="small center" x="750" y="1080">Order / Payment Status</text>
+
+  <rect class="shape" x="1075" y="1015" width="300" height="92"/>
+  <text class="text center" x="1225" y="1048">ตรวจสอบออเดอร์</text>
+  <text class="small center" x="1225" y="1080">หลักฐาน / หมายเหตุ</text>
+
+  <rect class="shape" x="650" y="1160" width="200" height="64" rx="32"/>
+  <text class="text center" x="750" y="1192">จบ</text>
+
+  <path class="flow" d="M 750 184 V 235"/>
+  <path class="flow" d="M 750 317 V 375"/>
+  <path class="flow" d="M 930 470 H 1010"/>
+  <text class="small center" x="970" y="448">ไม่ใช่</text>
+  <path class="flow" d="M 1160 515 V 1192 H 850"/>
+  <path class="flow" d="M 750 565 V 625"/>
+  <text class="small center" x="775" y="596">ใช่</text>
+  <path class="flow" d="M 750 707 V 760"/>
+  <path class="flow" d="M 610 915 H 275 V 1015"/>
+  <text class="small center" x="410" y="892">เพิ่ม</text>
+  <path class="flow" d="M 750 950 V 1015"/>
+  <text class="small center" x="780" y="985">แก้ไข</text>
+  <path class="flow" d="M 890 915 H 1225 V 1015"/>
+  <text class="small center" x="1095" y="892">ตรวจสอบ</text>
+  <path class="flow" d="M 275 1107 V 1192 H 650"/>
+  <path class="flow" d="M 750 1107 V 1160"/>
+  <path class="flow" d="M 1225 1107 V 1192 H 850"/>
+</svg>

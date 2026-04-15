@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1250" viewBox="0 0 1500 1250" role="img" aria-labelledby="title desc">
+  <title id="title">Admin Owner Account Roles Flowchart</title>
+  <desc id="desc">Clean flowchart for admin and owner account role management in One Man Vekery.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#f2f2f2"/>
+    </marker>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M 24 0 H 0 V 24" fill="none" stroke="#2d2d2d" stroke-width="1"/>
+    </pattern>
+    <style>
+      .bg { fill: #101010; }
+      .grid { fill: url(#grid); opacity: .85; }
+      .title { font-family: Arial, Helvetica, sans-serif; font-size: 42px; font-weight: 700; fill: #f5f5f5; }
+      .shape { fill: #151515; stroke: #f2f2f2; stroke-width: 2.4; }
+      .flow { stroke: #f2f2f2; stroke-width: 2.4; fill: none; marker-end: url(#arrow); }
+      .text { font-family: Arial, Helvetica, sans-serif; font-size: 22px; fill: #f5f5f5; }
+      .small { font-family: Arial, Helvetica, sans-serif; font-size: 17px; fill: #f5f5f5; stroke: #101010; stroke-width: 5; paint-order: stroke fill; }
+      .center { text-anchor: middle; dominant-baseline: middle; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1500" height="1250"/>
+  <rect class="grid" width="1500" height="1250"/>
+  <text class="title center" x="750" y="70">Admin / Owner Manage Accounts &amp; Roles</text>
+
+  <rect class="shape" x="650" y="120" width="200" height="64" rx="32"/>
+  <text class="text center" x="750" y="152">เริ่ม</text>
+
+  <rect class="shape" x="570" y="235" width="360" height="82"/>
+  <text class="text center" x="750" y="276">เข้าสู่หน้า Accounts</text>
+
+  <path class="shape" d="M 750 375 L 945 470 L 750 565 L 555 470 Z"/>
+  <text class="text center" x="750" y="458">เป็น Admin / Owner</text>
+  <text class="text center" x="750" y="488">หรือไม่</text>
+
+  <rect class="shape" x="1015" y="425" width="310" height="90"/>
+  <text class="text center" x="1170" y="458">จำกัดสิทธิ์</text>
+  <text class="small center" x="1170" y="488">แก้ Role ไม่ได้</text>
+
+  <path class="shape" d="M 750 625 L 945 720 L 750 815 L 555 720 Z"/>
+  <text class="text center" x="750" y="708">เลือกทำอะไร</text>
+  <text class="small center" x="750" y="738">Add / Edit / Close</text>
+
+  <rect class="shape" x="120" y="895" width="310" height="92"/>
+  <text class="text center" x="275" y="928">เพิ่มบัญชี</text>
+  <text class="small center" x="275" y="960">User หรือ Staff</text>
+
+  <rect class="shape" x="595" y="895" width="310" height="92"/>
+  <text class="text center" x="750" y="928">แก้ไขบัญชี</text>
+  <text class="small center" x="750" y="960">ข้อมูล / Role / Status</text>
+
+  <rect class="shape" x="1070" y="895" width="310" height="92"/>
+  <text class="text center" x="1225" y="928">ปิดบัญชี</text>
+  <text class="small center" x="1225" y="960">Suspended / Closed</text>
+
+  <path class="shape" d="M 750 1030 L 920 1110 L 750 1190 L 580 1110 Z"/>
+  <text class="text center" x="750" y="1098">บัญชี Admin หลัก</text>
+  <text class="text center" x="750" y="1128">หรือไม่</text>
+
+  <rect class="shape" x="1110" y="1070" width="270" height="80"/>
+  <text class="text center" x="1245" y="1098">ปฏิเสธ / แจ้งเตือน</text>
+  <text class="small center" x="1245" y="1128">Protected Account</text>
+
+  <rect class="shape" x="150" y="1080" width="270" height="80"/>
+  <text class="text center" x="285" y="1108">บันทึกข้อมูลบัญชี</text>
+  <text class="small center" x="285" y="1138">Users / Roles</text>
+
+  <rect class="shape" x="650" y="1220" width="200" height="64" rx="32"/>
+  <text class="text center" x="750" y="1252">จบ</text>
+
+  <path class="flow" d="M 750 184 V 235"/>
+  <path class="flow" d="M 750 317 V 375"/>
+  <path class="flow" d="M 945 470 H 1015"/>
+  <text class="small center" x="980" y="448">ไม่ใช่</text>
+  <path class="flow" d="M 1170 515 V 1252 H 850"/>
+  <path class="flow" d="M 750 565 V 625"/>
+  <text class="small center" x="775" y="596">ใช่</text>
+  <path class="flow" d="M 610 775 H 275 V 895"/>
+  <text class="small center" x="410" y="752">เพิ่ม</text>
+  <path class="flow" d="M 750 815 V 895"/>
+  <text class="small center" x="780" y="858">แก้ไข</text>
+  <path class="flow" d="M 890 775 H 1225 V 895"/>
+  <text class="small center" x="1095" y="752">ปิด</text>
+  <path class="flow" d="M 275 987 V 1120 H 150"/>
+  <path class="flow" d="M 750 987 V 1030"/>
+  <path class="flow" d="M 1225 987 V 1110 H 920"/>
+  <path class="flow" d="M 580 1110 H 420"/>
+  <text class="small center" x="500" y="1092">ไม่ใช่</text>
+  <path class="flow" d="M 920 1110 H 1110"/>
+  <text class="small center" x="1015" y="1092">ใช่</text>
+  <path class="flow" d="M 285 1160 V 1252 H 650"/>
+  <path class="flow" d="M 1245 1150 V 1252 H 850"/>
+</svg>
