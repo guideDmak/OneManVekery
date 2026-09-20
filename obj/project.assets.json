@@ -4712,24 +4712,25 @@
     ]
   },
   "packageFolders": {
-    "/Users/madba/.nuget/packages/": {}
+    "/Users/guidegiegg/.nuget/packages/": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/Users/madba/Desktop/OneManProject/OneManVekery/OneManVekery.csproj",
+      "projectUniqueName": "/Users/guidegiegg/งาน/โปรเจคเล็กๆ/OneManVekery/OneManVekery.csproj",
       "projectName": "OneManVekery",
-      "projectPath": "/Users/madba/Desktop/OneManProject/OneManVekery/OneManVekery.csproj",
-      "packagesPath": "/Users/madba/.nuget/packages/",
-      "outputPath": "/Users/madba/Desktop/OneManProject/OneManVekery/obj/",
+      "projectPath": "/Users/guidegiegg/งาน/โปรเจคเล็กๆ/OneManVekery/OneManVekery.csproj",
+      "packagesPath": "/Users/guidegiegg/.nuget/packages/",
+      "outputPath": "/Users/guidegiegg/งาน/โปรเจคเล็กๆ/OneManVekery/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "/Users/madba/.nuget/NuGet/NuGet.Config"
+        "/Users/guidegiegg/.nuget/NuGet/NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net9.0"
       ],
       "sources": {
+        "/opt/homebrew/Cellar/dotnet@9/9.0.121/libexec/library-packs": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
@@ -4748,7 +4749,7 @@
         "auditLevel": "low",
         "auditMode": "direct"
       },
-      "SdkAnalysisLevel": "10.0.200"
+      "SdkAnalysisLevel": "9.0.100"
     },
     "frameworks": {
       "net9.0": {
@@ -4794,7 +4795,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/10.0.201/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "/opt/homebrew/Cellar/dotnet@9/9.0.121/libexec/sdk/9.0.121/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

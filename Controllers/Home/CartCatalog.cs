@@ -14,51 +14,86 @@ public partial class HomeController
 {
     private IReadOnlyList<ProductCardViewModel> GetProducts()
     {
-        return _dbContext.Products
-            .AsNoTracking()
-            .Include(product => product.Category)
-            .Where(product => product.IsActive)
-            .OrderBy(product => product.Name)
-            .ToList()
-            .Select(MapProduct)
-            .ToList();
+        try
+        {
+            return _dbContext.Products
+                .AsNoTracking()
+                .Include(product => product.Category)
+                .Where(product => product.IsActive)
+                .OrderBy(product => product.Name)
+                .ToList()
+                .Select(MapProduct)
+                .ToList();
+        }
+        catch (Microsoft.Data.SqlClient.SqlException)
+        {
+            // Temporary preview fallback so the storefront can be reviewed without SQL Server.
+            return GetPreviewProducts();
+        }
     }
 
     private IReadOnlyList<ProductCardViewModel> GetNewArrivalProducts()
     {
-        return _dbContext.Products
-            .AsNoTracking()
-            .Include(product => product.Category)
-            .Where(product => product.IsActive)
-            .OrderByDescending(product => product.CreatedAt)
-            .ThenByDescending(product => product.Id)
-            .Take(3)
-            .ToList()
-            .Select(MapProduct)
-            .ToList();
+        try
+        {
+            return _dbContext.Products
+                .AsNoTracking()
+                .Include(product => product.Category)
+                .Where(product => product.IsActive)
+                .OrderByDescending(product => product.CreatedAt)
+                .ThenByDescending(product => product.Id)
+                .Take(3)
+                .ToList()
+                .Select(MapProduct)
+                .ToList();
+        }
+        catch (Microsoft.Data.SqlClient.SqlException)
+        {
+            return GetPreviewProducts().Take(3).ToList();
+        }
     }
 
     private IReadOnlyDictionary<string, ProductSalesSummary> BuildProductSalesLookup()
     {
-        return _dbContext.OrderItems
-            .AsNoTracking()
-            .Where(item => item.ProductId.HasValue)
-            .Select(item => new
-            {
-                ProductId = item.ProductId!.Value,
-                item.Qty,
-                item.LineTotal,
-                item.Order.OrderStatus
-            })
-            .ToList()
-            .Where(item => NormalizeOrderStatusKey(item.OrderStatus) is not ("refunded" or "cancelled"))
-            .GroupBy(item => item.ProductId)
-            .ToDictionary(
-                group => group.Key.ToString(CultureInfo.InvariantCulture),
-                group => new ProductSalesSummary(
-                    group.Sum(item => item.Qty),
-                    group.Sum(item => item.LineTotal)),
-                StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            return _dbContext.OrderItems
+                .AsNoTracking()
+                .Where(item => item.ProductId.HasValue)
+                .Select(item => new
+                {
+                    ProductId = item.ProductId!.Value,
+                    item.Qty,
+                    item.LineTotal,
+                    item.Order.OrderStatus
+                })
+                .ToList()
+                .Where(item => NormalizeOrderStatusKey(item.OrderStatus) is not ("refunded" or "cancelled"))
+                .GroupBy(item => item.ProductId)
+                .ToDictionary(
+                    group => group.Key.ToString(CultureInfo.InvariantCulture),
+                    group => new ProductSalesSummary(
+                        group.Sum(item => item.Qty),
+                        group.Sum(item => item.LineTotal)),
+                    StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Microsoft.Data.SqlClient.SqlException)
+        {
+            return new Dictionary<string, ProductSalesSummary>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private static IReadOnlyList<ProductCardViewModel> GetPreviewProducts()
+    {
+        return
+        [
+            new() { ProductId = "preview-1", Name = "Strawberry Shortcake", Category = "Cake", Description = "เค้กสตรอว์เบอร์รี่นุ่มละมุน หวานกำลังดี", Price = 189, Badge = "ขายดี", ThemeKey = "cake", ImagePath = "/images/theme-cake.svg" },
+            new() { ProductId = "preview-2", Name = "Pink Macaron Box", Category = "Macaron", Description = "มาการองสีชมพู 6 ชิ้น พร้อมกล่องของขวัญ", Price = 159, Badge = "แนะนำ", ThemeKey = "macaron", ImagePath = "/images/theme-macaron.svg" },
+            new() { ProductId = "preview-3", Name = "Berry Cream Tart", Category = "Tart", Description = "ทาร์ตครีมสดและเบอร์รี่เปรี้ยวหวาน", Price = 220, Badge = "ใหม่", ThemeKey = "berry", ImagePath = "/images/theme-berry.svg" },
+            new() { ProductId = "preview-4", Name = "Milk Cream Choux", Category = "Choux", Description = "ชูครีมไส้นมสด หอมเบาและละลายในปาก", Price = 95, Badge = "", ThemeKey = "cream", ImagePath = "/images/theme-cream.svg" },
+            new() { ProductId = "preview-5", Name = "Golden Butter Cookie", Category = "Cookie", Description = "คุกกี้เนยสดอบใหม่ หอมกรอบทุกคำ", Price = 120, Badge = "", ThemeKey = "gold", ImagePath = "/images/theme-gold.svg" },
+            new() { ProductId = "preview-6", Name = "Blueberry Milk Cake", Category = "Cake", Description = "เค้กนมสดเนื้อนุ่ม ท็อปด้วยบลูเบอร์รี่", Price = 199, Badge = "", ThemeKey = "milk", ImagePath = "/images/theme-milk.svg" }
+        ];
     }
 
     private ProductCardViewModel? GetProductById(string productId)
